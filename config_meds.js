@@ -6,7 +6,7 @@ const MED_GROUPS = {
         "Enalapril", "Entresto (Sacubitril/Valsartan)", "Eplerenon", 
         "Lercanidipin", "Lisinopril", "Metoprolol", "Moxonidin", "Nebivolol", 
         "Nifedipin", "Olmesartan", "Propanolol", "Ramipril", "Spironolacton", 
-        "Telmisartan", "Timolol", "Urapidil", "Valsartan"
+        "Telmisartan", "Timolol", "Irbesartan", "Urapidil", "Valsartan"
     ],
     "Gerinnung (OAK, DAPT, Heparine)": [
         "Apixaban (Eliquis)", "Argatroban", "ASS", "Certoparin (Mono-Embolex)", 
@@ -22,7 +22,7 @@ const MED_GROUPS = {
     "Rhythmus & Ischämie": [
         "Adenosin", "Amiodaron", "Digitoxin", "Digoxin", "Diltiazem", 
         "Dronedaron", "Flecainid", "Glyceroltrinitrat (Nitro)", "ISMN", 
-        "Ivabradin", "Propafenon", "Ranolazin", "Verapamil"
+        "Ivabradin", "Propafenon", "Ranolazin", "Pentalong (Pentaerithrityltetranitrat)", "Verapamil"
     ],
     "Lipidsenker & Stoffwechsel": [
         "Alirocumab", "Allopurinol", "Atorvastatin", "Bempedoinsäure", 
@@ -46,16 +46,18 @@ const MED_GROUPS = {
         "Rifampicin", "Tigecyclin", "Tobramycin", "Vancomycin"
     ],
     "Gastroenterologie & Hepatologie": [
+        "Fresubin (Trinknahrung)",
         "Bisacodyl", "Budesonid (Gastro)", "Esomeprazol", "Gastrografin", 
         "Kreon (Pankreatin)", "Lactulose", "Laxoberal", "Macrogol (Movicol)", 
         "MCP", "Mesalazin", "Natrium Picosulfat", "Ondansetron", "Omeprazol", 
         "Pantoprazol", "Rifaximin", "Riopan", "Ursodeoxycholsäure", "Vomex (Dimenhydrinat)"
     ],
     "Pulmologie": [
+        "Dupilumab (Dupixent)",
         "Beclometason/Formoterol (Foster)", "Budesonid/Formoterol", 
         "Fluticason", "Ipratropium/Fenoterol (Berodual)", "Macitentan", 
         "Prednisolon", "Riociguat", "Salbutamol", "Selexipag", 
-        "Sildenafil", "Tadalafil", "Tiotropium", "Trimbow"
+        "Sildenafil", "Tadalafil", "Tiotropium", "Trimbow", "Ambroxol", "Elebrato Ellipta"
     ],
     "Neurologie & Psychiatrie": [
         "Aripiprazol", "Citalopram", "Clonazepam", "Clozapin", "Dariorexant", 
@@ -63,11 +65,11 @@ const MED_GROUPS = {
         "Lacosamid", "Lamotrigin", "Levetiracetam", "Levodopa/Benserazid", 
         "Lorazepam (Tavor)", "Melatonin", "Melperon", "Memantin", "Mirtazapin", 
         "Opipramol", "Pipamperon", "Pramipexol", "Pregabalin (Lyrica)", 
-        "Quetiapin", "Risperidon", "Sedonium", "Sertralin", "Valproat", "Zopiclon"
+        "Promethazin", "Quetiapin", "Risperidon", "Sedonium", "Sertralin", "Valproat", "Zopiclon"
     ],
     "Nephrologie & Urologie": [
         "Bicanorm", "Calciumacetat", "Darboepoetin", "Finasterid", "Lokelma", 
-        "Polystyrolsulfonat (Resonium)", "Renagel", "Sevelamer", "Tamsulosin"
+        "Polystyrolsulfonat (Resonium)", "Renagel", "Sevelamer", "Tamsulosin", "Finerenon"
     ],
     "Endokrinologie, Onko & Vitamine": [
         "Cernevit", "Colecalciferol (Vit D)", "Dexamethason", "Folsäure", 
