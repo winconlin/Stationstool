@@ -1,0 +1,91 @@
+/* style.css - Clinical Pro Max */
+
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+*:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; border-radius: 2px; z-index: 10; }
+
+.state-btn { cursor: pointer; user-select: none; transition: all 0.1s; display: flex; align-items: center; justify-content: center; position: relative; width: 100%; border: 1px solid transparent; }
+.diag-0 { background-color: #f1f5f9; color: #cbd5e1; border-color: #e2e8f0; }
+.diag-1 { background-color: #fef9c3; color: #854d0e; border-color: #eab308; font-weight: bold; }
+.diag-2 { background-color: #bbf7d0; color: #14532d; border-color: #16a34a; font-weight: bold; }
+.has-result::after { content: ""; position: absolute; top: 0; right: 0; border-width: 0 6px 6px 0; border-color: transparent #ef4444 transparent transparent; }
+
+.resus-btn { font-size: 0.65rem; border: 1px solid #cbd5e1; padding: 2px 4px; border-radius: 4px; color: #94a3b8; cursor: pointer; transition: all 0.2s; background: white; }
+.resus-active { background-color: #dc2626; color: white; border-color: #b91c1c; font-weight: bold; }
+
+.cvrf-btn { opacity: 0.3; filter: grayscale(100%); transition: all 0.2s; border: 1px solid transparent; border-radius: 4px; background: transparent; cursor: pointer; }
+.cvrf-btn:hover { background-color: #e2e8f0; opacity: 0.6; }
+.cvrf-active { opacity: 1; filter: grayscale(0%); transform: scale(1.1); background-color: #fff; border-color: #cbd5e1; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+
+.task-btn { cursor: pointer; border: 1px solid #e2e8f0; background: white; color: #94a3b8; width: 100%; transition: all 0.1s; }
+.task-btn:hover { background-color: #f8fafc; }
+.task-true { background-color: #3b82f6 !important; color: white !important; border-color: #2563eb; font-weight: bold; }
+
+.consult-btn { font-size: 0.65rem; border: 1px solid #cbd5e1; padding: 1px 4px; border-radius: 4px; cursor: pointer; color: #64748b; background: white; transition: all 0.1s; }
+.consult-1 { background-color: #fef9c3; color: #854d0e; border-color: #eab308; font-weight: bold; }
+.consult-2 { background-color: #bbf7d0; color: #14532d; border-color: #16a34a; font-weight: bold; }
+
+.modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4); backdrop-filter: blur(2px); overflow-y: auto; }
+.modal-content { background-color: #fff; margin: 5vh auto; padding: 20px; border-radius: 8px; width: 95%; max-width: 900px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
+.auto-expand { overflow-y: hidden; height: auto; min-height: 1.5rem; display: block; resize: none; }
+
+.text-truncated { max-height: 4.5em; overflow: hidden; position: relative; }
+.text-truncated::after { content: ""; position: absolute; bottom: 0; right: 0; width: 100%; height: 1.5em; background: linear-gradient(to bottom, transparent, rgba(254, 242, 242, 0.9)); pointer-events: none; }
+.text-expanded { max-height: none; overflow: visible; }
+
+/* NEU: Animationen & Warnungen */
+@keyframes pulse-fast { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; color: #dc2626; } }
+.vhf-blink { animation: pulse-fast 2s infinite; font-weight: 900; color: #dc2626; }
+.egfr-warn { background-color: #ffedd5 !important; border-color: #f97316 !important; color: #c2410c !important; font-weight: bold; }
+.badge-nüchtern { background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
+.badge-kost { background-color: #dcfce7; color: #166534; border: 1px solid #4ade80; }
+
+#print-table-container { display: none; }
+
+/* --- DRUCK LAYOUT --- */
+@media print {
+    @page { size: A4 landscape; margin: 0.6cm; }
+    body { background: white; -webkit-print-color-adjust: exact; font-family: 'Arial', sans-serif; font-size: 9pt; }
+    
+    .no-print, .modal, #patient-list, .navbar { display: none !important; }
+    #print-table-container { display: block !important; width: 100%; }
+    
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    th, td { border: 1px solid #000; padding: 4px; vertical-align: top; word-wrap: break-word; }
+    
+    .col-room { width: 5%; text-align: center; font-weight: bold; font-size: 14pt; vertical-align: middle; }
+    .col-name { width: 18%; }
+    .col-diag { width: 42%; }
+    .col-todo { width: 35%; }
+
+    .print-name { font-weight: bold; font-size: 11pt; display: inline-block; margin-bottom: 2px; }
+    .print-dob { font-size: 10pt; display: block; margin-bottom: 2px; }
+    .print-age { font-size: 9pt; color: #444; }
+    
+    .print-cvrf-box { margin-top: 4px; border-top: 1px dotted #ccc; padding-top: 2px; font-size: 7.5pt; color: #555; line-height: 1.1; }
+    .print-diag-curr { font-weight: normal; display: block; margin-bottom: 4px; }
+    .print-meds { font-style: italic; font-size: 8pt; margin-top: 4px; border-top: 1px dotted #999; padding-top: 2px; }
+    .print-alert { color: black; font-weight: bold; border: 2px solid black; padding: 1px 4px; display: inline-block; margin-top: 2px; font-size: 8pt; }
+    .print-diag-item { display: inline-block; margin-right: 6px; font-size: 8pt; }
+    .print-diag-done { font-weight: bold; text-decoration: none; }
+    .print-diag-ordered { text-decoration: underline; }
+    
+    .task-false::before { content: "☐ "; }
+    .task-true::before { content: "☒ "; font-weight: bold; color: black !important; }
+    .task-true { color: black !important; background: transparent !important; }
+
+    /* PROFILE: Visite */
+    body.print-mode-visite .print-history, body.print-mode-visite .print-meds, body.print-mode-visite .print-cvrf-box { display: none !important; }
+    body.print-mode-visite .col-diag { width: 35%; }
+    body.print-mode-visite .col-todo { width: 42%; }
+
+    /* PROFILE: Pocket */
+    body.print-mode-pocket .print-history, body.print-mode-pocket .print-meds, body.print-mode-pocket .print-cvrf-box, body.print-mode-pocket .print-dob, body.print-mode-pocket .print-diag-item.print-diag-ordered { display: none !important; }
+    body.print-mode-pocket th, body.print-mode-pocket td { padding: 2px 3px !important; font-size: 7.5pt !important; line-height: 1.1 !important; }
+    body.print-mode-pocket .print-name { font-size: 9pt !important; margin-bottom: 0 !important; }
+    body.print-mode-pocket .print-main-diag { font-size: 8.5pt !important; margin-bottom: 1px !important; }
+    body.print-mode-pocket .col-room { font-size: 11pt !important; }
+    
+    body.print-mode-pocket .print-diag-rest, body.print-mode-pocket .col-todo-content {
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+}

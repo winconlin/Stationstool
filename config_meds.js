@@ -1,0 +1,79 @@
+// --- config_meds.js (Profi Edition) ---
+const MED_GROUPS = {
+    "Herzinsuffizienz & Antihypertensiva": [
+        "Amlodipin", "Bisoprolol", "Candesartan", "Carvedilol", "Clonidin", 
+        "Dapagliflozin (Forxiga)", "Doxazosin", "Empagliflozin (Jardiance)", 
+        "Enalapril", "Entresto (Sacubitril/Valsartan)", "Eplerenon", 
+        "Lercanidipin", "Lisinopril", "Metoprolol", "Moxonidin", "Nebivolol", 
+        "Nifedipin", "Olmesartan", "Propanolol", "Ramipril", "Spironolacton", 
+        "Telmisartan", "Timolol", "Urapidil", "Valsartan"
+    ],
+    "Gerinnung (OAK, DAPT, Heparine)": [
+        "Apixaban (Eliquis)", "Argatroban", "ASS", "Certoparin (Mono-Embolex)", 
+        "Clopidogrel", "Dabigatran (Pradaxa)", "Dalteparin (Fragmin)", 
+        "Edoxaban (Lixiana)", "Enoxaparin (Clexane)", "Fondaparinux (Arixtra)", 
+        "Heparin (Perfusor)", "Marcumar (Phenprocoumon)", "Prasugrel", 
+        "Rivaroxaban (Xarelto)", "Ticagrelor", "Tinzaparin (Innohep)"
+    ],
+    "Diuretika & Volumen": [
+        "Acetazolamid", "Chlortalidon", "Furosemid (Lasix)", "HCT", 
+        "Torasemid", "Xipamid", "Tolvaptan"
+    ],
+    "Rhythmus & Ischämie": [
+        "Adenosin", "Amiodaron", "Digitoxin", "Digoxin", "Diltiazem", 
+        "Dronedaron", "Flecainid", "Glyceroltrinitrat (Nitro)", "ISMN", 
+        "Ivabradin", "Propafenon", "Ranolazin", "Verapamil"
+    ],
+    "Lipidsenker & Stoffwechsel": [
+        "Alirocumab", "Allopurinol", "Atorvastatin", "Bempedoinsäure", 
+        "Colchicin", "Evolocumab", "Ezetimib", "Febuxostat", "Fenofibrat", 
+        "Pravastatin", "Rosuvastatin", "Simvastatin"
+    ],
+    "Analgetika & Muskelrelaxantien": [
+        "Baclofen", "Buprenorphin", "Celecoxib", "Codein", "Diclofenac", "Etoricoxib", 
+        "Fentanyl", "Hydromorphon", "Ibuprofen", "Metamizol (Novalgin)", 
+        "Morphin", "Naproxen", "Oxycodon", "Paracetamol", "Piritramid (Dipidolor)", 
+        "Tapentadol", "Targin", "Tilidin", "Tizanidin", "Tramadol"
+    ],
+    "Antiinfektiva": [
+        "Aciclovir", "Amoxicillin", "Amoxicillin/Clavulansäure", 
+        "Ampicillin/Sulbactam (Unacid)", "Azithromycin", "Caspofungin", 
+        "Cefazolin", "Cefepim", "Cefotaxim", "Ceftazidim", "Ceftriaxon", 
+        "Cefuroxim", "Ciprofloxacin", "Clarithromycin", "Clindamycin", 
+        "Cotrimoxazol", "Daptomycin", "Doxycyclin", "Ertapenem", "Fluconazol", 
+        "Fosfomycin", "Gentamicin", "Levofloxacin", "Linezolid", "Meropenem", 
+        "Metronidazol", "Micafungin", "Moxifloxacin", "Piperacillin/Tazobactam (Tazobac)", 
+        "Rifampicin", "Tigecyclin", "Tobramycin", "Vancomycin"
+    ],
+    "Gastroenterologie & Hepatologie": [
+        "Bisacodyl", "Budesonid (Gastro)", "Esomeprazol", "Gastrografin", 
+        "Kreon (Pankreatin)", "Lactulose", "Laxoberal", "Macrogol (Movicol)", 
+        "MCP", "Mesalazin", "Natrium Picosulfat", "Ondansetron", "Omeprazol", 
+        "Pantoprazol", "Rifaximin", "Riopan", "Ursodeoxycholsäure", "Vomex (Dimenhydrinat)"
+    ],
+    "Pulmologie": [
+        "Beclometason/Formoterol (Foster)", "Budesonid/Formoterol", 
+        "Fluticason", "Ipratropium/Fenoterol (Berodual)", "Macitentan", 
+        "Prednisolon", "Riociguat", "Salbutamol", "Selexipag", 
+        "Sildenafil", "Tadalafil", "Tiotropium", "Trimbow"
+    ],
+    "Neurologie & Psychiatrie": [
+        "Aripiprazol", "Citalopram", "Clonazepam", "Clozapin", "Dariorexant", 
+        "Doxepin", "Duloxetin", "Escitalopram", "Gabapentin", "Haloperidol", 
+        "Lacosamid", "Lamotrigin", "Levetiracetam", "Levodopa/Benserazid", 
+        "Lorazepam (Tavor)", "Melatonin", "Melperon", "Memantin", "Mirtazapin", 
+        "Opipramol", "Pipamperon", "Pramipexol", "Pregabalin (Lyrica)", 
+        "Quetiapin", "Risperidon", "Sedonium", "Sertralin", "Valproat", "Zopiclon"
+    ],
+    "Nephrologie & Urologie": [
+        "Bicanorm", "Calciumacetat", "Darboepoetin", "Finasterid", "Lokelma", 
+        "Polystyrolsulfonat (Resonium)", "Renagel", "Sevelamer", "Tamsulosin"
+    ],
+    "Endokrinologie, Onko & Vitamine": [
+        "Cernevit", "Colecalciferol (Vit D)", "Dexamethason", "Folsäure", 
+        "Glimepirid", "Hydrocortison", "Insulin (Actrapid)", "Insulin (Basal)", 
+        "Jodid", "Kalium", "L-Thyroxin", "Magnesium", "Methotrexat", 
+        "Osimertinib", "Pegfilgrastim", "Propylthiouracil", "Sterofundin", 
+        "Thiamazol", "Thiamin (Vit B1)"
+    ]
+};
