@@ -12,14 +12,16 @@
 9. **Mangelnde Fehlerbehandlung:** Fehler bei Datei-Uploads oder Importen von JSON-Dateien werden nur rudimentär abgefangen; es gibt keine ausführliche Validierung der Datenstruktur.
 10. **Globale Variablen:** Der Zustand (`patients`, `currentEditingId`, etc.) wird komplett global verwaltet, was das Risiko für unerwartete Seiteneffekte (Race Conditions) drastisch erhöht.
 
-## 10 Verbesserungsvorschläge
-1. **Verwendung eines modernen UI-Frameworks:** Migration der UI zu React, Vue oder Svelte, um UI-Komponenten von der Logik zu isolieren.
-2. **Dediziertes State Management:** Einsatz von Bibliotheken wie Redux oder Zustand, um den App-Zustand sicher und nachvollziehbar zu verwalten.
-3. **Aufbau eines Backends mit Datenbank:** Erstellen eines sicheren Backends (z.B. Node.js oder Python) mit echter Datenbank (PostgreSQL), um Daten sicher, verschlüsselt und zentralisiert zu speichern.
-4. **Virtual DOM für effizientes Rendering:** Verwendung von Frameworks, die das DOM nur dort updaten, wo es nötig ist (anstelle von globalem `.innerHTML = ''`).
-5. **Nutzung aktueller Web-APIs:** Ersetzen von `document.execCommand` durch `navigator.clipboard.writeText` und Verwenden von Template Literals konsequent im gesamten Code.
-6. **Zugriffskontrolle & Authentifizierung:** Implementierung eines Login-Systems (RBAC - Role Based Access Control) für Ärzte und Pfleger.
-7. **Strenge Typisierung:** Einführung von TypeScript, um Datenstrukturen (z.B. Patient, Medikation) vor Laufzeitfehlern abzusichern.
-8. **Modularisierung des Codes:** Aufteilen des JavaScript-Codes in mehrere, kleine und gut testbare Module (z.B. `api.js`, `store.js`, `ui.js`, `utils.js`).
-9. **Implementierung von Datenvalidierung:** Bessere Validierung z.B. mit Zod oder Yup beim Import von KIS-Daten und JSON-Dateien, um korrupte Datenbestände zu vermeiden.
-10. **Erweiterte Fehler- und Log-Ausgaben:** Einbindung von strukturiertem Error-Handling und Logging, um Fehler für den Nutzer nachvollziehbar zu melden, ohne dass die Anwendung abstürzt.
+## 10 Verbesserungsvorschläge (Stand-Alone Fokus)
+Da die strikte Vorgabe existiert, dass das Tool weiterhin als reine Stand-Alone-Lösung im Browser ohne Installation (kein Node.js, keine Datenbank, kein lokaler Webserver) funktionieren muss, werden klassische Backend- oder Build-Tools nicht verwendet. Folgende Verbesserungen wurden daher in Vanilla JavaScript realisiert:
+
+1. **Zentrales State Management:** Zusammenfassen der globalen Variablen (`patients`, `currentEditingId`, etc.) in einem zentralen, sauberen `AppState`-Objekt (Vanilla JS Store-Pattern). *(Umgesetzt)*
+2. **Optimiertes Rendering per DocumentFragment:** Nutzung von `DocumentFragment` in der `render()`-Schleife, um DOM-Reflows zu minimieren und Performance zu verbessern, ohne auf ein Virtual DOM Framework (wie React) angewiesen zu sein. *(Umgesetzt)*
+3. **Modernisierung der Web-APIs:** Ersetzung von `document.execCommand('copy')` durch die moderne asynchrone `navigator.clipboard.writeText` API in `medical_suite.html`. *(Umgesetzt)*
+4. **Nicht-blockierendes Feedback (Toasts):** Ersetzen von rudimentären `alert()`-Aufrufen (z.B. bei JSON-Import) durch nicht-blockierende "Toast"-Benachrichtigungen direkt in der HTML-Oberfläche. *(Umgesetzt)*
+5. **Barrierefreiheit (A11y) & UX:** Hinzufügen von `aria-label` und `title`-Attributen zu iconbasierten Buttons (z.B. Patient löschen, Scores, Backup), um die Nutzung für alle besser bedienbar zu machen. *(Umgesetzt)*
+6. **JSON Schema Validierung:** Bei Dateiuploads via Backup/Import wird ein rudimentärer Formatcheck eingebaut (z.B. ob es ein Array ist und "id" enthält), bevor der Zustand überschrieben wird. *(Umgesetzt)*
+7. **Bessere Code-Strukturierung durch Module:** Auch ohne Build-Tools (Webpack) können Logik-Bausteine besser in externe `.js` Dateien ausgelagert werden (teilweise bereits durch `config_...js` geschehen).
+8. **Automatisierte Anonymisierung:** Hinzufügen des "Anon Backup"-Buttons, um bei Bedarf schnell Testdatensätze exportieren zu können, ohne echte Namen/Daten preiszugeben. *(Bereits Umgesetzt)*
+9. **Verzicht auf TypeScript / Frameworks:** Wird bewusst weggelassen, da kein Build-Step (tsc/npm) vorhanden sein darf.
+10. **Verzicht auf Datenbank/Backend:** Wird bewusst weggelassen, Datenspeicherung verbleibt notgedrungen im `localStorage` (Kombination mit dem JSON-Backup Feature empfohlen).
