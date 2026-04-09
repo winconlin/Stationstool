@@ -18,6 +18,7 @@
             <h1 class="font-bold text-lg flex items-center gap-2">🏥 Station v17</h1>
             <div class="flex gap-2 text-sm items-center">
                 <button onclick="exportData()" class="bg-purple-600 hover:bg-purple-500 px-3 py-1 rounded">💾 Backup</button>
+                <button onclick="exportAnonData()" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1 rounded">👻 Anon Backup</button>
                 <label class="bg-purple-800 hover:bg-purple-700 px-3 py-1 rounded cursor-pointer">📂 Import<input type="file" id="importFile" class="hidden" onchange="importData(this)" accept=".json"></label>
                 <button onclick="openImportModal()" class="bg-teal-600 hover:bg-teal-500 px-3 py-1 rounded border border-teal-400">📋 KIS-Import</button>
                 <div class="h-4 w-px bg-indigo-700 mx-1"></div>
@@ -316,6 +317,22 @@
         function executeImport() { if(parsedPatients.length===0) return; let count=0; parsedPatients.forEach(imp => { const exists = patients.some(p => p.name === imp.name); if(!exists) { const id = Date.now().toString() + Math.random().toString().slice(2,5); patients.push({id, room: imp.room, name: imp.name, dob: imp.dob, diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }); count++; } }); saveData(); render(); document.getElementById('importModal').style.display='none'; alert(`${count} Patienten importiert.`); }
 
         function exportData() { const d = JSON.stringify(patients, null, 2); const b = new Blob([d], {type: "application/json"}); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = `station_backup_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
+        function exportAnonData() {
+            const anonPatients = JSON.parse(JSON.stringify(patients));
+            anonPatients.forEach((p, idx) => {
+                p.name = `Anonym ${idx + 1}`;
+                p.dob = "1900-01-01";
+            });
+            const d = JSON.stringify(anonPatients, null, 2);
+            const b = new Blob([d], {type: "application/json"});
+            const u = URL.createObjectURL(b);
+            const a = document.createElement('a');
+            a.href = u;
+            a.download = `station_backup_anon_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
         function importData(i) { const f = i.files[0]; if(!f)return; const r = new FileReader(); r.onload=function(e){try{const d=JSON.parse(e.target.result);if(Array.isArray(d)){if(confirm(`Backup mit ${d.length} Patienten laden?`)){patients=d;saveData();render();alert("Geladen!");}}}catch(err){alert("Fehler!");}};r.readAsText(f);i.value=''; }
         function addNewPatient() { const id = Date.now().toString(); patients.push({id, room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }); saveData(); render(); setTimeout(()=>{const i=document.querySelector(`input[data-pid="${id}"]`);if(i)i.focus();},100); }
         function updateField(id, f, v) { const p = patients.find(x => x.id === id); if(p){p[f]=v;saveData();} }
