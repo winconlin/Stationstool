@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Medical Suite - Kardiologie</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="config_base.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -434,7 +435,7 @@ Procedere
             
             // Alter checken
             if(globalPat.dob) {
-                const age = new Date().getFullYear() - new Date(globalPat.dob).getFullYear();
+                const age = getAgeNum(globalPat.dob);
                 if(age >= 75) document.getElementById('c_a2').checked = true;
                 else if(age >= 65) document.getElementById('c_a1').checked = true;
             }
