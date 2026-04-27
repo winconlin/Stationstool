@@ -6,6 +6,10 @@ const path = require('path');
 const scriptPath = path.join(__dirname, '..', 'config_scores.js');
 const scriptContent = fs.readFileSync(scriptPath, 'utf8');
 eval(scriptContent);
+const baseScriptPath = path.join(__dirname, '..', 'config_base.js');
+const baseScriptContent = fs.readFileSync(baseScriptPath, 'utf8');
+eval(baseScriptContent);
+
 
 test('getAgeNum', async (t) => {
     const OriginalDate = Date;
