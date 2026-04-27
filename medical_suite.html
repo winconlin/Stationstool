@@ -242,7 +242,7 @@
         // --- 4. ANAMNESE BUILDER LOGIC ---
         function renderAnamneseBuilder() {
             const c = document.getElementById('anamnese-builder');
-            c.innerHTML = "";
+            let finalHtml = "";
             for (const [category, items] of Object.entries(ANAMNESE_BLOCKS)) {
                 let html = `<div class="exam-cat-title">${category}</div><div class="grid grid-cols-1 gap-1">`;
                 items.forEach(item => {
@@ -251,8 +251,9 @@
                     html += `<button onclick="addAnamneseText('${safeS}')" class="anam-btn">${item.t}</button>`;
                 });
                 html += `</div>`;
-                c.innerHTML += html;
+                finalHtml += html;
             }
+            c.innerHTML = finalHtml;
             // Auto-Fill Start
             addAnamneseText(`${globalPat.nom} stellt sich vor.`, true);
         }
@@ -273,15 +274,16 @@
         // --- 5. EXAM BUILDER LOGIC ---
         function renderExamBuilder() {
             const c = document.getElementById('exam-builder');
-            c.innerHTML = "";
+            let finalHtml = "";
             for (const [cat, opts] of Object.entries(EXAM_CONFIG)) {
                 let html = `<div class="exam-cat-title">${cat}</div><div class="flex flex-wrap gap-1">`;
                 opts.forEach(opt => {
                      html += `<button onclick="addExamText('${cat}', '${opt}')" class="anam-btn bg-slate-50">${opt}</button>`;
                 });
                 html += `</div>`;
-                c.innerHTML += html;
+                finalHtml += html;
             }
+            c.innerHTML = finalHtml;
         }
         function addExamText(cat, text) {
             const area = document.getElementById('status-out');
