@@ -195,20 +195,13 @@ const CVRF_CONFIG = [
 /* --- ZUSATZ: SCORE LOGIK & DEFINITIONEN --- */
 
 // Hilfsfunktionen für die Score-Logik
-function getAgeNum(dob) {
-    if(!dob) return 0;
-    const today = new Date();
-    const birthDate = new Date(dob);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-    return age;
-}
 
 function hasKw(p, keywords) {
     // Sucht Keywords in Diagnose, Vordiagnose und aktueller Medikation
-    const text = (p.diagnosis + " " + p.history + " " + p.meds_current).toLowerCase();
-    return keywords.some(k => text.includes(k));
+    if (p._kwText === undefined) {
+        p._kwText = ((p.diagnosis || "") + " " + (p.history || "") + " " + (p.meds_current || "")).toLowerCase();
+    }
+    return keywords.some(k => p._kwText.includes(k));
 }
 
 // Die Liste der Scores mit Filter-Regeln
