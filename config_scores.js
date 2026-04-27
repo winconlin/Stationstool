@@ -10,7 +10,7 @@ function getAgeNum(dob) {
 
 function hasKw(p, keywords) {
     const text = (p.diagnosis + " " + p.history + " " + p.meds_current).toLowerCase();
-    return keywords.some(k => text.includes(k));
+    return keywords.some(k => text.includes(k.toLowerCase()));
 }
 
 const SCORE_DEFINITIONS = [
