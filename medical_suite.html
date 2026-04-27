@@ -387,6 +387,7 @@ Procedere
             }
 
             // Felder rendern
+            const fragment = document.createDocumentFragment();
             MODULES[id].fields.forEach(f => {
                 const div = document.createElement('div');
                 div.className = "mb-2";
@@ -419,8 +420,9 @@ Procedere
                         div.innerHTML += `<input type="${f.type}" id="f_${f.id}" value="${f.value||''}" class="w-full border p-1.5 rounded text-sm" oninput="updateEpikriseText()">`;
                     }
                 }
-                container.appendChild(div);
+                fragment.appendChild(div);
             });
+            container.appendChild(fragment);
             updateEpikriseText();
         }
 
