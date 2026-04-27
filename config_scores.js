@@ -9,8 +9,10 @@ function getAgeNum(dob) {
 }
 
 function hasKw(p, keywords) {
-    const text = (p.diagnosis + " " + p.history + " " + p.meds_current).toLowerCase();
-    return keywords.some(k => text.includes(k));
+    if (p._kwText === undefined) {
+        p._kwText = ((p.diagnosis || "") + " " + (p.history || "") + " " + (p.meds_current || "")).toLowerCase();
+    }
+    return keywords.some(k => p._kwText.includes(k));
 }
 
 const SCORE_DEFINITIONS = [
