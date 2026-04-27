@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stations-Assistent v17 (Ultimate Clinical)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="config_base.js"></script> 
-    <script src="config_meds.js"></script> 
-    <script src="config_exam.js"></script> 
-    <script src="config_scores.js"></script> 
+    <script src="config_base.js"></script>
+    <script src="config_meds.js"></script>
+    <script src="config_exam.js"></script>
+    <script src="config_scores.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen pb-24" id="main-body">
@@ -89,7 +89,7 @@
             setupExamBuilder();
             document.addEventListener('keydown', function(e) { if (e.ctrlKey && e.altKey && e.key === 'n') addNewPatient(); });
         };
-        
+
         function changePrintMode() {
             const mode = document.getElementById('printProfile').value;
             const body = document.getElementById('main-body');
@@ -101,7 +101,7 @@
         function resizeTx(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; }
         function loadData() { const stored = localStorage.getItem('station_v17_data'); if (stored) AppState.patients = JSON.parse(stored); }
         function saveData() { localStorage.setItem('station_v17_data', JSON.stringify(AppState.patients)); }
-        
+
         function getDaysSince(dateString) {
             if(!dateString) return 0;
             const d = new Date(dateString); const now = new Date();
@@ -109,9 +109,8 @@
         }
 
         // --- MODEL UPDATES (Deep properties) ---
-        function updateDeepField(id, obj, field, val) { const p = AppState.patients.find(x => x.id === id); if(!p[obj]) p[obj] = {}; p[obj][field] = val; saveData(); }
-        function updateDeepFieldRender(id, obj, field, val) { updateDeepField(id, obj, field, val); render(); }
-        
+        function updateDeepField(id, obj, field, val, doRender = false) { const p = AppState.patients.find(x => x.id === id); if(!p[obj]) p[obj] = {}; p[obj][field] = val; saveData(); if(doRender) render(); }
+
         // Arrays/Complex
         function addIso(id, val) { if(!val) return; const p = AppState.patients.find(x => x.id === id); if(!p.iso) p.iso = []; if(!p.iso.includes(val)) p.iso.push(val); saveData(); render(); }
         function removeIso(id, val) { const p = AppState.patients.find(x => x.id === id); p.iso = p.iso.filter(x => x !== val); saveData(); render(); }
@@ -128,7 +127,7 @@
             const container = document.getElementById('patient-list');
             const printBody = document.getElementById('print-table-body');
             const empty = document.getElementById('empty-state');
-            container.innerHTML = ''; printBody.innerHTML = ''; 
+            container.innerHTML = ''; printBody.innerHTML = '';
 
             if(AppState.patients.length===0) { empty.classList.remove('hidden'); return; } else empty.classList.add('hidden');
             AppState.patients.sort((a,b) => a.room.localeCompare(b.room, undefined, {numeric: true}));
@@ -157,16 +156,16 @@
 
                 const age = getAge(p.dob);
                 const dnrClass = p.dnr ? 'resus-active' : ''; const dniClass = p.dni ? 'resus-active' : '';
-                
+
                 let card = document.createElement('div');
                 card.className = "bg-white rounded border border-slate-300 p-2 patient-card flex flex-col gap-1 shadow-sm hover:shadow-md transition relative";
-                
+
                 // HEADER (Zi, Name, Rhythmus, Nüchtern)
-                let rhythmSel = `<select onchange="updateFieldRender('${p.id}', 'rhythm', this.value)" class="text-[10px] font-bold outline-none bg-transparent cursor-pointer ${p.rhythm === 'VHF' || p.rhythm === 'AF' ? 'vhf-blink' : 'text-slate-500'}"><option value="SR" ${p.rhythm==='SR'?'selected':''}>[ SR ]</option><option value="VHF" ${p.rhythm==='VHF'?'selected':''}>[ VHF ]</option><option value="AF" ${p.rhythm==='AF'?'selected':''}>[ A-Flatt ]</option><option value="PM/ICD" ${p.rhythm==='PM/ICD'?'selected':''}>[ PM/ICD ]</option></select>`;
-                let fastBtn = `<button onclick="updateFieldRender('${p.id}', 'fasting', ${!p.fasting})" class="text-[8px] px-1 py-0.5 rounded font-bold transition-colors ${p.fasting ? 'badge-nüchtern' : 'badge-kost'}">${p.fasting ? '⛔ Nüchtern' : '🍔 Kostaufbau'}</button>`;
-                
-                let header = `<div class="flex justify-between items-start pb-1 border-b border-slate-100"><div class="flex items-center gap-2 w-full"><input type="text" data-pid="${p.id}" value="${p.room}" onblur="updateFieldRender('${p.id}', 'room', this.value)" class="font-bold text-xl w-12 text-center text-blue-900 bg-blue-50 rounded p-room" placeholder="#"><div class="w-full"><div class="flex items-center gap-1"><input type="text" value="${p.name}" onblur="updateFieldRender('${p.id}', 'name', this.value)" class="font-bold text-sm text-slate-900 p-name flex-grow" placeholder="Name">${rhythmSel}</div><div class="flex items-center gap-1 no-print"><input type="date" value="${p.dob}" onblur="updateFieldRender('${p.id}', 'dob', this.value)" class="text-[10px] text-slate-400 w-24 bg-transparent"><span class="text-xs font-bold">${age}</span></div></div></div><div class="flex flex-col gap-1 items-end"><div class="flex gap-1 items-center">${fastBtn}<button onclick="toggleResus('${p.id}', 'dnr')" class="resus-btn ${dnrClass}">DNR</button><button onclick="toggleResus('${p.id}', 'dni')" class="resus-btn ${dniClass}">DNI</button></div><button onclick="deletePatient('${p.id}')" aria-label="Patient löschen" title="Patient löschen" tabindex="-1" class="text-slate-300 hover:text-red-500 text-lg leading-none no-print">&times;</button></div></div>`;
-                
+                let rhythmSel = `<select onchange="updateField('${p.id}', 'rhythm', this.value, true)" class="text-[10px] font-bold outline-none bg-transparent cursor-pointer ${p.rhythm === 'VHF' || p.rhythm === 'AF' ? 'vhf-blink' : 'text-slate-500'}"><option value="SR" ${p.rhythm==='SR'?'selected':''}>[ SR ]</option><option value="VHF" ${p.rhythm==='VHF'?'selected':''}>[ VHF ]</option><option value="AF" ${p.rhythm==='AF'?'selected':''}>[ A-Flatt ]</option><option value="PM/ICD" ${p.rhythm==='PM/ICD'?'selected':''}>[ PM/ICD ]</option></select>`;
+                let fastBtn = `<button onclick="updateField('${p.id}', 'fasting', ${!p.fasting}, true)" class="text-[8px] px-1 py-0.5 rounded font-bold transition-colors ${p.fasting ? 'badge-nüchtern' : 'badge-kost'}">${p.fasting ? '⛔ Nüchtern' : '🍔 Kostaufbau'}</button>`;
+
+                let header = `<div class="flex justify-between items-start pb-1 border-b border-slate-100"><div class="flex items-center gap-2 w-full"><input type="text" data-pid="${p.id}" value="${p.room}" onblur="updateField('${p.id}', 'room', this.value, true)" class="font-bold text-xl w-12 text-center text-blue-900 bg-blue-50 rounded p-room" placeholder="#"><div class="w-full"><div class="flex items-center gap-1"><input type="text" value="${p.name}" onblur="updateField('${p.id}', 'name', this.value, true)" class="font-bold text-sm text-slate-900 p-name flex-grow" placeholder="Name">${rhythmSel}</div><div class="flex items-center gap-1 no-print"><input type="date" value="${p.dob}" onblur="updateField('${p.id}', 'dob', this.value, true)" class="text-[10px] text-slate-400 w-24 bg-transparent"><span class="text-xs font-bold">${age}</span></div></div></div><div class="flex flex-col gap-1 items-end"><div class="flex gap-1 items-center">${fastBtn}<button onclick="toggleResus('${p.id}', 'dnr')" class="resus-btn ${dnrClass}">DNR</button><button onclick="toggleResus('${p.id}', 'dni')" class="resus-btn ${dniClass}">DNI</button></div><button onclick="deletePatient('${p.id}')" aria-label="Patient löschen" title="Patient löschen" tabindex="-1" class="text-slate-300 hover:text-red-500 text-lg leading-none no-print">&times;</button></div></div>`;
+
                 // ISOLATION & WARNUNGEN
                 let warnColor = p.warnings ? 'bg-red-100 border-red-300 text-red-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-400 italic';
                 let isoTags = isos.map(iso => `<span class="text-[8px] bg-red-600 text-white px-1 rounded font-bold flex items-center gap-1">${iso} <button onclick="removeIso('${p.id}', '${iso}')" class="hover:text-red-200">×</button></span>`).join('');
@@ -175,10 +174,10 @@
 
                 // DIAGNOSEN
                 let diagTextClass = p.expDiag ? "text-expanded" : (p.diagnosis && p.diagnosis.length > 150 ? "text-truncated" : "");
-                let diagToggleBtn = (p.diagnosis && p.diagnosis.length > 150) ? `<button onclick="updateFieldRender('${p.id}', 'expDiag', ${!p.expDiag})" class="text-[9px] text-blue-500 hover:underline w-full text-right bg-red-50 pr-1 pb-1 rounded-b">${p.expDiag ? 'Weniger anzeigen' : 'Mehr lesen...'}</button>` : '';
+                let diagToggleBtn = (p.diagnosis && p.diagnosis.length > 150) ? `<button onclick="updateField('${p.id}', 'expDiag', ${!p.expDiag}, true)" class="text-[9px] text-blue-500 hover:underline w-full text-right bg-red-50 pr-1 pb-1 rounded-b">${p.expDiag ? 'Weniger anzeigen' : 'Mehr lesen...'}</button>` : '';
                 let diag = `<div class="bg-red-50 rounded border border-red-100 relative p-1 flex flex-col gap-1"><input type="text" value="${p.main_diagnosis || ''}" onblur="updateField('${p.id}', 'main_diagnosis', this.value)" class="w-full text-sm font-black text-red-900 bg-red-100/50 placeholder-red-300 outline-none p-1 rounded" placeholder="HAUPTDIAGNOSE / Aufnahmegrund"><textarea oninput="resizeTx(this); updateField('${p.id}', 'diagnosis', this.value)" class="auto-expand w-full text-xs font-medium text-red-900 bg-transparent leading-tight outline-none ${diagTextClass}" placeholder="Weitere Diagnosen...">${p.diagnosis || ''}</textarea>${diagToggleBtn}</div>`;
                 let cvrfHtml = `<div class="flex gap-2 justify-center py-1">`; if(typeof CVRF_CONFIG !== 'undefined') CVRF_CONFIG.forEach(c => { const active = p.cvrf && p.cvrf.includes(c.key) ? 'cvrf-active' : ''; cvrfHtml += `<button type="button" onclick="toggleCVRF('${p.id}', '${c.key}')" class="cvrf-btn ${active} text-sm p-0.5" title="${c.label}">${c.icon}</button>`; }); cvrfHtml += `</div>`;
-                
+
                 // QUICK LABS & VOLUMEN
                 let eGFRWarn = labs.egfr && labs.egfr < 30 ? 'egfr-warn' : 'bg-white';
                 let labsVolHtml = `
@@ -186,7 +185,7 @@
                     <div class="grid grid-cols-5 gap-1 bg-blue-50 border border-blue-100 rounded p-1">
                         <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">Hb</label><input value="${labs.hb}" onblur="updateDeepField('${p.id}','labs','hb',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200"></div>
                         <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">Krea</label><input value="${labs.krea}" onblur="updateDeepField('${p.id}','labs','krea',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200"></div>
-                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">eGFR</label><input value="${labs.egfr}" onblur="updateDeepFieldRender('${p.id}','labs','egfr',this.value)" class="text-[9px] outline-none border-b border-blue-200 rounded-t ${eGFRWarn}"></div>
+                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">eGFR</label><input value="${labs.egfr}" onblur="updateDeepField('${p.id}','labs','egfr',this.value, true)" class="text-[9px] outline-none border-b border-blue-200 rounded-t ${eGFRWarn}"></div>
                         <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">K+</label><input value="${labs.k}" onblur="updateDeepField('${p.id}','labs','k',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200"></div>
                         <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">CRP/BNP</label><input value="${labs.crp}" onblur="updateDeepField('${p.id}','labs','crp',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200" placeholder="z.B. 10|2000"></div>
                     </div>
@@ -198,13 +197,13 @@
                 </div>`;
 
                 let tasksHtml = `<div class="grid grid-cols-6 gap-0.5 mb-1 daily-grid">`; if(typeof DAILY_TASKS !== 'undefined') DAILY_TASKS.forEach(t => { const cls = (p.daily && p.daily[t.key]) ? 'task-true' : 'task-false'; tasksHtml += `<button type="button" onclick="toggleDaily('${p.id}', '${t.key}')" class="task-btn ${cls} text-[9px] text-center py-0.5 rounded">${t.label}</button>`; }); tasksHtml += `</div>`;
-                
+
                 let todoHtml = `<div class="bg-yellow-50 border border-yellow-200 rounded p-1 relative group flex flex-col">`;
-                if(p.showRawTodo) { todoHtml += `<textarea onblur="updateFieldRender('${p.id}', 'todo_text', this.value); updateFieldRender('${p.id}', 'showRawTodo', false)" class="auto-expand w-full text-xs bg-white border border-yellow-300 rounded p-1 leading-tight focus:ring-2 focus:ring-yellow-500" placeholder="Freitext To-Dos...">${p.todo_text || ""}</textarea><button onclick="updateFieldRender('${p.id}', 'showRawTodo', false)" class="text-[9px] text-yellow-700 bg-yellow-200 hover:bg-yellow-300 rounded px-1 mt-1 self-end">Fertig</button>`;
-                } else { let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines.length > 0) { todoHtml += `<div class="flex flex-col gap-0.5 mb-1">`; lines.forEach((line, idx) => { let isDone = line.startsWith('[x] '); let cleanLine = line.replace(/^(\[x\] |\[ \] )/i, '').trim(); let icon = isDone ? '✅' : '🔲'; let strike = isDone ? 'line-through text-slate-400' : 'text-slate-800 font-medium'; todoHtml += `<div class="flex items-start justify-between gap-1 hover:bg-yellow-200 p-0.5 rounded transition"><div class="flex items-start gap-1 cursor-pointer flex-grow" onclick="toggleTodoLine('${p.id}', ${idx})"><span class="mt-0.5 text-[10px]">${icon}</span><span class="text-xs ${strike} leading-tight">${cleanLine}</span></div>`; if(isDone) { todoHtml += `<button onclick="deleteTodoLine('${p.id}', ${idx})" class="text-[9px] bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded px-1 ml-1">❌</button>`; } todoHtml += `</div>`; }); todoHtml += `</div>`; } else { todoHtml += `<span class="text-[10px] text-slate-400 italic px-1 mb-1">Keine To-Dos...</span>`; } todoHtml += `<input type="text" placeholder="+ Neues To-Do (Enter)" class="w-full text-xs bg-white border border-yellow-300 rounded p-1 outline-none focus:ring-1 focus:ring-yellow-500" onkeydown="if(event.key==='Enter'){ addTodoLine('${p.id}', this.value); this.value=''; }"><button onclick="updateFieldRender('${p.id}', 'showRawTodo', true)" class="absolute top-1 right-1 text-[10px] text-yellow-600 opacity-0 group-hover:opacity-100 transition bg-yellow-100 px-1 rounded shadow-sm">✏️ Edit</button>`; } todoHtml += `</div>`;
+                if(p.showRawTodo) { todoHtml += `<textarea onblur="updateField('${p.id}', 'todo_text', this.value, true); updateField('${p.id}', 'showRawTodo', false, true)" class="auto-expand w-full text-xs bg-white border border-yellow-300 rounded p-1 leading-tight focus:ring-2 focus:ring-yellow-500" placeholder="Freitext To-Dos...">${p.todo_text || ""}</textarea><button onclick="updateField('${p.id}', 'showRawTodo', false, true)" class="text-[9px] text-yellow-700 bg-yellow-200 hover:bg-yellow-300 rounded px-1 mt-1 self-end">Fertig</button>`;
+                } else { let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines.length > 0) { todoHtml += `<div class="flex flex-col gap-0.5 mb-1">`; lines.forEach((line, idx) => { let isDone = line.startsWith('[x] '); let cleanLine = line.replace(/^(\[x\] |\[ \] )/i, '').trim(); let icon = isDone ? '✅' : '🔲'; let strike = isDone ? 'line-through text-slate-400' : 'text-slate-800 font-medium'; todoHtml += `<div class="flex items-start justify-between gap-1 hover:bg-yellow-200 p-0.5 rounded transition"><div class="flex items-start gap-1 cursor-pointer flex-grow" onclick="toggleTodoLine('${p.id}', ${idx})"><span class="mt-0.5 text-[10px]">${icon}</span><span class="text-xs ${strike} leading-tight">${cleanLine}</span></div>`; if(isDone) { todoHtml += `<button onclick="deleteTodoLine('${p.id}', ${idx})" class="text-[9px] bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded px-1 ml-1">❌</button>`; } todoHtml += `</div>`; }); todoHtml += `</div>`; } else { todoHtml += `<span class="text-[10px] text-slate-400 italic px-1 mb-1">Keine To-Dos...</span>`; } todoHtml += `<input type="text" placeholder="+ Neues To-Do (Enter)" class="w-full text-xs bg-white border border-yellow-300 rounded p-1 outline-none focus:ring-1 focus:ring-yellow-500" onkeydown="if(event.key==='Enter'){ addTodoLine('${p.id}', this.value); this.value=''; }"><button onclick="updateField('${p.id}', 'showRawTodo', true, true)" class="absolute top-1 right-1 text-[10px] text-yellow-600 opacity-0 group-hover:opacity-100 transition bg-yellow-100 px-1 rounded shadow-sm">✏️ Edit</button>`; } todoHtml += `</div>`;
 
                 let histTextClass = p.expHist ? "text-expanded" : (p.history && p.history.length > 100 ? "text-truncated" : "");
-                let histToggleBtn = (p.history && p.history.length > 100) ? `<button onclick="updateFieldRender('${p.id}', 'expHist', ${!p.expHist})" class="text-[8px] text-blue-500 hover:underline w-full text-right bg-slate-50 pr-1 pb-1">${p.expHist ? 'Weniger' : 'Mehr...'}</button>` : '';
+                let histToggleBtn = (p.history && p.history.length > 100) ? `<button onclick="updateField('${p.id}', 'expHist', ${!p.expHist}, true)" class="text-[8px] text-blue-500 hover:underline w-full text-right bg-slate-50 pr-1 pb-1">${p.expHist ? 'Weniger' : 'Mehr...'}</button>` : '';
 
                 // ANTIBIOSE MANAGER
                 let abxHtml = `<div class="mt-1 flex flex-col gap-0.5 no-print">`;
@@ -227,13 +226,13 @@
                     ${amioBtn}
                     <details class="group"><summary class="text-[9px] text-slate-400 cursor-pointer list-none hover:text-blue-500 no-print focus:outline-none focus:text-blue-600">▶ Aufnahme/Vor.D.</summary><div class="mt-1 pt-1 border-t border-slate-100"><div class="mb-1 med-hidden-print"><label class="text-[9px] text-slate-400 uppercase">Aufnahme-Med</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'meds_admission', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1" rows="1">${p.meds_admission || ""}</textarea></div><div><label class="text-[9px] text-slate-400 uppercase">Vordiagnosen</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'history', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1 leading-tight outline-none border-b border-transparent focus:border-slate-300 ${histTextClass}" placeholder="Vordiagnosen...">${p.history || ""}</textarea>${histToggleBtn}</div></div></details>
                 </div>`;
-                
+
                 let diagGrid = `<div class="grid grid-cols-4 gap-1 mt-1 diag-grid">`; if(typeof DIAGNOSTICS !== 'undefined') DIAGNOSTICS.forEach(d => { const s = (p.diag_status||{})[d]||0; const res = (p.diag_results||{})[d]||""; const hasRes = res ? 'has-result' : ''; diagGrid += `<button type="button" id="btn-diag-${p.id}-${d}" onclick="toggleDiag(event,'${p.id}','${d}')" oncontextmenu="toggleDiag(event,'${p.id}','${d}')" class="state-btn diag-${s} ${hasRes} py-0.5 rounded text-[9px]" title="${res}">${d} <span class="print-result ml-1">(${res})</span></button>`; }); diagGrid += `</div>`;
-                
+
                 // KONSIL MANAGER + NOTES
-                let consultHtml = `<div class="flex flex-wrap gap-1 mt-1 border-t border-slate-100 pt-1 justify-center no-print">`; 
+                let consultHtml = `<div class="flex flex-wrap gap-1 mt-1 border-t border-slate-100 pt-1 justify-center no-print">`;
                 let activeConsults = [];
-                if(typeof CONSULTS !== 'undefined') CONSULTS.forEach(c => { const s = (p.consults && p.consults[c]) || 0; if(s===1) activeConsults.push(c); consultHtml += `<button type="button" onclick="toggleConsult('${p.id}', '${c}')" class="consult-btn consult-${s}">${c}</button>`; }); 
+                if(typeof CONSULTS !== 'undefined') CONSULTS.forEach(c => { const s = (p.consults && p.consults[c]) || 0; if(s===1) activeConsults.push(c); consultHtml += `<button type="button" onclick="toggleConsult('${p.id}', '${c}')" class="consult-btn consult-${s}">${c}</button>`; });
                 consultHtml += `</div>`;
                 if(activeConsults.length > 0) {
                     consultHtml += `<div class="flex flex-col gap-0.5 mt-1 no-print">`;
@@ -246,17 +245,17 @@
                 <div class="mt-1 grid grid-cols-2 gap-1 bg-green-50 border border-green-100 p-1 rounded no-print">
                     <div class="flex flex-col gap-0.5">
                         <label class="text-[8px] text-green-700 font-bold uppercase">Entlassung 🏠</label>
-                        <input type="date" value="${p.discharge_date || ''}" onblur="updateFieldRender('${p.id}', 'discharge_date', this.value)" class="text-[9px] bg-transparent outline-none text-green-900 border-b border-green-200">
-                        <select onchange="updateDeepFieldRender('${p.id}', 'social', 'reha', this.value)" class="text-[8px] bg-transparent outline-none mt-0.5 text-green-800">
+                        <input type="date" value="${p.discharge_date || ''}" onblur="updateField('${p.id}', 'discharge_date', this.value, true)" class="text-[9px] bg-transparent outline-none text-green-900 border-b border-green-200">
+                        <select onchange="updateDeepField('${p.id}', 'social', 'reha', this.value, true)" class="text-[8px] bg-transparent outline-none mt-0.5 text-green-800">
                             <option value="">Reha: Offen</option><option value="AHB" ${social.reha==='AHB'?'selected':''}>Reha: AHB</option><option value="Geri" ${social.reha==='Geri'?'selected':''}>Reha: Geriatrie</option><option value="Keine" ${social.reha==='Keine'?'selected':''}>Reha: Keine</option>
                         </select>
                     </div>
                     <div class="flex flex-col gap-0.5">
                         <label class="text-[8px] text-green-700 font-bold uppercase">Sozial / Pflege 🦽</label>
-                        <select onchange="updateDeepFieldRender('${p.id}', 'social', 'pflegegrad', this.value)" class="text-[8px] bg-transparent outline-none border-b border-green-200 text-green-900 pb-0.5">
+                        <select onchange="updateDeepField('${p.id}', 'social', 'pflegegrad', this.value, true)" class="text-[8px] bg-transparent outline-none border-b border-green-200 text-green-900 pb-0.5">
                             <option value="">Pflegegrad: ?</option><option value="PG 1" ${social.pflegegrad==='PG 1'?'selected':''}>PG 1</option><option value="PG 2" ${social.pflegegrad==='PG 2'?'selected':''}>PG 2</option><option value="PG 3" ${social.pflegegrad==='PG 3'?'selected':''}>PG 3</option><option value="PG 4" ${social.pflegegrad==='PG 4'?'selected':''}>PG 4</option><option value="PG 5" ${social.pflegegrad==='PG 5'?'selected':''}>PG 5</option><option value="Keiner" ${social.pflegegrad==='Keiner'?'selected':''}>Kein PG</option>
                         </select>
-                        <select onchange="updateDeepFieldRender('${p.id}', 'social', 'physio', this.value)" class="text-[8px] bg-transparent outline-none mt-0.5 text-green-800">
+                        <select onchange="updateDeepField('${p.id}', 'social', 'physio', this.value, true)" class="text-[8px] bg-transparent outline-none mt-0.5 text-green-800">
                             <option value="">Physio: ?</option><option value="Ja" ${social.physio==='Ja'?'selected':''}>Physio: Ja</option><option value="Nein" ${social.physio==='Nein'?'selected':''}>Physio: Nein</option>
                         </select>
                     </div>
@@ -266,17 +265,17 @@
 
                 card.innerHTML = header + warnHtml + diag + cvrfHtml + labsVolHtml + tasksHtml + todoHtml + abxHtml + meds + diagGrid + consultHtml + planHtml + footer;
                 containerFrag.appendChild(card);
-                
+
                 // --- PRINT VIEW ---
                 let mainDiagPrint = p.main_diagnosis ? `<div class="print-main-diag" style="font-size:10pt; font-weight:900; margin-bottom:2px;">${p.main_diagnosis}</div>` : '';
                 let diagPrint = mainDiagPrint + `<div class="print-diag-rest">` + (p.diagnosis || "").replace(/\n/g, '<br>') + `</div>`;
                 let historyPrint = p.history ? `<div class="text-[8pt] text-slate-600 mt-1 print-history">${p.history.replace(/\n/g, ', ')}</div>` : '';
-                
+
                 let medsPausedPrint = p.meds_paused ? `<div style="color:#b91c1c; font-size:7.5pt; font-weight:bold; margin-top:2px;">⏸️ Pausiert: ${p.meds_paused}</div>` : '';
                 let daptPrint = p.dapt_oak ? `<div style="color:#1d4ed8; font-size:7.5pt; font-weight:bold; margin-top:2px;">🩸 Gerinnung: ${p.dapt_oak}</div>` : '';
                 let amioPrint = p.amio ? `<div style="color:#4338ca; font-size:7.5pt; font-weight:bold; margin-top:2px;">💊 Amiodaron: ${p.amio}g</div>` : '';
                 let medsPrint = (p.meds_current ? `<div class="print-meds">💊 ${p.meds_current}</div>` : '') + medsPausedPrint + daptPrint + amioPrint;
-                
+
                 let todoPrint = ''; let printLines = (p.todo_text || "").split('\n').filter(l => l.trim() !== '');
                 printLines.forEach(line => { let isDone = line.startsWith('[x] '); let cleanLine = line.replace(/^(\[x\] |\[ \] )/i, '').trim(); if(isDone) { todoPrint += `<div style="text-decoration: line-through; color: #888; font-size: 8pt;">☑ ${cleanLine}</div>`; } else { todoPrint += `<div style="font-size: 8pt; font-weight: 500;">☐ ${cleanLine}</div>`; } });
 
@@ -287,14 +286,14 @@
 
                 let dailyPrint = []; if(DAILY_TASKS) DAILY_TASKS.forEach(t => { if(p.daily && p.daily[t.key]) dailyPrint.push(t.label); }); let dailyStr = dailyPrint.length > 0 ? `<div class="mt-1 text-[8pt]"><b>✓:</b> ${dailyPrint.join(', ')}</div>` : '';
                 let diagPrintStr = '<div class="mt-1 text-[8pt]">'; if(DIAGNOSTICS) DIAGNOSTICS.forEach(d => { const s = (p.diag_status||{})[d]||0; const res = (p.diag_results||{})[d]||""; if(s === 1) diagPrintStr += `<span class="print-diag-item print-diag-ordered">○ ${d}</span> `; if(s === 2) diagPrintStr += `<span class="print-diag-item print-diag-done">● ${d} ${res ? '('+res+')' : ''}</span> `; }); diagPrintStr += '</div>';
-                
+
                 let consultPrintStr = '<div class="mt-1 text-[8pt] color-blue-800">'; if(typeof CONSULTS !== 'undefined' && p.consults) CONSULTS.forEach(c => { const s = p.consults[c] || 0; if(s === 1) { let n = (p.consult_notes&&p.consult_notes[c]) ? ` <i>(${p.consult_notes[c]})</i>`:''; consultPrintStr += `<div style="border-bottom: 1px solid orange; color: #854d0e; margin-right: 4px;">K: ${c} (Angef)${n}</div>`; } if(s === 2) consultPrintStr += `<div style="font-weight: bold; color: #166534; margin-right: 4px;">K: ${c} (OK)</div>`; }); consultPrintStr += '</div>';
 
                 let disDate = p.discharge_date ? new Date(p.discharge_date).toLocaleDateString('de-DE') : '';
                 let disPrint = (disDate || social.reha || social.pflegegrad || social.physio) ? `<div style="margin-top:4px; padding-top:2px; border-top:1px solid #22c55e; color:#166534; font-size:8pt; font-weight:bold;">🏠 Entl: ${disDate || '?'} | Reha: ${social.reha||'?'} | PG: ${social.pflegegrad||'?'} | Physio: ${social.physio||'?'}</div>` : '';
 
                 let cvrfPrint = []; if(CVRF_CONFIG) CVRF_CONFIG.forEach(c => { if(p.cvrf && p.cvrf.includes(c.key)) cvrfPrint.push(c.label); }); let cvrfStr = cvrfPrint.length > 0 ? `<div class="print-cvrf-box"><b>RF:</b> ${cvrfPrint.join(', ')}</div>` : '';
-                
+
                 let warnPrint = p.warnings ? `<span class="print-alert" style="color:red; border-color:red;">⚠️ ${p.warnings}</span> ` : '';
                 let isoPrint = isos.length > 0 ? `<span class="print-alert" style="color:white; background:red; border-color:red;">${isos.join(', ')}</span> ` : '';
                 let fastPrint = p.fasting ? `<span class="print-alert" style="color:#991b1b; border-color:#f87171;">⛔ NÜCHTERN</span> ` : '';
@@ -302,7 +301,7 @@
 
                 let alertStr = warnPrint + isoPrint + fastPrint + (p.dnr?'<span class="print-alert">DNR</span> ':'') + (p.dni?'<span class="print-alert">DNI</span> ':'');
                 let dobD = p.dob ? new Date(p.dob).toLocaleDateString('de-DE') : "";
-                
+
                 let fullTodoPrint = `<div class="col-todo-content">${todoPrint}${abxPrint}${volPrint}${dailyStr}${diagPrintStr}${consultPrintStr}${disPrint}</div>`;
 
                 let tr = document.createElement('tr');
@@ -342,10 +341,9 @@
         }
         function importData(i) { const f = i.files[0]; if(!f)return; const r = new FileReader(); r.onload=function(e){try{const d=JSON.parse(e.target.result);if(Array.isArray(d) && (d.length === 0 || d[0].hasOwnProperty("id"))) { if(confirm(`Backup mit ${d.length} Patienten laden?`)) { AppState.patients=d; saveData(); render(); showToast("Backup erfolgreich geladen!"); } } else { throw new Error("Invalid Format"); }}catch(err){showToast("Fehler beim Laden des Backups!", true);}};r.readAsText(f);i.value=''; }
         function addNewPatient() { const id = Date.now().toString(); AppState.patients.push({id, room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }); saveData(); render(); setTimeout(()=>{const i=document.querySelector(`input[data-pid="${id}"]`);if(i)i.focus();},100); }
-        function updateField(id, f, v) { const p = AppState.patients.find(x => x.id === id); if(p){p[f]=v;saveData();} }
-        function updateFieldRender(id, f, v) { const p = AppState.patients.find(x => x.id === id); if(p){p[f]=v;saveData();render();} }
+        function updateField(id, f, v, doRender = false) { const p = AppState.patients.find(x => x.id === id); if(p){p[f]=v;saveData(); if(doRender) render();} }
         function getAge(d) { if(!d) return ""; const t=new Date(); const b=new Date(d); let a=t.getFullYear()-b.getFullYear(); const m=t.getMonth()-b.getMonth(); if(m<0||(m===0&&t.getDate()<b.getDate())) a--; return isNaN(a)?"":`(${a}J)`; }
-        
+
         function openMedModal(id) { AppState.currentEditingId = id; const p = AppState.patients.find(x => x.id === id); document.getElementById('med-search').value = ""; document.getElementById('med-custom').value = ""; AppState.tempSelectedMeds.clear(); const cm = p.meds_current ? p.meds_current.split(',').map(s=>s.trim()) : []; cm.forEach(m=>{if(m)AppState.tempSelectedMeds.add(m);}); renderMedList(""); document.getElementById('medModal').style.display = "block"; setTimeout(()=>document.getElementById('med-search').focus(),100); }
         function closeMedModal() { document.getElementById('medModal').style.display = "none"; }
         function handleModalKey(e, mId) { if(e.key==="Escape")document.getElementById(mId).style.display="none"; if(e.key==="Enter"&&e.target.tagName!=='TEXTAREA'&&mId==='medModal')saveMeds(); }
@@ -359,12 +357,12 @@
         function toggleDaily(id, k) { const p = AppState.patients.find(x => x.id === id); if(!p.daily) p.daily={}; p.daily[k]=!p.daily[k]; saveData(); render(); }
         function deletePatient(id) { if(confirm("Löschen?")) { AppState.patients=AppState.patients.filter(x=>x.id!==id); saveData(); render(); } }
         function startNewDay() { if(confirm("Neuer Tag?")) { AppState.patients.forEach(p=>p.daily={}); saveData(); render(); } }
-        
+
         function setupExamBuilder() { const c = document.getElementById('status-builder'); if(typeof EXAM_CONFIG === 'undefined') return; for(const [k, d] of Object.entries(EXAM_CONFIG)) { let h=`<div class="border rounded bg-slate-50 p-2"><div class="font-bold text-xs text-slate-500 uppercase mb-1">${k}</div><div class="flex flex-wrap gap-1">`; d.options.forEach(o => { h+=`<button class="px-2 py-1 bg-white hover:bg-blue-100 border border-slate-200 rounded text-xs transition" onclick="insertExamText('${k}', '${o}')">${o}</button>`; }); h+=`</div></div>`; c.innerHTML+=h; } }
         function openExamModal(id) { AppState.currentEditingId = id; const p = AppState.patients.find(x => x.id === id); document.getElementById('gen-text-output').value = p.exam_text || "Standard Aufnahme..."; document.getElementById('examModal').style.display = "block"; }
         function insertExamText(c, t) { document.getElementById('gen-text-output').value += `\n[${c}]: ${t}`; }
         function saveExamToPatient() { AppState.patients.find(x => x.id === AppState.currentEditingId).exam_text = document.getElementById('gen-text-output').value; saveData(); document.getElementById('examModal').style.display = 'none'; }
-        
+
         function openScoreModal(id) { const p = AppState.patients.find(x => x.id === id); const list = document.getElementById('score-list'); list.innerHTML = ""; let relevantScores = []; if(typeof SCORE_DEFINITIONS !== 'undefined') { relevantScores = SCORE_DEFINITIONS.filter(s => s.check(p)); } if(relevantScores.length === 0) { list.innerHTML = `<div class="p-4 text-slate-400 text-center col-span-2">Keine spezifischen Scores erkannt.<br>(Prüfe Diagnosen-Schreibweise)</div>`; } else { relevantScores.forEach(s => { const link = s.url ? `href="${s.url}" target="_blank"` : ""; const tag = s.url ? "a" : "div"; list.innerHTML += `<${tag} ${link} class="score-card group"><div><span class="score-name">${s.name}</span><span class="score-info">${s.info}</span></div><div class="score-arrow group-hover:text-blue-500">➜</div></${tag}>`; }); } document.getElementById('scoreModal').style.display = "block"; }
     </script>
 </body>
