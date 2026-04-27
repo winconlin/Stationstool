@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Medical Suite - Kardiologie</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="config_base.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -242,18 +243,16 @@
         // --- 4. ANAMNESE BUILDER LOGIC ---
         function renderAnamneseBuilder() {
             const c = document.getElementById('anamnese-builder');
-            let finalHtml = "";
+            let fullHtml = "";
             for (const [category, items] of Object.entries(ANAMNESE_BLOCKS)) {
                 let html = `<div class="exam-cat-title">${category}</div><div class="grid grid-cols-1 gap-1">`;
                 items.forEach(item => {
-                    // String Escape für onclick
-                    const safeS = item.s.replace(/'/g, "\\'");
-                    html += `<button onclick="addAnamneseText('${safeS}')" class="anam-btn">${item.t}</button>`;
+                    html += `<button onclick="addAnamneseText('${item.t}')" class="anam-btn bg-slate-50" title="${item.s}">${item.t}</button>`;
                 });
                 html += `</div>`;
-                finalHtml += html;
+                fullHtml += html;
             }
-            c.innerHTML = finalHtml;
+            c.innerHTML = fullHtml;
             // Auto-Fill Start
             addAnamneseText(`${globalPat.nom} stellt sich vor.`, true);
         }
@@ -274,16 +273,16 @@
         // --- 5. EXAM BUILDER LOGIC ---
         function renderExamBuilder() {
             const c = document.getElementById('exam-builder');
-            let finalHtml = "";
+            let fullHtml = "";
             for (const [cat, opts] of Object.entries(EXAM_CONFIG)) {
                 let html = `<div class="exam-cat-title">${cat}</div><div class="flex flex-wrap gap-1">`;
                 opts.forEach(opt => {
                      html += `<button onclick="addExamText('${cat}', '${opt}')" class="anam-btn bg-slate-50">${opt}</button>`;
                 });
                 html += `</div>`;
-                finalHtml += html;
+                fullHtml += html;
             }
-            c.innerHTML = finalHtml;
+            c.innerHTML = fullHtml;
         }
         function addExamText(cat, text) {
             const area = document.getElementById('status-out');
@@ -389,6 +388,7 @@ Procedere
             }
 
             // Felder rendern
+            const fragment = document.createDocumentFragment();
             MODULES[id].fields.forEach(f => {
                 const div = document.createElement('div');
                 div.className = "mb-2";
@@ -411,18 +411,19 @@ Procedere
                         </div>`;
                      setTimeout(precheckRisks, 50);
                 } else {
-                    div.innerHTML = `<label class="block text-[10px] uppercase font-bold text-slate-400 mb-0.5">${f.label}</label>`;
+                    let html = `<label class="block text-[10px] uppercase font-bold text-slate-400 mb-0.5">${f.label}</label>`;
                     if(f.type === 'select') {
-                        let h = `<select id="f_${f.id}" class="w-full border p-1.5 rounded text-sm" onchange="updateEpikriseText()">`;
-                        f.options.forEach(o => h+=`<option value="${o}">${o}</option>`);
-                        h += `</select>`;
-                        div.innerHTML += h;
+                        html += `<select id="f_${f.id}" class="w-full border p-1.5 rounded text-sm" onchange="updateEpikriseText()">`;
+                        f.options.forEach(o => html += `<option value="${o}">${o}</option>`);
+                        html += `</select>`;
                     } else {
-                        div.innerHTML += `<input type="${f.type}" id="f_${f.id}" value="${f.value||''}" class="w-full border p-1.5 rounded text-sm" oninput="updateEpikriseText()">`;
+                        html += `<input type="${f.type}" id="f_${f.id}" value="${f.value||''}" class="w-full border p-1.5 rounded text-sm" oninput="updateEpikriseText()">`;
                     }
+                    div.innerHTML = html;
                 }
-                container.appendChild(div);
+                fragment.appendChild(div);
             });
+            container.appendChild(fragment);
             updateEpikriseText();
         }
 
@@ -434,7 +435,7 @@ Procedere
             
             // Alter checken
             if(globalPat.dob) {
-                const age = new Date().getFullYear() - new Date(globalPat.dob).getFullYear();
+                const age = getAgeNum(globalPat.dob);
                 if(age >= 75) document.getElementById('c_a2').checked = true;
                 else if(age >= 65) document.getElementById('c_a1').checked = true;
             }
