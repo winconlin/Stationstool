@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stations-Assistent v17 (Ultimate Clinical)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="config_base.js"></script>
-    <script src="config_meds.js"></script>
-    <script src="config_exam.js"></script>
-    <script src="config_scores.js"></script>
+    <script src="config_base.js"></script> 
+    <script src="config_meds.js"></script> 
+    <script src="config_exam.js"></script> 
+    <script src="config_scores.js"></script> 
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen pb-24" id="main-body">
@@ -17,18 +17,19 @@
         <div class="max-w-[1900px] mx-auto flex justify-between items-center px-2">
             <h1 class="font-bold text-lg flex items-center gap-2">🏥 Station v17</h1>
             <div class="flex gap-2 text-sm items-center">
-                <button onclick="exportData()" class="bg-purple-600 hover:bg-purple-500 px-3 py-1 rounded">💾 Backup</button>
+                <button onclick="exportData()" aria-label="Daten exportieren" title="Backup erstellen" class="bg-purple-600 hover:bg-purple-500 px-3 py-1 rounded">💾 Backup</button>
+                <button onclick="exportAnonData()" aria-label="Anonyme Daten exportieren" title="Anonymes Backup erstellen" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1 rounded">👻 Anon Backup</button>
                 <label class="bg-purple-800 hover:bg-purple-700 px-3 py-1 rounded cursor-pointer">📂 Import<input type="file" id="importFile" class="hidden" onchange="importData(this)" accept=".json"></label>
-                <button onclick="openImportModal()" class="bg-teal-600 hover:bg-teal-500 px-3 py-1 rounded border border-teal-400">📋 KIS-Import</button>
+                <button onclick="openImportModal()" aria-label="KIS Import öffnen" title="KIS Import" class="bg-teal-600 hover:bg-teal-500 px-3 py-1 rounded border border-teal-400">📋 KIS-Import</button>
                 <div class="h-4 w-px bg-indigo-700 mx-1"></div>
-                <button onclick="startNewDay()" class="bg-yellow-600 hover:bg-yellow-500 px-3 py-1 rounded">☀️ Tag</button>
+                <button onclick="startNewDay()" aria-label="Neuen Tag starten" title="To-Dos zurücksetzen" class="bg-yellow-600 hover:bg-yellow-500 px-3 py-1 rounded">☀️ Tag</button>
                 <select id="printProfile" onchange="changePrintMode()" class="bg-slate-700 text-white px-2 py-1 rounded outline-none cursor-pointer">
                     <option value="full">🖨️ Übergabe (Voll)</option>
                     <option value="visite">🖨️ Visite (Kompakt)</option>
                     <option value="pocket">🖨️ Pocket (Max)</option>
                 </select>
                 <button onclick="window.print()" class="bg-slate-600 hover:bg-slate-500 px-3 py-1 rounded font-bold">Drucken</button>
-                <button onclick="addNewPatient()" class="bg-green-600 hover:bg-green-500 px-3 py-1 rounded font-bold">+ Patient</button>
+                <button onclick="addNewPatient()" aria-label="Neuen Patienten hinzufügen" title="Neuer Patient" class="bg-green-600 hover:bg-green-500 px-3 py-1 rounded font-bold">+ Patient</button>
             </div>
         </div>
     </div>
@@ -72,12 +73,14 @@
     </div>
 
     <script>
-        if(typeof MED_GROUPS === 'undefined') alert("ACHTUNG: Config Dateien fehlen!");
+        if(typeof MED_GROUPS === 'undefined') showToast("ACHTUNG: Config Dateien fehlen!", true);
 
-        let patients = [];
-        let currentEditingId = null;
-        let tempSelectedMeds = new Set();
-        let parsedPatients = [];
+        var AppState = { patients: [], currentEditingId: null, tempSelectedMeds: new Set(), parsedPatients: [] };
+
+
+
+
+        function showToast(msg, isError = false) { const t = document.createElement("div"); t.className = `fixed bottom-4 right-4 text-white px-4 py-2 rounded shadow-lg transition-opacity duration-300 z-50 ${isError ? "bg-red-600" : "bg-green-600"}`; t.innerText = msg; document.body.appendChild(t); setTimeout(() => { t.style.opacity = "0"; setTimeout(() => t.remove(), 300); }, 2000); }
 
         window.onload = function() {
             loadData();
@@ -86,7 +89,7 @@
             setupExamBuilder();
             document.addEventListener('keydown', function(e) { if (e.ctrlKey && e.altKey && e.key === 'n') addNewPatient(); });
         };
-
+        
         function changePrintMode() {
             const mode = document.getElementById('printProfile').value;
             const body = document.getElementById('main-body');
@@ -96,9 +99,9 @@
         }
 
         function resizeTx(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; }
-        function loadData() { const stored = localStorage.getItem('station_v17_data'); if (stored) patients = JSON.parse(stored); }
-        function saveData() { localStorage.setItem('station_v17_data', JSON.stringify(patients)); }
-
+        function loadData() { const stored = localStorage.getItem('station_v17_data'); if (stored) AppState.patients = JSON.parse(stored); }
+        function saveData() { localStorage.setItem('station_v17_data', JSON.stringify(AppState.patients)); }
+        
         function getDaysSince(dateString) {
             if(!dateString) return 0;
             const d = new Date(dateString); const now = new Date();
@@ -106,35 +109,36 @@
         }
 
         // --- MODEL UPDATES (Deep properties) ---
-        function updateDeepField(id, obj, field, val) { const p = patients.find(x => x.id === id); if(!p[obj]) p[obj] = {}; p[obj][field] = val; saveData(); }
+        function updateDeepField(id, obj, field, val) { const p = AppState.patients.find(x => x.id === id); if(!p[obj]) p[obj] = {}; p[obj][field] = val; saveData(); }
         function updateDeepFieldRender(id, obj, field, val) { updateDeepField(id, obj, field, val); render(); }
-
+        
         // Arrays/Complex
-        function addIso(id, val) { if(!val) return; const p = patients.find(x => x.id === id); if(!p.iso) p.iso = []; if(!p.iso.includes(val)) p.iso.push(val); saveData(); render(); }
-        function removeIso(id, val) { const p = patients.find(x => x.id === id); p.iso = p.iso.filter(x => x !== val); saveData(); render(); }
-        function addAbx(id) { const name = prompt("Antibiotikum Name:"); if(name) { const p = patients.find(x => x.id===id); if(!p.abx) p.abx = []; p.abx.push({name: name, start: new Date().toISOString().split('T')[0]}); saveData(); render(); } }
-        function removeAbx(id, idx) { const p = patients.find(x => x.id===id); p.abx.splice(idx, 1); saveData(); render(); }
-        function addAmio(id) { let val = parseFloat(prompt("Dosis in g hinzufügen (z.B. 0.9):", "0.9")); if(!isNaN(val)) { let p = patients.find(x => x.id === id); p.amio = (p.amio || 0) + val; saveData(); render(); } }
-        function toggleTodoLine(id, idx) { const p = patients.find(x => x.id === id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines[idx].startsWith('[x] ')) { lines[idx] = lines[idx].replace('[x] ', '[ ] '); } else if(lines[idx].startsWith('[ ] ')) { lines[idx] = lines[idx].replace('[ ] ', '[x] '); } else { lines[idx] = '[x] ' + lines[idx]; } p.todo_text = lines.join('\n'); saveData(); render(); }
-        function deleteTodoLine(id, idx) { const p = patients.find(x => x.id === id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.splice(idx, 1); p.todo_text = lines.join('\n'); saveData(); render(); }
-        function addTodoLine(id, text) { if(!text.trim()) return; const p = patients.find(x => x.id === id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.push('[ ] ' + text.trim()); p.todo_text = lines.join('\n'); saveData(); render(); }
-        function toggleConsult(id, c) { const p = patients.find(x => x.id === id); if(!p.consults) p.consults = {}; p.consults[c] = ((p.consults[c] || 0) + 1) % 3; saveData(); render(); }
+        function addIso(id, val) { if(!val) return; const p = AppState.patients.find(x => x.id === id); if(!p.iso) p.iso = []; if(!p.iso.includes(val)) p.iso.push(val); saveData(); render(); }
+        function removeIso(id, val) { const p = AppState.patients.find(x => x.id === id); p.iso = p.iso.filter(x => x !== val); saveData(); render(); }
+        function addAbx(id) { const name = prompt("Antibiotikum Name:"); if(name) { const p = AppState.patients.find(x => x.id===id); if(!p.abx) p.abx = []; p.abx.push({name: name, start: new Date().toISOString().split('T')[0]}); saveData(); render(); } }
+        function removeAbx(id, idx) { const p = AppState.patients.find(x => x.id===id); p.abx.splice(idx, 1); saveData(); render(); }
+        function addAmio(id) { let val = parseFloat(prompt("Dosis in g hinzufügen (z.B. 0.9):", "0.9")); if(!isNaN(val)) { let p = AppState.patients.find(x => x.id === id); p.amio = (p.amio || 0) + val; saveData(); render(); } }
+        function toggleTodoLine(id, idx) { const p = AppState.patients.find(x => x.id === id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines[idx].startsWith('[x] ')) { lines[idx] = lines[idx].replace('[x] ', '[ ] '); } else if(lines[idx].startsWith('[ ] ')) { lines[idx] = lines[idx].replace('[ ] ', '[x] '); } else { lines[idx] = '[x] ' + lines[idx]; } p.todo_text = lines.join('\n'); saveData(); render(); }
+        function deleteTodoLine(id, idx) { const p = AppState.patients.find(x => x.id === id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.splice(idx, 1); p.todo_text = lines.join('\n'); saveData(); render(); }
+        function addTodoLine(id, text) { if(!text.trim()) return; const p = AppState.patients.find(x => x.id === id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.push('[ ] ' + text.trim()); p.todo_text = lines.join('\n'); saveData(); render(); }
+        function toggleConsult(id, c) { const p = AppState.patients.find(x => x.id === id); if(!p.consults) p.consults = {}; p.consults[c] = ((p.consults[c] || 0) + 1) % 3; saveData(); render(); }
 
         // --- RENDER LOGIC ---
         function render() {
             const container = document.getElementById('patient-list');
             const printBody = document.getElementById('print-table-body');
             const empty = document.getElementById('empty-state');
-            container.innerHTML = ''; printBody.innerHTML = '';
+            container.innerHTML = ''; printBody.innerHTML = ''; 
 
-            if(patients.length===0) { empty.classList.remove('hidden'); return; } else empty.classList.add('hidden');
-            patients.sort((a,b) => a.room.localeCompare(b.room, undefined, {numeric: true}));
+            if(AppState.patients.length===0) { empty.classList.remove('hidden'); return; } else empty.classList.add('hidden');
+            AppState.patients.sort((a,b) => a.room.localeCompare(b.room, undefined, {numeric: true}));
 
             let currentRoom = null;
             const containerFrag = document.createDocumentFragment();
             const printBodyFrag = document.createDocumentFragment();
 
-            patients.forEach(p => {
+
+            AppState.patients.forEach(p => {
                 // Ensure structured objects exist for older backups
                 const labs = p.labs || {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''};
                 const vol = p.vol || {ziel:'', aktuell:''};
@@ -153,16 +157,16 @@
 
                 const age = getAge(p.dob);
                 const dnrClass = p.dnr ? 'resus-active' : ''; const dniClass = p.dni ? 'resus-active' : '';
-
+                
                 let card = document.createElement('div');
                 card.className = "bg-white rounded border border-slate-300 p-2 patient-card flex flex-col gap-1 shadow-sm hover:shadow-md transition relative";
-
+                
                 // HEADER (Zi, Name, Rhythmus, Nüchtern)
                 let rhythmSel = `<select onchange="updateFieldRender('${p.id}', 'rhythm', this.value)" class="text-[10px] font-bold outline-none bg-transparent cursor-pointer ${p.rhythm === 'VHF' || p.rhythm === 'AF' ? 'vhf-blink' : 'text-slate-500'}"><option value="SR" ${p.rhythm==='SR'?'selected':''}>[ SR ]</option><option value="VHF" ${p.rhythm==='VHF'?'selected':''}>[ VHF ]</option><option value="AF" ${p.rhythm==='AF'?'selected':''}>[ A-Flatt ]</option><option value="PM/ICD" ${p.rhythm==='PM/ICD'?'selected':''}>[ PM/ICD ]</option></select>`;
                 let fastBtn = `<button onclick="updateFieldRender('${p.id}', 'fasting', ${!p.fasting})" class="text-[8px] px-1 py-0.5 rounded font-bold transition-colors ${p.fasting ? 'badge-nüchtern' : 'badge-kost'}">${p.fasting ? '⛔ Nüchtern' : '🍔 Kostaufbau'}</button>`;
-
-                let header = `<div class="flex justify-between items-start pb-1 border-b border-slate-100"><div class="flex items-center gap-2 w-full"><input type="text" data-pid="${p.id}" value="${p.room}" onblur="updateFieldRender('${p.id}', 'room', this.value)" class="font-bold text-xl w-12 text-center text-blue-900 bg-blue-50 rounded p-room" placeholder="#"><div class="w-full"><div class="flex items-center gap-1"><input type="text" value="${p.name}" onblur="updateFieldRender('${p.id}', 'name', this.value)" class="font-bold text-sm text-slate-900 p-name flex-grow" placeholder="Name">${rhythmSel}</div><div class="flex items-center gap-1 no-print"><input type="date" value="${p.dob}" onblur="updateFieldRender('${p.id}', 'dob', this.value)" class="text-[10px] text-slate-400 w-24 bg-transparent"><span class="text-xs font-bold">${age}</span></div></div></div><div class="flex flex-col gap-1 items-end"><div class="flex gap-1 items-center">${fastBtn}<button onclick="toggleResus('${p.id}', 'dnr')" class="resus-btn ${dnrClass}">DNR</button><button onclick="toggleResus('${p.id}', 'dni')" class="resus-btn ${dniClass}">DNI</button></div><button onclick="deletePatient('${p.id}')" tabindex="-1" class="text-slate-300 hover:text-red-500 text-lg leading-none no-print">&times;</button></div></div>`;
-
+                
+                let header = `<div class="flex justify-between items-start pb-1 border-b border-slate-100"><div class="flex items-center gap-2 w-full"><input type="text" data-pid="${p.id}" value="${p.room}" onblur="updateFieldRender('${p.id}', 'room', this.value)" class="font-bold text-xl w-12 text-center text-blue-900 bg-blue-50 rounded p-room" placeholder="#"><div class="w-full"><div class="flex items-center gap-1"><input type="text" value="${p.name}" onblur="updateFieldRender('${p.id}', 'name', this.value)" class="font-bold text-sm text-slate-900 p-name flex-grow" placeholder="Name">${rhythmSel}</div><div class="flex items-center gap-1 no-print"><input type="date" value="${p.dob}" onblur="updateFieldRender('${p.id}', 'dob', this.value)" class="text-[10px] text-slate-400 w-24 bg-transparent"><span class="text-xs font-bold">${age}</span></div></div></div><div class="flex flex-col gap-1 items-end"><div class="flex gap-1 items-center">${fastBtn}<button onclick="toggleResus('${p.id}', 'dnr')" class="resus-btn ${dnrClass}">DNR</button><button onclick="toggleResus('${p.id}', 'dni')" class="resus-btn ${dniClass}">DNI</button></div><button onclick="deletePatient('${p.id}')" aria-label="Patient löschen" title="Patient löschen" tabindex="-1" class="text-slate-300 hover:text-red-500 text-lg leading-none no-print">&times;</button></div></div>`;
+                
                 // ISOLATION & WARNUNGEN
                 let warnColor = p.warnings ? 'bg-red-100 border-red-300 text-red-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-400 italic';
                 let isoTags = isos.map(iso => `<span class="text-[8px] bg-red-600 text-white px-1 rounded font-bold flex items-center gap-1">${iso} <button onclick="removeIso('${p.id}', '${iso}')" class="hover:text-red-200">×</button></span>`).join('');
@@ -174,7 +178,7 @@
                 let diagToggleBtn = (p.diagnosis && p.diagnosis.length > 150) ? `<button onclick="updateFieldRender('${p.id}', 'expDiag', ${!p.expDiag})" class="text-[9px] text-blue-500 hover:underline w-full text-right bg-red-50 pr-1 pb-1 rounded-b">${p.expDiag ? 'Weniger anzeigen' : 'Mehr lesen...'}</button>` : '';
                 let diag = `<div class="bg-red-50 rounded border border-red-100 relative p-1 flex flex-col gap-1"><input type="text" value="${p.main_diagnosis || ''}" onblur="updateField('${p.id}', 'main_diagnosis', this.value)" class="w-full text-sm font-black text-red-900 bg-red-100/50 placeholder-red-300 outline-none p-1 rounded" placeholder="HAUPTDIAGNOSE / Aufnahmegrund"><textarea oninput="resizeTx(this); updateField('${p.id}', 'diagnosis', this.value)" class="auto-expand w-full text-xs font-medium text-red-900 bg-transparent leading-tight outline-none ${diagTextClass}" placeholder="Weitere Diagnosen...">${p.diagnosis || ''}</textarea>${diagToggleBtn}</div>`;
                 let cvrfHtml = `<div class="flex gap-2 justify-center py-1">`; if(typeof CVRF_CONFIG !== 'undefined') CVRF_CONFIG.forEach(c => { const active = p.cvrf && p.cvrf.includes(c.key) ? 'cvrf-active' : ''; cvrfHtml += `<button type="button" onclick="toggleCVRF('${p.id}', '${c.key}')" class="cvrf-btn ${active} text-sm p-0.5" title="${c.label}">${c.icon}</button>`; }); cvrfHtml += `</div>`;
-
+                
                 // QUICK LABS & VOLUMEN
                 let eGFRWarn = labs.egfr && labs.egfr < 30 ? 'egfr-warn' : 'bg-white';
                 let labsVolHtml = `
@@ -194,7 +198,7 @@
                 </div>`;
 
                 let tasksHtml = `<div class="grid grid-cols-6 gap-0.5 mb-1 daily-grid">`; if(typeof DAILY_TASKS !== 'undefined') DAILY_TASKS.forEach(t => { const cls = (p.daily && p.daily[t.key]) ? 'task-true' : 'task-false'; tasksHtml += `<button type="button" onclick="toggleDaily('${p.id}', '${t.key}')" class="task-btn ${cls} text-[9px] text-center py-0.5 rounded">${t.label}</button>`; }); tasksHtml += `</div>`;
-
+                
                 let todoHtml = `<div class="bg-yellow-50 border border-yellow-200 rounded p-1 relative group flex flex-col">`;
                 if(p.showRawTodo) { todoHtml += `<textarea onblur="updateFieldRender('${p.id}', 'todo_text', this.value); updateFieldRender('${p.id}', 'showRawTodo', false)" class="auto-expand w-full text-xs bg-white border border-yellow-300 rounded p-1 leading-tight focus:ring-2 focus:ring-yellow-500" placeholder="Freitext To-Dos...">${p.todo_text || ""}</textarea><button onclick="updateFieldRender('${p.id}', 'showRawTodo', false)" class="text-[9px] text-yellow-700 bg-yellow-200 hover:bg-yellow-300 rounded px-1 mt-1 self-end">Fertig</button>`;
                 } else { let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines.length > 0) { todoHtml += `<div class="flex flex-col gap-0.5 mb-1">`; lines.forEach((line, idx) => { let isDone = line.startsWith('[x] '); let cleanLine = line.replace(/^(\[x\] |\[ \] )/i, '').trim(); let icon = isDone ? '✅' : '🔲'; let strike = isDone ? 'line-through text-slate-400' : 'text-slate-800 font-medium'; todoHtml += `<div class="flex items-start justify-between gap-1 hover:bg-yellow-200 p-0.5 rounded transition"><div class="flex items-start gap-1 cursor-pointer flex-grow" onclick="toggleTodoLine('${p.id}', ${idx})"><span class="mt-0.5 text-[10px]">${icon}</span><span class="text-xs ${strike} leading-tight">${cleanLine}</span></div>`; if(isDone) { todoHtml += `<button onclick="deleteTodoLine('${p.id}', ${idx})" class="text-[9px] bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded px-1 ml-1">❌</button>`; } todoHtml += `</div>`; }); todoHtml += `</div>`; } else { todoHtml += `<span class="text-[10px] text-slate-400 italic px-1 mb-1">Keine To-Dos...</span>`; } todoHtml += `<input type="text" placeholder="+ Neues To-Do (Enter)" class="w-full text-xs bg-white border border-yellow-300 rounded p-1 outline-none focus:ring-1 focus:ring-yellow-500" onkeydown="if(event.key==='Enter'){ addTodoLine('${p.id}', this.value); this.value=''; }"><button onclick="updateFieldRender('${p.id}', 'showRawTodo', true)" class="absolute top-1 right-1 text-[10px] text-yellow-600 opacity-0 group-hover:opacity-100 transition bg-yellow-100 px-1 rounded shadow-sm">✏️ Edit</button>`; } todoHtml += `</div>`;
@@ -223,13 +227,13 @@
                     ${amioBtn}
                     <details class="group"><summary class="text-[9px] text-slate-400 cursor-pointer list-none hover:text-blue-500 no-print focus:outline-none focus:text-blue-600">▶ Aufnahme/Vor.D.</summary><div class="mt-1 pt-1 border-t border-slate-100"><div class="mb-1 med-hidden-print"><label class="text-[9px] text-slate-400 uppercase">Aufnahme-Med</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'meds_admission', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1" rows="1">${p.meds_admission || ""}</textarea></div><div><label class="text-[9px] text-slate-400 uppercase">Vordiagnosen</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'history', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1 leading-tight outline-none border-b border-transparent focus:border-slate-300 ${histTextClass}" placeholder="Vordiagnosen...">${p.history || ""}</textarea>${histToggleBtn}</div></div></details>
                 </div>`;
-
+                
                 let diagGrid = `<div class="grid grid-cols-4 gap-1 mt-1 diag-grid">`; if(typeof DIAGNOSTICS !== 'undefined') DIAGNOSTICS.forEach(d => { const s = (p.diag_status||{})[d]||0; const res = (p.diag_results||{})[d]||""; const hasRes = res ? 'has-result' : ''; diagGrid += `<button type="button" id="btn-diag-${p.id}-${d}" onclick="toggleDiag(event,'${p.id}','${d}')" oncontextmenu="toggleDiag(event,'${p.id}','${d}')" class="state-btn diag-${s} ${hasRes} py-0.5 rounded text-[9px]" title="${res}">${d} <span class="print-result ml-1">(${res})</span></button>`; }); diagGrid += `</div>`;
-
+                
                 // KONSIL MANAGER + NOTES
-                let consultHtml = `<div class="flex flex-wrap gap-1 mt-1 border-t border-slate-100 pt-1 justify-center no-print">`;
+                let consultHtml = `<div class="flex flex-wrap gap-1 mt-1 border-t border-slate-100 pt-1 justify-center no-print">`; 
                 let activeConsults = [];
-                if(typeof CONSULTS !== 'undefined') CONSULTS.forEach(c => { const s = (p.consults && p.consults[c]) || 0; if(s===1) activeConsults.push(c); consultHtml += `<button type="button" onclick="toggleConsult('${p.id}', '${c}')" class="consult-btn consult-${s}">${c}</button>`; });
+                if(typeof CONSULTS !== 'undefined') CONSULTS.forEach(c => { const s = (p.consults && p.consults[c]) || 0; if(s===1) activeConsults.push(c); consultHtml += `<button type="button" onclick="toggleConsult('${p.id}', '${c}')" class="consult-btn consult-${s}">${c}</button>`; }); 
                 consultHtml += `</div>`;
                 if(activeConsults.length > 0) {
                     consultHtml += `<div class="flex flex-col gap-0.5 mt-1 no-print">`;
@@ -262,17 +266,17 @@
 
                 card.innerHTML = header + warnHtml + diag + cvrfHtml + labsVolHtml + tasksHtml + todoHtml + abxHtml + meds + diagGrid + consultHtml + planHtml + footer;
                 containerFrag.appendChild(card);
-
+                
                 // --- PRINT VIEW ---
                 let mainDiagPrint = p.main_diagnosis ? `<div class="print-main-diag" style="font-size:10pt; font-weight:900; margin-bottom:2px;">${p.main_diagnosis}</div>` : '';
                 let diagPrint = mainDiagPrint + `<div class="print-diag-rest">` + (p.diagnosis || "").replace(/\n/g, '<br>') + `</div>`;
                 let historyPrint = p.history ? `<div class="text-[8pt] text-slate-600 mt-1 print-history">${p.history.replace(/\n/g, ', ')}</div>` : '';
-
+                
                 let medsPausedPrint = p.meds_paused ? `<div style="color:#b91c1c; font-size:7.5pt; font-weight:bold; margin-top:2px;">⏸️ Pausiert: ${p.meds_paused}</div>` : '';
                 let daptPrint = p.dapt_oak ? `<div style="color:#1d4ed8; font-size:7.5pt; font-weight:bold; margin-top:2px;">🩸 Gerinnung: ${p.dapt_oak}</div>` : '';
                 let amioPrint = p.amio ? `<div style="color:#4338ca; font-size:7.5pt; font-weight:bold; margin-top:2px;">💊 Amiodaron: ${p.amio}g</div>` : '';
                 let medsPrint = (p.meds_current ? `<div class="print-meds">💊 ${p.meds_current}</div>` : '') + medsPausedPrint + daptPrint + amioPrint;
-
+                
                 let todoPrint = ''; let printLines = (p.todo_text || "").split('\n').filter(l => l.trim() !== '');
                 printLines.forEach(line => { let isDone = line.startsWith('[x] '); let cleanLine = line.replace(/^(\[x\] |\[ \] )/i, '').trim(); if(isDone) { todoPrint += `<div style="text-decoration: line-through; color: #888; font-size: 8pt;">☑ ${cleanLine}</div>`; } else { todoPrint += `<div style="font-size: 8pt; font-weight: 500;">☐ ${cleanLine}</div>`; } });
 
@@ -283,14 +287,14 @@
 
                 let dailyPrint = []; if(DAILY_TASKS) DAILY_TASKS.forEach(t => { if(p.daily && p.daily[t.key]) dailyPrint.push(t.label); }); let dailyStr = dailyPrint.length > 0 ? `<div class="mt-1 text-[8pt]"><b>✓:</b> ${dailyPrint.join(', ')}</div>` : '';
                 let diagPrintStr = '<div class="mt-1 text-[8pt]">'; if(DIAGNOSTICS) DIAGNOSTICS.forEach(d => { const s = (p.diag_status||{})[d]||0; const res = (p.diag_results||{})[d]||""; if(s === 1) diagPrintStr += `<span class="print-diag-item print-diag-ordered">○ ${d}</span> `; if(s === 2) diagPrintStr += `<span class="print-diag-item print-diag-done">● ${d} ${res ? '('+res+')' : ''}</span> `; }); diagPrintStr += '</div>';
-
+                
                 let consultPrintStr = '<div class="mt-1 text-[8pt] color-blue-800">'; if(typeof CONSULTS !== 'undefined' && p.consults) CONSULTS.forEach(c => { const s = p.consults[c] || 0; if(s === 1) { let n = (p.consult_notes&&p.consult_notes[c]) ? ` <i>(${p.consult_notes[c]})</i>`:''; consultPrintStr += `<div style="border-bottom: 1px solid orange; color: #854d0e; margin-right: 4px;">K: ${c} (Angef)${n}</div>`; } if(s === 2) consultPrintStr += `<div style="font-weight: bold; color: #166534; margin-right: 4px;">K: ${c} (OK)</div>`; }); consultPrintStr += '</div>';
 
                 let disDate = p.discharge_date ? new Date(p.discharge_date).toLocaleDateString('de-DE') : '';
                 let disPrint = (disDate || social.reha || social.pflegegrad || social.physio) ? `<div style="margin-top:4px; padding-top:2px; border-top:1px solid #22c55e; color:#166534; font-size:8pt; font-weight:bold;">🏠 Entl: ${disDate || '?'} | Reha: ${social.reha||'?'} | PG: ${social.pflegegrad||'?'} | Physio: ${social.physio||'?'}</div>` : '';
 
                 let cvrfPrint = []; if(CVRF_CONFIG) CVRF_CONFIG.forEach(c => { if(p.cvrf && p.cvrf.includes(c.key)) cvrfPrint.push(c.label); }); let cvrfStr = cvrfPrint.length > 0 ? `<div class="print-cvrf-box"><b>RF:</b> ${cvrfPrint.join(', ')}</div>` : '';
-
+                
                 let warnPrint = p.warnings ? `<span class="print-alert" style="color:red; border-color:red;">⚠️ ${p.warnings}</span> ` : '';
                 let isoPrint = isos.length > 0 ? `<span class="print-alert" style="color:white; background:red; border-color:red;">${isos.join(', ')}</span> ` : '';
                 let fastPrint = p.fasting ? `<span class="print-alert" style="color:#991b1b; border-color:#f87171;">⛔ NÜCHTERN</span> ` : '';
@@ -298,7 +302,7 @@
 
                 let alertStr = warnPrint + isoPrint + fastPrint + (p.dnr?'<span class="print-alert">DNR</span> ':'') + (p.dni?'<span class="print-alert">DNI</span> ':'');
                 let dobD = p.dob ? new Date(p.dob).toLocaleDateString('de-DE') : "";
-
+                
                 let fullTodoPrint = `<div class="col-todo-content">${todoPrint}${abxPrint}${volPrint}${dailyStr}${diagPrintStr}${consultPrintStr}${disPrint}</div>`;
 
                 let tr = document.createElement('tr');
@@ -309,7 +313,6 @@
                     <td class="col-todo">${labPrint}${fullTodoPrint}</td>`;
                 printBodyFrag.appendChild(tr);
             });
-
             container.appendChild(containerFrag);
             printBody.appendChild(printBodyFrag);
             setTimeout(() => { document.querySelectorAll('.auto-expand').forEach(tx => resizeTx(tx)); }, 0);
@@ -317,36 +320,52 @@
 
         // --- IMPORT LOGIC (ROSENHEIM) ---
         function openImportModal() { document.getElementById('importModal').style.display='block'; document.getElementById('pasteArea').value=''; document.getElementById('importPreview').innerHTML=''; document.getElementById('pasteArea').focus(); }
-        function parsePasteData() { const raw = document.getElementById('pasteArea').value; const preview = document.getElementById('importPreview'); parsedPatients = []; preview.innerHTML = ''; const lines = raw.split(/\r?\n/); lines.forEach(line => { if(!line.trim()) return; let room = "", name = "", dob = ""; const dateMatch = line.match(/(\d{2}\.\d{2}\.\d{4})/); if(dateMatch) { const dStr = dateMatch[0]; const parts = dStr.split('.'); dob = `${parts[2]}-${parts[1]}-${parts[0]}`; } else return; const nameMatch = line.match(/([a-zA-ZäöüÄÖÜß-]+,\s*[a-zA-ZäöüÄÖÜß-]+)/); if(nameMatch) name = nameMatch[0].trim(); if(name) { const leftPart = line.split(name)[0]; const caseIdMatch = leftPart.match(/\b\d{8,}\b/); const roomMatches = leftPart.match(/\b\d{1,3}\.?\d{0,3}\b/g); let potentialRooms = []; if(roomMatches) potentialRooms = roomMatches.filter(r => r.replace('.','').length < 6); if(potentialRooms.length > 0) { room = potentialRooms[0]; } else if (caseIdMatch) { room = "Gang"; } } if(name && dob) { parsedPatients.push({ room, name, dob }); const div = document.createElement('div'); div.className = "flex justify-between items-center bg-slate-50 p-2 border rounded text-xs"; div.innerHTML = `<div class="flex gap-2 items-center"><span class="font-bold bg-blue-100 text-blue-800 px-1 rounded w-12 text-center">${room||"?"}</span><span class="font-bold">${name}</span><span class="text-slate-500">*${dob}</span></div><span class="text-green-600 font-bold">✓</span>`; preview.appendChild(div); } }); document.getElementById('previewCount').innerText = parsedPatients.length; document.getElementById('btnImportAction').disabled = parsedPatients.length === 0; }
-        function executeImport() { if(parsedPatients.length===0) return; let count=0; parsedPatients.forEach(imp => { const exists = patients.some(p => p.name === imp.name); if(!exists) { const id = Date.now().toString() + Math.random().toString().slice(2,5); patients.push({id, room: imp.room, name: imp.name, dob: imp.dob, diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }); count++; } }); saveData(); render(); document.getElementById('importModal').style.display='none'; alert(`${count} Patienten importiert.`); }
+        function parsePasteData() { const raw = document.getElementById('pasteArea').value; const preview = document.getElementById('importPreview'); AppState.parsedPatients = []; preview.innerHTML = ''; const lines = raw.split(/\r?\n/); lines.forEach(line => { if(!line.trim()) return; let room = "", name = "", dob = ""; const dateMatch = line.match(/(\d{2}\.\d{2}\.\d{4})/); if(dateMatch) { const dStr = dateMatch[0]; const parts = dStr.split('.'); dob = `${parts[2]}-${parts[1]}-${parts[0]}`; } else return; const nameMatch = line.match(/([a-zA-ZäöüÄÖÜß-]+,\s*[a-zA-ZäöüÄÖÜß-]+)/); if(nameMatch) name = nameMatch[0].trim(); if(name) { const leftPart = line.split(name)[0]; const caseIdMatch = leftPart.match(/\b\d{8,}\b/); const roomMatches = leftPart.match(/\b\d{1,3}\.?\d{0,3}\b/g); let potentialRooms = []; if(roomMatches) potentialRooms = roomMatches.filter(r => r.replace('.','').length < 6); if(potentialRooms.length > 0) { room = potentialRooms[0]; } else if (caseIdMatch) { room = "Gang"; } } if(name && dob) { AppState.parsedPatients.push({ room, name, dob }); const div = document.createElement('div'); div.className = "flex justify-between items-center bg-slate-50 p-2 border rounded text-xs"; div.innerHTML = `<div class="flex gap-2 items-center"><span class="font-bold bg-blue-100 text-blue-800 px-1 rounded w-12 text-center">${room||"?"}</span><span class="font-bold">${name}</span><span class="text-slate-500">*${dob}</span></div><span class="text-green-600 font-bold">✓</span>`; preview.appendChild(div); } }); document.getElementById('previewCount').innerText = AppState.parsedPatients.length; document.getElementById('btnImportAction').disabled = AppState.parsedPatients.length === 0; }
+        function executeImport() { if(AppState.parsedPatients.length===0) return; let count=0; AppState.parsedPatients.forEach(imp => { const exists = AppState.patients.some(p => p.name === imp.name); if(!exists) { const id = Date.now().toString() + Math.random().toString().slice(2,5); AppState.patients.push({id, room: imp.room, name: imp.name, dob: imp.dob, diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }); count++; } }); saveData(); render(); document.getElementById('importModal').style.display='none'; showToast(`${count} Patienten importiert.`); }
 
-        function exportData() { const d = JSON.stringify(patients, null, 2); const b = new Blob([d], {type: "application/json"}); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = `station_backup_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
-        function importData(i) { const f = i.files[0]; if(!f)return; const r = new FileReader(); r.onload=function(e){try{const d=JSON.parse(e.target.result);if(Array.isArray(d)){if(confirm(`Backup mit ${d.length} Patienten laden?`)){patients=d;saveData();render();alert("Geladen!");}}}catch(err){alert("Fehler!");}};r.readAsText(f);i.value=''; }
-        function addNewPatient() { const id = Date.now().toString(); patients.push({id, room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }); saveData(); render(); setTimeout(()=>{const i=document.querySelector(`input[data-pid="${id}"]`);if(i)i.focus();},100); }
-        function updateField(id, f, v) { const p = patients.find(x => x.id === id); if(p){p[f]=v;saveData();} }
-        function updateFieldRender(id, f, v) { const p = patients.find(x => x.id === id); if(p){p[f]=v;saveData();render();} }
+        function exportData() { const d = JSON.stringify(AppState.patients, null, 2); const b = new Blob([d], {type: "application/json"}); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = `station_backup_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
+        function exportAnonData() {
+            const anonPatients = JSON.parse(JSON.stringify(AppState.patients));
+            anonPatients.forEach((p, idx) => {
+                p.name = `Anonym ${idx + 1}`;
+                p.dob = "1900-01-01";
+            });
+            const d = JSON.stringify(anonPatients, null, 2);
+            const b = new Blob([d], {type: "application/json"});
+            const u = URL.createObjectURL(b);
+            const a = document.createElement('a');
+            a.href = u;
+            a.download = `station_backup_anon_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+        function importData(i) { const f = i.files[0]; if(!f)return; const r = new FileReader(); r.onload=function(e){try{const d=JSON.parse(e.target.result);if(Array.isArray(d) && (d.length === 0 || d[0].hasOwnProperty("id"))) { if(confirm(`Backup mit ${d.length} Patienten laden?`)) { AppState.patients=d; saveData(); render(); showToast("Backup erfolgreich geladen!"); } } else { throw new Error("Invalid Format"); }}catch(err){showToast("Fehler beim Laden des Backups!", true);}};r.readAsText(f);i.value=''; }
+        function addNewPatient() { const id = Date.now().toString(); AppState.patients.push({id, room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }); saveData(); render(); setTimeout(()=>{const i=document.querySelector(`input[data-pid="${id}"]`);if(i)i.focus();},100); }
+        function updateField(id, f, v) { const p = AppState.patients.find(x => x.id === id); if(p){p[f]=v;saveData();} }
+        function updateFieldRender(id, f, v) { const p = AppState.patients.find(x => x.id === id); if(p){p[f]=v;saveData();render();} }
         function getAge(d) { if(!d) return ""; const t=new Date(); const b=new Date(d); let a=t.getFullYear()-b.getFullYear(); const m=t.getMonth()-b.getMonth(); if(m<0||(m===0&&t.getDate()<b.getDate())) a--; return isNaN(a)?"":`(${a}J)`; }
-
-        function openMedModal(id) { currentEditingId = id; const p = patients.find(x => x.id === id); document.getElementById('med-search').value = ""; document.getElementById('med-custom').value = ""; tempSelectedMeds.clear(); const cm = p.meds_current ? p.meds_current.split(',').map(s=>s.trim()) : []; cm.forEach(m=>{if(m)tempSelectedMeds.add(m);}); renderMedList(""); document.getElementById('medModal').style.display = "block"; setTimeout(()=>document.getElementById('med-search').focus(),100); }
+        
+        function openMedModal(id) { AppState.currentEditingId = id; const p = AppState.patients.find(x => x.id === id); document.getElementById('med-search').value = ""; document.getElementById('med-custom').value = ""; AppState.tempSelectedMeds.clear(); const cm = p.meds_current ? p.meds_current.split(',').map(s=>s.trim()) : []; cm.forEach(m=>{if(m)AppState.tempSelectedMeds.add(m);}); renderMedList(""); document.getElementById('medModal').style.display = "block"; setTimeout(()=>document.getElementById('med-search').focus(),100); }
         function closeMedModal() { document.getElementById('medModal').style.display = "none"; }
         function handleModalKey(e, mId) { if(e.key==="Escape")document.getElementById(mId).style.display="none"; if(e.key==="Enter"&&e.target.tagName!=='TEXTAREA'&&mId==='medModal')saveMeds(); }
-        function toggleTempMed(n, c) { if(c) tempSelectedMeds.add(n); else tempSelectedMeds.delete(n); }
-        function renderMedList(f) { const c = document.getElementById('med-selector'); c.innerHTML = ""; const s = f.toLowerCase(); for (const [g, m] of Object.entries(MED_GROUPS)) { const mm = m.filter(x=>x.toLowerCase().includes(s)); if(s&&mm.length===0)continue; const open=s?"open":""; let h=`<details ${open} class="group bg-slate-50 border border-slate-200 rounded"><summary class="cursor-pointer p-2 font-bold text-sm text-slate-700 hover:bg-slate-100 select-none flex justify-between items-center"><span>${g}</span><span class="text-xs text-slate-400">▼</span></summary><div class="p-2 bg-white border-t border-slate-100 grid grid-cols-2 md:grid-cols-4 gap-2">`; mm.forEach(x=>{ const ch=tempSelectedMeds.has(x)?"checked":""; h+=`<label class="flex items-center gap-1 text-xs cursor-pointer hover:bg-blue-50 p-1 rounded focus-within:ring-2 focus-within:ring-blue-500"><input type="checkbox" value="${x}" class="accent-blue-600" ${ch} onchange="toggleTempMed('${x}', this.checked)"> ${x}</label>`; }); h+=`</div></details>`; c.innerHTML+=h; } }
-        function saveMeds() { const p = patients.find(x => x.id === currentEditingId); const s = Array.from(tempSelectedMeds); const c = document.getElementById('med-custom').value; if(c) s.push(c); s.sort(); p.meds_current = s.join(", "); saveData(); render(); closeMedModal(); }
+        function toggleTempMed(n, c) { if(c) AppState.tempSelectedMeds.add(n); else AppState.tempSelectedMeds.delete(n); }
+        function renderMedList(f) { const c = document.getElementById('med-selector'); c.innerHTML = ""; const s = f.toLowerCase(); for (const [g, m] of Object.entries(MED_GROUPS)) { const mm = m.filter(x=>x.toLowerCase().includes(s)); if(s&&mm.length===0)continue; const open=s?"open":""; let h=`<details ${open} class="group bg-slate-50 border border-slate-200 rounded"><summary class="cursor-pointer p-2 font-bold text-sm text-slate-700 hover:bg-slate-100 select-none flex justify-between items-center"><span>${g}</span><span class="text-xs text-slate-400">▼</span></summary><div class="p-2 bg-white border-t border-slate-100 grid grid-cols-2 md:grid-cols-4 gap-2">`; mm.forEach(x=>{ const ch=AppState.tempSelectedMeds.has(x)?"checked":""; h+=`<label class="flex items-center gap-1 text-xs cursor-pointer hover:bg-blue-50 p-1 rounded focus-within:ring-2 focus-within:ring-blue-500"><input type="checkbox" value="${x}" class="accent-blue-600" ${ch} onchange="toggleTempMed('${x}', this.checked)"> ${x}</label>`; }); h+=`</div></details>`; c.innerHTML+=h; } }
+        function saveMeds() { const p = AppState.patients.find(x => x.id === AppState.currentEditingId); const s = Array.from(AppState.tempSelectedMeds); const c = document.getElementById('med-custom').value; if(c) s.push(c); s.sort(); p.meds_current = s.join(", "); saveData(); render(); closeMedModal(); }
 
-        function toggleDiag(e, id, d) { e.preventDefault(); const p = patients.find(x => x.id === id); if(!p.diag_status) p.diag_status={}; p.diag_status[d] = ((p.diag_status[d]||0)+1)%3; if(e.type==='contextmenu'){ const r = prompt(`Befund ${d}:`, (p.diag_results||{})[d]||""); if(r!==null){ if(!p.diag_results)p.diag_results={}; p.diag_results[d]=r; if(r)p.diag_status[d]=2; }} saveData(); render(); setTimeout(()=>{const b=document.getElementById(`btn-diag-${id}-${d}`);if(b)b.focus();},50); }
-        function toggleCVRF(id, k) { const p = patients.find(x => x.id === id); if(!p.cvrf) p.cvrf=[]; if(p.cvrf.includes(k)) p.cvrf=p.cvrf.filter(x=>x!==k); else p.cvrf.push(k); saveData(); render(); }
-        function toggleResus(id, t) { const p = patients.find(x => x.id === id); if(p){p[t]=!p[t];saveData();render();} }
-        function toggleDaily(id, k) { const p = patients.find(x => x.id === id); if(!p.daily) p.daily={}; p.daily[k]=!p.daily[k]; saveData(); render(); }
-        function deletePatient(id) { if(confirm("Löschen?")) { patients=patients.filter(x=>x.id!==id); saveData(); render(); } }
-        function startNewDay() { if(confirm("Neuer Tag?")) { patients.forEach(p=>p.daily={}); saveData(); render(); } }
-
-        function setupExamBuilder() { const c = document.getElementById('status-builder'); if(typeof EXAM_CONFIG === 'undefined') return; for(const [k, d] of Object.entries(EXAM_CONFIG)) { let h=`<div class="border rounded bg-slate-50 p-2"><div class="font-bold text-xs text-slate-500 uppercase mb-1">${k}</div><div class="flex flex-wrap gap-1">`; d.options.forEach(o => { h+=`<button class="px-2 py-1 bg-white hover:bg-blue-100 border border-slate-200 rounded text-xs transition" onclick="insertExamText('${k}', '${o}')">${o}</button>`; }); h+=`</div></div>`; c.innerHTML+=h; } }
-        function openExamModal(id) { currentEditingId = id; const p = patients.find(x => x.id === id); document.getElementById('gen-text-output').value = p.exam_text || "Standard Aufnahme..."; document.getElementById('examModal').style.display = "block"; }
+        function toggleDiag(e, id, d) { e.preventDefault(); const p = AppState.patients.find(x => x.id === id); if(!p.diag_status) p.diag_status={}; p.diag_status[d] = ((p.diag_status[d]||0)+1)%3; if(e.type==='contextmenu'){ const r = prompt(`Befund ${d}:`, (p.diag_results||{})[d]||""); if(r!==null){ if(!p.diag_results)p.diag_results={}; p.diag_results[d]=r; if(r)p.diag_status[d]=2; }} saveData(); render(); setTimeout(()=>{const b=document.getElementById(`btn-diag-${id}-${d}`);if(b)b.focus();},50); }
+        function toggleCVRF(id, k) { const p = AppState.patients.find(x => x.id === id); if(!p.cvrf) p.cvrf=[]; if(p.cvrf.includes(k)) p.cvrf=p.cvrf.filter(x=>x!==k); else p.cvrf.push(k); saveData(); render(); }
+        function toggleResus(id, t) { const p = AppState.patients.find(x => x.id === id); if(p){p[t]=!p[t];saveData();render();} }
+        function toggleDaily(id, k) { const p = AppState.patients.find(x => x.id === id); if(!p.daily) p.daily={}; p.daily[k]=!p.daily[k]; saveData(); render(); }
+        function deletePatient(id) { if(confirm("Löschen?")) { AppState.patients=AppState.patients.filter(x=>x.id!==id); saveData(); render(); } }
+        function startNewDay() { if(confirm("Neuer Tag?")) { AppState.patients.forEach(p=>p.daily={}); saveData(); render(); } }
+        
+        function setupExamBuilder() { const c = document.getElementById('status-builder'); if(typeof EXAM_CONFIG === 'undefined') return; let fullHtml = ""; for(const [k, d] of Object.entries(EXAM_CONFIG)) { let h=`<div class="border rounded bg-slate-50 p-2"><div class="font-bold text-xs text-slate-500 uppercase mb-1">${k}</div><div class="flex flex-wrap gap-1">`; d.options.forEach(o => { h+=`<button class="px-2 py-1 bg-white hover:bg-blue-100 border border-slate-200 rounded text-xs transition" onclick="insertExamText('${k}', '${o}')">${o}</button>`; }); h+=`</div></div>`; fullHtml += h; } c.innerHTML = fullHtml; }
+        function openExamModal(id) { AppState.currentEditingId = id; const p = AppState.patients.find(x => x.id === id); document.getElementById('gen-text-output').value = p.exam_text || "Standard Aufnahme..."; document.getElementById('examModal').style.display = "block"; }
         function insertExamText(c, t) { document.getElementById('gen-text-output').value += `\n[${c}]: ${t}`; }
-        function saveExamToPatient() { patients.find(x => x.id === currentEditingId).exam_text = document.getElementById('gen-text-output').value; saveData(); document.getElementById('examModal').style.display = 'none'; }
-
-        function openScoreModal(id) { const p = patients.find(x => x.id === id); const list = document.getElementById('score-list'); list.innerHTML = ""; let relevantScores = []; if(typeof SCORE_DEFINITIONS !== 'undefined') { relevantScores = SCORE_DEFINITIONS.filter(s => s.check(p)); } if(relevantScores.length === 0) { list.innerHTML = `<div class="p-4 text-slate-400 text-center col-span-2">Keine spezifischen Scores erkannt.<br>(Prüfe Diagnosen-Schreibweise)</div>`; } else { relevantScores.forEach(s => { const link = s.url ? `href="${s.url}" target="_blank"` : ""; const tag = s.url ? "a" : "div"; list.innerHTML += `<${tag} ${link} class="score-card group"><div><span class="score-name">${s.name}</span><span class="score-info">${s.info}</span></div><div class="score-arrow group-hover:text-blue-500">➜</div></${tag}>`; }); } document.getElementById('scoreModal').style.display = "block"; }
+        function saveExamToPatient() { AppState.patients.find(x => x.id === AppState.currentEditingId).exam_text = document.getElementById('gen-text-output').value; saveData(); document.getElementById('examModal').style.display = 'none'; }
+        
+        function openScoreModal(id) { const p = AppState.patients.find(x => x.id === id); const list = document.getElementById('score-list'); list.innerHTML = ""; let relevantScores = []; if(typeof SCORE_DEFINITIONS !== 'undefined') { relevantScores = SCORE_DEFINITIONS.filter(s => s.check(p)); } if(relevantScores.length === 0) { list.innerHTML = `<div class="p-4 text-slate-400 text-center col-span-2">Keine spezifischen Scores erkannt.<br>(Prüfe Diagnosen-Schreibweise)</div>`; } else { let scoresHtml = ""; relevantScores.forEach(s => { const link = s.url ? `href="${s.url}" target="_blank"` : ""; const tag = s.url ? "a" : "div"; scoresHtml += `<${tag} ${link} class="score-card group"><div><span class="score-name">${s.name}</span><span class="score-info">${s.info}</span></div><div class="score-arrow group-hover:text-blue-500">➜</div></${tag}>`; }); list.innerHTML = scoresHtml; } document.getElementById('scoreModal').style.display = "block"; }
     </script>
 </body>
 </html>
