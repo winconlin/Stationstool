@@ -3,83 +3,87 @@
 // --- 1. MEDIKAMENTE ---
 const MED_GROUPS = {
     "Herzinsuffizienz (Fantastic 4+)": [
-        "Bisoprolol", 
-        "Metoprolol", 
-        "Carvedilol", 
+        "Bisoprolol",
+        "Metoprolol",
+        "Carvedilol",
         "Nebivolol",
-        "Ramipril", 
-        "Lisinopril", 
-        "Candesartan", 
-        "Valsartan", 
-        "Entresto (Sacubitril/Valsartan)", 
-        "Spironolacton", 
-        "Eplerenon", 
-        "Dapagliflozin", 
+        "Ramipril",
+        "Lisinopril",
+        "Candesartan",
+        "Valsartan",
+        "Entresto (Sacubitril/Valsartan)",
+        "Spironolacton",
+        "Eplerenon",
+        "Dapagliflozin",
         "Empagliflozin"
     ],
     "Gerinnung (OAK & NMH)": [
-        "ASS", 
-        "Clopidogrel", 
-        "Ticagrelor", 
+        "ASS",
+        "Clopidogrel",
+        "Ticagrelor",
         "Prasugrel",
-        "Apixaban (Eliquis)", 
-        "Rivaroxaban (Xarelto)", 
-        "Edoxaban (Lixiana)", 
-        "Marcumar (Phenprocoumon)", 
-        "Heparin (Perfusor)", 
-        "Certoparin (Mono-Embolex)", 
-        "Tinzaparin (Innohep)", 
+        "Apixaban (Eliquis)",
+        "Rivaroxaban (Xarelto)",
+        "Edoxaban (Lixiana)",
+        "Marcumar (Phenprocoumon)",
+        "Heparin (Perfusor)",
+        "Certoparin (Mono-Embolex)",
+        "Tinzaparin (Innohep)",
         "Enoxaparin (Clexane)"
     ],
     "Diuretika & Volumen": [
-        "Torasemid", 
-        "Furosemid (Lasix)", 
-        "HCT", 
-        "Xipamid", 
-        "Chlortalidon", 
+
+        "Chlortalidon",
+        "Finerenon",
+        "Furosemid (Lasix)",
+        "HCT",
         "Spironolacton",
-        "Tolvaptan"
+        "Tolvaptan",
+        "Torasemid",
+        "Xipamid"
     ],
     "Rhythmus & Rate Control": [
-        "Amiodaron", 
-        "Digitoxin", 
-        "Digoxin", 
-        "Flecainid", 
-        "Propafenon", 
+        "Amiodaron",
+        "Digitoxin",
+        "Digoxin",
+        "Flecainid",
+        "Propafenon",
         "Verapamil",
         "Adenosin (akut)"
     ],
     "Hypertonie / KHK (Ergänzung)": [
-        "Amlodipin", 
-        "Lercanidipin", 
-        "Nifedipin", 
-        "Urapidil", 
-        "Clonidin", 
-        "Moxonidin", 
+
+        "Amlodipin",
+        "Clonidin",
         "Doxazosin",
         "Glyceroltrinitrat (Nitro)",
         "Isosorbidmononitrat (ISMN)",
-        "Ranolazin"
+        "Lercanidipin",
+        "Moxonidin",
+        "Nifedipin",
+        "Ranolazin",
+        "Urapidil",
+        "Verciguat"
     ],
     "Antiinfektiva (Antibiotika/Pilze)": [
-        "Ampicillin/Sulbactam (Unacid)", 
-        "Piperacillin/Tazobactam (Tazobac)", 
-        "Cefuroxim", 
-        "Ceftriaxon", 
-        "Cefazolin", 
+        "Ampicillin/Sulbactam (Unacid)",
+        "Piperacillin/Tazobactam (Tazobac)",
+        "Cefuroxim",
+        "Ceftriaxon",
+        "Cefazolin",
         "Cepotaxim",
-        "Meropenem", 
+        "Meropenem",
         "Imipenem",
-        "Ciprofloxacin", 
-        "Levofloxacin", 
+        "Ciprofloxacin",
+        "Levofloxacin",
         "Moxifloxacin",
-        "Clarithromycin", 
-        "Azithromycin", 
-        "Doxycyclin", 
-        "Clindamycin", 
-        "Metronidazol", 
-        "Vancomycin", 
-        "Linezolid", 
+        "Clarithromycin",
+        "Azithromycin",
+        "Doxycyclin",
+        "Clindamycin",
+        "Metronidazol",
+        "Vancomycin",
+        "Linezolid",
         "Cotrimoxazol",
         "Amoxicillin/Clavulansäure",
         "Rifampicin",
@@ -87,55 +91,68 @@ const MED_GROUPS = {
         "Amphotericin B"
     ],
     "Analgesie & Sedierung": [
-        "Metamizol (Novalgin)", 
-        "Ibuprofen", 
-        "Paracetamol", 
-        "Piritramid (Dipidolor)", 
-        "Oxycodon", 
-        "Morphin", 
+        "Metamizol (Novalgin)",
+        "Ibuprofen",
+        "Paracetamol",
+        "Piritramid (Dipidolor)",
+        "Oxycodon",
+        "Morphin",
         "Tilidin",
-        "Lorazepam (Tavor)", 
-        "Zopiclon", 
+        "Lorazepam (Tavor)",
+        "Zopiclon",
         "Midazolam",
         "Propofol"
     ],
     "Stoffwechsel / Gastro / Sonstiges": [
-        "Metformin", 
-        "Sitagliptin", 
-        "Insulin (Actrapid)", 
-        "Insulin (Lantus/Basal)", 
-        "Pantoprazol", 
-        "Omeprazol", 
-        "L-Thyroxin", 
-        "Atorvastatin", 
-        "Rosuvastatin", 
-        "Simvastatin", 
-        "Ezetimib", 
-        "Allopurinol", 
-        "Kalium", 
-        "Magnesium"
+
+        "Allopurinol",
+        "Atorvastatin",
+        "Calcitriol",
+        "Dulaglutid",
+        "Eisen II",
+        "Eisen III",
+        "Epoetin Alfa",
+        "Ezetimib",
+        "Finerenon",
+        "Insulin (Actrapid)",
+        "Insulin (Lantus/Basal)",
+        "Kalium",
+        "L-Thyroxin",
+        "Loperamid",
+        "Magnesium",
+        "Metformin",
+        "Mukofalk",
+        "Omeprazol",
+        "Pantoprazol",
+        "Rosuvastatin",
+        "Simethicon",
+        "Simvastatin",
+        "Sitagliptin"
     ],
     "Lunge (COPD/Asthma/PAH)": [
-        "Salbutamol", 
-        "Ipratropium/Fenoterol", 
-        "Beclometason/Formoterol", 
-        "Theophyllin", 
+        "Salbutamol",
+        "Ipratropium/Fenoterol",
+        "Beclometason/Formoterol",
+        "Theophyllin",
         "Prednisolon",
-        "Sildenafil (PAH)", 
-        "Macitentan", 
+        "Sildenafil (PAH)",
+        "Macitentan",
         "Selexipag"
     ],
     "Psych / Neuro": [
-        "Mirtazapin", 
-        "Pipamperon", 
-        "Melperon", 
-        "Escitalopram", 
-        "Citalopram", 
-        "Sertralin", 
-        "Quetiapin", 
-        "Pregabalin", 
+
+        "Betahistin",
+        "Citalopram",
+        "Escitalopram",
         "Gabapentin",
-        "Levodopa"
+        "Levodopa",
+        "Melperon",
+        "Mirtazapin",
+        "Pipamperon",
+        "Pregabalin",
+        "Promethazin",
+        "Quetiapin",
+        "Sertralin"
     ]
 };
 
@@ -195,20 +212,13 @@ const CVRF_CONFIG = [
 /* --- ZUSATZ: SCORE LOGIK & DEFINITIONEN --- */
 
 // Hilfsfunktionen für die Score-Logik
-function getAgeNum(dob) {
-    if(!dob) return 0;
-    const today = new Date();
-    const birthDate = new Date(dob);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-    return age;
-}
 
 function hasKw(p, keywords) {
     // Sucht Keywords in Diagnose, Vordiagnose und aktueller Medikation
-    const text = (p.diagnosis + " " + p.history + " " + p.meds_current).toLowerCase();
-    return keywords.some(k => text.includes(k));
+    if (p._kwText === undefined) {
+        p._kwText = ((p.diagnosis || "") + " " + (p.history || "") + " " + (p.meds_current || "")).toLowerCase();
+    }
+    return keywords.some(k => p._kwText.includes(k));
 }
 
 // Die Liste der Scores mit Filter-Regeln
