@@ -131,6 +131,24 @@ test('parsePasteData skips lines without a valid name format', (t) => {
     assert.strictEqual(global.AppState.parsedPatients.length, 0);
 });
 
+
+test('parsePasteData parses tab-separated KIS export rows with header', (t) => {
+    global.mockElements.pasteArea.value = [
+        'B	Infektiös	Fallnummer	Hauptfallnr.	Name	G	Geburtsdatum	Alter (b. A.)	Aufnahmezeitpunkt	Verlegungen von	Verlegungen bis	Verl.Art	Verlegungsart	Fachrichtung	Station	Abr.-Art	Zimmer	PFLS	WL	Privat	Patientenportal	Patientennr.	Aktenstatus',
+        'Ungeöffnet	Nicht infektiös	1260057475	1260057475	Testpatient, Donald	W	27.07.1968	57	21.04.2026 12:36	24.04.2026 13:53		V	Verlegung	INTINTN	211	S	P9				(nicht vorhanden)	9624585	Fallsperre inaktiv'
+    ].join('\n');
+    global.mockElements.importPreview.innerHTML = '';
+    global.mockElements.importPreview.children = [];
+    global.AppState.parsedPatients = [];
+
+    parsePasteData();
+
+    assert.strictEqual(global.AppState.parsedPatients.length, 1);
+    assert.strictEqual(global.AppState.parsedPatients[0].room, 'P9');
+    assert.strictEqual(global.AppState.parsedPatients[0].name, 'Testpatient, Donald');
+    assert.strictEqual(global.AppState.parsedPatients[0].dob, '1968-07-27');
+});
+
 test('parsePasteData parses complex names with special characters', (t) => {
     // Reset state
     global.mockElements.pasteArea.value = '105.1  Müller-Lüdenscheidt, Karl-Heinz  22.02.1990\n';
