@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Medical Suite - Kardiologie</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="config_base.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-
+        
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -20,9 +21,9 @@
 
         .anam-btn { @apply text-xs border border-slate-200 bg-white hover:bg-indigo-50 hover:border-indigo-300 text-slate-700 py-1.5 px-2 rounded transition text-left; }
         .anam-btn:active { @apply bg-indigo-100 transform scale-95; }
-
+        
         .exam-cat-title { @apply text-[10px] uppercase font-bold text-slate-400 mt-2 mb-1 tracking-wider; }
-
+        
         textarea { @apply font-mono text-sm leading-relaxed resize-none focus:ring-2 focus:ring-indigo-500 outline-none border-slate-300 rounded-lg; }
     </style>
 </head>
@@ -45,7 +46,7 @@
                 </div>
             </div>
         </div>
-
+        
         <div class="flex gap-2">
             <button onclick="switchTab('anamnese')" id="tab-btn-anamnese" class="tab-btn active">1. Anamnese</button>
             <button onclick="switchTab('status')" id="tab-btn-status" class="tab-btn">2. Status</button>
@@ -54,7 +55,7 @@
     </div>
 
     <div class="flex-1 overflow-hidden relative bg-slate-100">
-
+        
         <div id="tab-anamnese" class="tab-content absolute inset-0 flex p-6 gap-6">
             <div class="w-1/3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-y-auto p-4 flex flex-col gap-4">
                 <h3 class="font-bold text-slate-700 border-b pb-2">Baukasten</h3>
@@ -121,9 +122,9 @@
         // --- 1. CONFIG & DATEN ---
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('dateDischarge').value = today;
-
-        let globalPat = {
-            id: "", gender: "m", name: "", dob: "", cvrf: [], meds: ""
+        
+        let globalPat = { 
+            id: "", gender: "m", name: "", dob: "", cvrf: [], meds: "" 
         };
 
         // --- ANAMNESE CONFIG (Angepasst an Krankenhaus) ---
@@ -169,7 +170,7 @@
         // --- 2. INIT & URL PARSING ---
         window.onload = function() {
             const params = new URLSearchParams(window.location.search);
-
+            
             // Name Parsing
             if(params.has('name')) {
                 let raw = params.get('name'); // "Müller, Hans"
@@ -179,9 +180,9 @@
                     document.getElementById('patLastName').value = raw.split(' ').pop();
                 }
             }
-
+            
             if(params.has('dob')) document.getElementById('patBirth').value = params.get('dob');
-
+            
             // CVRF Import
             if(params.has('cvrf')) {
                 try { globalPat.cvrf = JSON.parse(params.get('cvrf')); } catch(e){}
@@ -197,7 +198,7 @@
             globalPat.gender = document.getElementById('patGender').value;
             globalPat.name = document.getElementById('patLastName').value;
             globalPat.dob = document.getElementById('patBirth').value;
-
+            
             // Grammatik Helper
             const isMale = globalPat.gender === 'm';
             globalPat.nom = isMale ? (globalPat.name ? `Herr ${globalPat.name}` : "Der Patient") : (globalPat.name ? `Frau ${globalPat.name}` : "Die Patientin");
@@ -213,7 +214,7 @@
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById('tab-' + tabId).classList.remove('hidden');
-
+            
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById('tab-btn-' + tabId).classList.add('active');
         }
@@ -242,24 +243,23 @@
         // --- 4. ANAMNESE BUILDER LOGIC ---
         function renderAnamneseBuilder() {
             const c = document.getElementById('anamnese-builder');
-            c.innerHTML = "";
+            let fullHtml = "";
             for (const [category, items] of Object.entries(ANAMNESE_BLOCKS)) {
                 let html = `<div class="exam-cat-title">${category}</div><div class="grid grid-cols-1 gap-1">`;
                 items.forEach(item => {
-                    // String Escape für onclick
-                    const safeS = item.s.replace(/'/g, "\\'");
-                    html += `<button onclick="addAnamneseText('${safeS}')" class="anam-btn">${item.t}</button>`;
+                    html += `<button onclick="addAnamneseText('${item.t}')" class="anam-btn bg-slate-50" title="${item.s}">${item.t}</button>`;
                 });
                 html += `</div>`;
-                c.innerHTML += html;
+                fullHtml += html;
             }
+            c.innerHTML = fullHtml;
             // Auto-Fill Start
             addAnamneseText(`${globalPat.nom} stellt sich vor.`, true);
         }
 
         function addAnamneseText(text, isStart = false) {
             const area = document.getElementById('anamnese-out');
-
+            
             // Gender Anpassung im Text (einfache Ersetzung)
             let processed = text;
             if(globalPat.gender === 'f') {
@@ -273,15 +273,16 @@
         // --- 5. EXAM BUILDER LOGIC ---
         function renderExamBuilder() {
             const c = document.getElementById('exam-builder');
-            c.innerHTML = "";
+            let fullHtml = "";
             for (const [cat, opts] of Object.entries(EXAM_CONFIG)) {
                 let html = `<div class="exam-cat-title">${cat}</div><div class="flex flex-wrap gap-1">`;
                 opts.forEach(opt => {
                      html += `<button onclick="addExamText('${cat}', '${opt}')" class="anam-btn bg-slate-50">${opt}</button>`;
                 });
                 html += `</div>`;
-                c.innerHTML += html;
+                fullHtml += html;
             }
+            c.innerHTML = fullHtml;
         }
         function addExamText(cat, text) {
             const area = document.getElementById('status-out');
@@ -296,10 +297,10 @@
 
         // --- 6. EPIKRISE LOGIC (Der "Profi" Teil) ---
         let currentModuleId = null;
-
+        
         // HIER KOMMEN DEINE MODULE REIN (PVI, ACS, etc.)
         // Ich füge hier die optimierte PVI und ACS Logik ein, die wir besprochen haben.
-
+        
         const MODULES = {
             pvi: {
                 fields: [
@@ -319,7 +320,7 @@
                     if ((isMale && cha === 0) || (!isMale && cha <= 1)) {
                         oak = "für 3 Monate postinterventionell (Blanking Period)";
                     }
-
+                    
                     return `Aktuelle Diagnosen
 ${d.diag_type}, EHRA ${d.ehra}
 CHA2DS2-VASc: ${cha}, HAS-BLED: ${d.has_bled}
@@ -374,12 +375,24 @@ Procedere
             // Weitere Module hier einfach ergänzen...
         };
 
-        function renderModuleFields(fields, container) {
+        function loadModule() {
+            const sel = document.getElementById('moduleSelect');
+            const id = sel.value;
+            currentModuleId = id;
+            const container = document.getElementById('dynamicFields');
+            container.innerHTML = "";
+
+            if(!id || !MODULES[id]) {
+                container.innerHTML = '<p class="text-center text-slate-400 text-sm mt-10">Bitte Modul wählen.</p>';
+                return;
+            }
+
+            // Felder rendern
             const fragment = document.createDocumentFragment();
-            fields.forEach(f => {
+            MODULES[id].fields.forEach(f => {
                 const div = document.createElement('div');
                 div.className = "mb-2";
-
+                
                 if(f.type === 'calculator') {
                      div.innerHTML = `
                         <div class="bg-indigo-50 p-2 rounded border border-indigo-100 text-xs">
@@ -398,35 +411,19 @@ Procedere
                         </div>`;
                      setTimeout(precheckRisks, 50);
                 } else {
-                    div.innerHTML = `<label class="block text-[10px] uppercase font-bold text-slate-400 mb-0.5">${f.label}</label>`;
+                    let html = `<label class="block text-[10px] uppercase font-bold text-slate-400 mb-0.5">${f.label}</label>`;
                     if(f.type === 'select') {
-                        let h = `<select id="f_${f.id}" class="w-full border p-1.5 rounded text-sm" onchange="updateEpikriseText()">`;
-                        f.options.forEach(o => h+=`<option value="${o}">${o}</option>`);
-                        h += `</select>`;
-                        div.innerHTML += h;
+                        html += `<select id="f_${f.id}" class="w-full border p-1.5 rounded text-sm" onchange="updateEpikriseText()">`;
+                        f.options.forEach(o => html += `<option value="${o}">${o}</option>`);
+                        html += `</select>`;
                     } else {
-                        div.innerHTML += `<input type="${f.type}" id="f_${f.id}" value="${f.value||''}" class="w-full border p-1.5 rounded text-sm" oninput="updateEpikriseText()">`;
+                        html += `<input type="${f.type}" id="f_${f.id}" value="${f.value||''}" class="w-full border p-1.5 rounded text-sm" oninput="updateEpikriseText()">`;
                     }
+                    div.innerHTML = html;
                 }
                 fragment.appendChild(div);
             });
             container.appendChild(fragment);
-        }
-
-        function loadModule() {
-            const sel = document.getElementById('moduleSelect');
-            const id = sel.value;
-            currentModuleId = id;
-            const container = document.getElementById('dynamicFields');
-            container.innerHTML = "";
-
-            if(!id || !MODULES[id]) {
-                container.innerHTML = '<p class="text-center text-slate-400 text-sm mt-10">Bitte Modul wählen.</p>';
-                return;
-            }
-
-            // Felder rendern
-            renderModuleFields(MODULES[id].fields, container);
             updateEpikriseText();
         }
 
@@ -435,10 +432,10 @@ Procedere
             const r = globalPat.cvrf || [];
             if(r.includes('htn')) document.getElementById('c_h').checked = true;
             if(r.includes('dm')) document.getElementById('c_d').checked = true;
-
+            
             // Alter checken
             if(globalPat.dob) {
-                const age = new Date().getFullYear() - new Date(globalPat.dob).getFullYear();
+                const age = getAgeNum(globalPat.dob);
                 if(age >= 75) document.getElementById('c_a2').checked = true;
                 else if(age >= 65) document.getElementById('c_a1').checked = true;
             }
@@ -449,7 +446,7 @@ Procedere
             if(!document.getElementById('c_c')) return 0;
             const isFem = globalPat.gender === 'f';
             document.getElementById('c_sc').checked = isFem;
-
+            
             let s = isFem ? 1 : 0;
             if(document.getElementById('c_c').checked) s++;
             if(document.getElementById('c_h').checked) s++;
@@ -458,14 +455,14 @@ Procedere
             if(document.getElementById('c_s2').checked) s+=2;
             if(document.getElementById('c_v').checked) s++;
             if(document.getElementById('c_a1').checked) s++;
-
+            
             document.getElementById('scoreVal').innerText = s;
             return s;
         }
 
         function updateEpikriseText() {
             if(!currentModuleId) return;
-
+            
             // Daten sammeln
             const d = {};
             MODULES[currentModuleId].fields.forEach(f => {
