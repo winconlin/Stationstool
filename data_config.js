@@ -15,7 +15,9 @@ const MED_GROUPS = {
         "Spironolacton",
         "Eplerenon",
         "Dapagliflozin",
-        "Empagliflozin"
+        "Empagliflozin",
+        "Losartan",
+        "Dapaglifozin."
     ],
     "Gerinnung (OAK & NMH)": [
         "ASS",
@@ -29,7 +31,10 @@ const MED_GROUPS = {
         "Heparin (Perfusor)",
         "Certoparin (Mono-Embolex)",
         "Tinzaparin (Innohep)",
-        "Enoxaparin (Clexane)"
+        "Enoxaparin (Clexane)",
+        "Apixaban",
+        "Edoxaban",
+        "Enoxaparin"
     ],
     "Diuretika & Volumen": [
 
@@ -40,7 +45,8 @@ const MED_GROUPS = {
         "Spironolacton",
         "Tolvaptan",
         "Torasemid",
-        "Xipamid"
+        "Xipamid",
+        "Hydrochlorothiazid"
     ],
     "Rhythmus & Rate Control": [
         "Amiodaron",
@@ -127,7 +133,10 @@ const MED_GROUPS = {
         "Rosuvastatin",
         "Simethicon",
         "Simvastatin",
-        "Sitagliptin"
+        "Sitagliptin",
+        "Alfacalcidol",
+        "Dekristol",
+        "Levothyroxin"
     ],
     "Lunge (COPD/Asthma/PAH)": [
         "Salbutamol",
@@ -137,7 +146,10 @@ const MED_GROUPS = {
         "Prednisolon",
         "Sildenafil (PAH)",
         "Macitentan",
-        "Selexipag"
+        "Selexipag",
+        "ACC",
+        "Cetirizin",
+        "Viani"
     ],
     "Psych / Neuro": [
 
@@ -152,7 +164,9 @@ const MED_GROUPS = {
         "Pregabalin",
         "Promethazin",
         "Quetiapin",
-        "Sertralin"
+        "Sertralin",
+        "Dronabinol",
+        "Zolpidem"
     ]
 };
 
