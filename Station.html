@@ -77,8 +77,20 @@
 
         const AppState = { patients: [], currentEditingId: null, tempSelectedMeds: new Set(), parsedPatients: [] };
 
-
-
+        function createDefaultPatient(overrides = {}) {
+            const defaults = {
+                id: Date.now().toString(),
+                room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [],
+                meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "",
+                daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false,
+                exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0,
+                fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {},
+                social: {reha:'', physio:'', pflegegrad:''},
+                labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''},
+                vol: {ziel:'', aktuell:''}
+            };
+            return { ...defaults, ...overrides };
+        }
 
         function showToast(msg, isError = false) { const t = document.createElement("div"); t.className = `fixed bottom-4 right-4 text-white px-4 py-2 rounded shadow-lg transition-opacity duration-300 z-50 ${isError ? "bg-red-600" : "bg-green-600"}`; t.innerText = msg; document.body.appendChild(t); setTimeout(() => { t.style.opacity = "0"; setTimeout(() => t.remove(), 300); }, 2000); }
 
@@ -382,11 +394,40 @@
             document.getElementById('previewCount').innerText = AppState.parsedPatients.length;
             document.getElementById('btnImportAction').disabled = AppState.parsedPatients.length === 0;
         }
-        function executeImport() { if(AppState.parsedPatients.length===0) return; let count=0; AppState.parsedPatients.forEach(imp => { const exists = AppState.patients.some(p => p.name === imp.name); if(!exists) { const id = Date.now().toString() + Math.random().toString().slice(2,5); AppState.patients.push({id, room: imp.room, name: imp.name, dob: imp.dob, diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }); count++; } }); saveData(); render(); document.getElementById('importModal').style.display='none'; alert(`${count} Patienten importiert.`); }
+        function executeImport() {
+            if(AppState.parsedPatients.length === 0) return;
+            let count = 0;
+            AppState.parsedPatients.forEach(imp => {
+                const exists = AppState.patients.some(p => p.name === imp.name);
+                if(!exists) {
+                    const id = Date.now().toString() + Math.random().toString().slice(2,5);
+                    AppState.patients.push(createDefaultPatient({
+                        id,
+                        room: imp.room,
+                        name: imp.name,
+                        dob: imp.dob
+                    }));
+                    count++;
+                }
+            });
+            saveData();
+            render();
+            document.getElementById('importModal').style.display = 'none';
+            alert(`${count} Patienten importiert.`);
+        }
 
         function exportData() { const d = JSON.stringify(AppState.patients, null, 2); const b = new Blob([d], {type: "application/json"}); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = `station_backup_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
         function importData(i) { const f = i.files[0]; if(!f)return; const r = new FileReader(); r.onload=function(e){try{const d=JSON.parse(e.target.result);if(Array.isArray(d)){if(confirm(`Backup mit ${d.length} Patienten laden?`)){AppState.patients=d;saveData();render();alert("Geladen!");}}}catch(err){alert("Fehler!");}};r.readAsText(f);i.value=''; }
-        function addNewPatient() { const id = Date.now().toString(); AppState.patients.push({id, room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }); saveData(); render(); setTimeout(()=>{const i=document.querySelector(`input[data-pid="${id}"]`);if(i)i.focus();},100); }
+        function addNewPatient() {
+            const id = Date.now().toString();
+            AppState.patients.push(createDefaultPatient({ id }));
+            saveData();
+            render();
+            setTimeout(() => {
+                const i = document.querySelector(`input[data-pid="${id}"]`);
+                if(i) i.focus();
+            }, 100);
+        }
         function updateField(id, f, v) { const p = AppState.patients.find(x => x.id === id); if(p){p[f]=v;saveData();} }
         function updateFieldRender(id, f, v) { const p = AppState.patients.find(x => x.id === id); if(p){p[f]=v;saveData();render();} }
         function getAge(d) { if(!d) return ""; const a=getAgeNum(d); return isNaN(a)?"":`(${a}J)`; }
