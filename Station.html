@@ -123,19 +123,43 @@
         function addTodoLine(id, text) { if(!text.trim()) return; const p = AppState.patients.find(x => x.id === id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.push('[ ] ' + text.trim()); p.todo_text = lines.join('\n'); saveData(); render(); }
         function toggleConsult(id, c) { const p = AppState.patients.find(x => x.id === id); if(!p.consults) p.consults = {}; p.consults[c] = ((p.consults[c] || 0) + 1) % 3; saveData(); render(); }
 
+
+        // --- DOM RECONCILIATION ---
+        function syncDOMList(parent, newElements) {
+            for (let i = 0; i < newElements.length; i++) {
+                if (parent.children[i] !== newElements[i]) {
+                    parent.insertBefore(newElements[i], parent.children[i] || null);
+                }
+            }
+            while (parent.children.length > newElements.length) {
+                parent.removeChild(parent.lastElementChild);
+            }
+        }
+
         // --- RENDER LOGIC ---
         function render() {
             const container = document.getElementById('patient-list');
             const printBody = document.getElementById('print-table-body');
             const empty = document.getElementById('empty-state');
-            container.innerHTML = ''; printBody.innerHTML = ''; 
+            // container.innerHTML = ''; printBody.innerHTML = ''; // Replaced with syncDOMList
 
-            if(AppState.patients.length===0) { empty.classList.remove('hidden'); return; } else empty.classList.add('hidden');
+            if(AppState.patients.length===0) {
+                empty.classList.remove('hidden');
+                syncDOMList(container, []);
+                syncDOMList(printBody, []);
+                return;
+            } else {
+                empty.classList.add('hidden');
+            }
             AppState.patients.sort((a,b) => a.room.localeCompare(b.room, undefined, {numeric: true}));
 
             let currentRoom = null;
-            const containerFrag = document.createDocumentFragment();
-            const printBodyFrag = document.createDocumentFragment();
+            const newContainerChildren = [];
+            const existingCards = new Map();
+            Array.from(container.children).forEach(c => { if(c.id) existingCards.set(c.id, c); });
+            const newPrintChildren = [];
+            const existingPrintRows = new Map();
+            Array.from(printBody.children).forEach(c => { if(c.id) existingPrintRows.set(c.id, c); });
 
 
             AppState.patients.forEach(p => {
@@ -149,17 +173,30 @@
                 let displayRoom = p.room ? p.room : "Gang";
                 if(displayRoom !== currentRoom) {
                     currentRoom = displayRoom;
-                    let roomHeader = document.createElement('div');
-                    roomHeader.className = "col-span-full mt-4 mb-1 flex items-center gap-2 border-b border-indigo-200 pb-1 no-print";
-                    roomHeader.innerHTML = `<span class="bg-indigo-600 text-white font-bold px-3 py-1 rounded shadow-sm">Zimmer ${currentRoom}</span>`;
-                    containerFrag.appendChild(roomHeader);
+                    let rId = 'room-header-' + currentRoom;
+                    let roomHeader = existingCards.get(rId);
+                    if (!roomHeader) {
+                        roomHeader = document.createElement('div');
+                        roomHeader.id = rId;
+                        roomHeader.className = "col-span-full mt-4 mb-1 flex items-center gap-2 border-b border-indigo-200 pb-1 no-print";
+                    }
+                    let rHtml = `<span class="bg-indigo-600 text-white font-bold px-3 py-1 rounded shadow-sm">Zimmer ${currentRoom}</span>`;
+                    if (roomHeader.innerHTML !== rHtml) roomHeader.innerHTML = rHtml;
+                    newContainerChildren.push(roomHeader);
                 }
 
                 const age = getAge(p.dob);
                 const dnrClass = p.dnr ? 'resus-active' : ''; const dniClass = p.dni ? 'resus-active' : '';
                 
-                let card = document.createElement('div');
-                card.className = "bg-white rounded border border-slate-300 p-2 patient-card flex flex-col gap-1 shadow-sm hover:shadow-md transition relative";
+                let cId = 'card-' + p.id;
+                let card = existingCards.get(cId);
+                let isNewCard = false;
+                if (!card) {
+                    card = document.createElement('div');
+                    card.id = cId;
+                    card.className = "bg-white rounded border border-slate-300 p-2 patient-card flex flex-col gap-1 shadow-sm hover:shadow-md transition relative";
+                    isNewCard = true;
+                }
                 
                 // HEADER (Zi, Name, Rhythmus, Nüchtern)
                 let rhythmSel = `<select onchange="updateFieldRender('${p.id}', 'rhythm', this.value)" class="text-[10px] font-bold outline-none bg-transparent cursor-pointer ${p.rhythm === 'VHF' || p.rhythm === 'AF' ? 'vhf-blink' : 'text-slate-500'}"><option value="SR" ${p.rhythm==='SR'?'selected':''}>[ SR ]</option><option value="VHF" ${p.rhythm==='VHF'?'selected':''}>[ VHF ]</option><option value="AF" ${p.rhythm==='AF'?'selected':''}>[ A-Flatt ]</option><option value="PM/ICD" ${p.rhythm==='PM/ICD'?'selected':''}>[ PM/ICD ]</option></select>`;
@@ -264,8 +301,9 @@
 
                 let footer = `<div class="flex justify-between items-center mt-1 pt-1 no-print gap-1"><button onclick="openExamModal('${p.id}')" class="text-[9px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded flex-1 border border-slate-200">📝 Notizen</button><button onclick="openScoreModal('${p.id}')" class="text-[9px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-1 rounded border border-indigo-100">🧮 Scores</button></div>`;
 
-                card.innerHTML = header + warnHtml + diag + cvrfHtml + labsVolHtml + tasksHtml + todoHtml + abxHtml + meds + diagGrid + consultHtml + planHtml + footer;
-                containerFrag.appendChild(card);
+                let newCardHtml = header + warnHtml + diag + cvrfHtml + labsVolHtml + tasksHtml + todoHtml + abxHtml + meds + diagGrid + consultHtml + planHtml + footer;
+                if (isNewCard || card.innerHTML !== newCardHtml) card.innerHTML = newCardHtml;
+                newContainerChildren.push(card);
                 
                 // --- PRINT VIEW ---
                 let mainDiagPrint = p.main_diagnosis ? `<div class="print-main-diag" style="font-size:10pt; font-weight:900; margin-bottom:2px;">${p.main_diagnosis}</div>` : '';
@@ -305,16 +343,24 @@
                 
                 let fullTodoPrint = `<div class="col-todo-content">${todoPrint}${abxPrint}${volPrint}${dailyStr}${diagPrintStr}${consultPrintStr}${disPrint}</div>`;
 
-                let tr = document.createElement('tr');
-                tr.innerHTML = `
+                let pId = 'print-row-' + p.id;
+                let tr = existingPrintRows.get(pId);
+                let isNewTr = false;
+                if (!tr) {
+                    tr = document.createElement('tr');
+                    tr.id = pId;
+                    isNewTr = true;
+                }
+                let newTrHtml = `
                     <td class="col-room">${p.room}</td>
                     <td class="col-name"><span class="print-name">${p.name} ${rhythmPrint}</span><span class="print-dob"><b>* ${dobD}</b></span><span class="print-age">${age}</span><div class="mt-1">${alertStr}</div>${cvrfStr}</td>
                     <td class="col-diag"><span class="print-diag-curr">${diagPrint}${eGFRPrint}</span>${historyPrint}${medsPrint}</td>
                     <td class="col-todo">${labPrint}${fullTodoPrint}</td>`;
-                printBodyFrag.appendChild(tr);
+                if (isNewTr || tr.innerHTML !== newTrHtml) tr.innerHTML = newTrHtml;
+                newPrintChildren.push(tr);
             });
-            container.appendChild(containerFrag);
-            printBody.appendChild(printBodyFrag);
+            syncDOMList(container, newContainerChildren);
+            syncDOMList(printBody, newPrintChildren);
             setTimeout(() => { document.querySelectorAll('.auto-expand').forEach(tx => resizeTx(tx)); }, 0);
         }
 
