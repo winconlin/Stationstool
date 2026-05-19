@@ -75,10 +75,27 @@
     <script>
         if(typeof MED_GROUPS === 'undefined') showToast("ACHTUNG: Config Dateien fehlen!", true);
 
-        const AppState = { patients: [], currentEditingId: null, tempSelectedMeds: new Set(), parsedPatients: [] };
+        const AppState = { patients: [], patientMap: new Map(), currentEditingId: null, tempSelectedMeds: new Set(), parsedPatients: [] };
 
+        function rebuildPatientMap() {
+            AppState.patientMap.clear();
+            AppState.patients.forEach(p => AppState.patientMap.set(p.id, p));
+        }
 
-
+        function createDefaultPatient(overrides = {}) {
+            const defaults = {
+                id: Date.now().toString(),
+                room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [],
+                meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "",
+                daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false,
+                exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0,
+                fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {},
+                social: {reha:'', physio:'', pflegegrad:''},
+                labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''},
+                vol: {ziel:'', aktuell:''}
+            };
+            return { ...defaults, ...overrides };
+        }
 
         function showToast(msg, isError = false) { const t = document.createElement("div"); t.className = `fixed bottom-4 right-4 text-white px-4 py-2 rounded shadow-lg transition-opacity duration-300 z-50 ${isError ? "bg-red-600" : "bg-green-600"}`; t.innerText = msg; document.body.appendChild(t); setTimeout(() => { t.style.opacity = "0"; setTimeout(() => t.remove(), 300); }, 2000); }
 
@@ -99,7 +116,7 @@
         }
 
         function resizeTx(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; }
-        function loadData() { const stored = localStorage.getItem('station_v17_data'); if (stored) AppState.patients = JSON.parse(stored); }
+        function loadData() { const stored = localStorage.getItem('station_v17_data'); if (stored) { AppState.patients = JSON.parse(stored); rebuildPatientMap(); } }
         function saveData() { localStorage.setItem('station_v17_data', JSON.stringify(AppState.patients)); }
         
         function getDaysSince(dateString) {
@@ -109,56 +126,24 @@
         }
 
         // --- MODEL UPDATES (Deep properties) ---
-        function updateDeepField(id, obj, field, val) { const p = getPatient(id); if(!p[obj]) p[obj] = {}; p[obj][field] = val; saveData(); }
+        function updateDeepField(id, obj, field, val) { const p = AppState.patientMap.get(id); if(!p[obj]) p[obj] = {}; p[obj][field] = val; saveData(); }
         function updateDeepFieldRender(id, obj, field, val) { updateDeepField(id, obj, field, val); render(); }
         
         // Arrays/Complex
-        function addIso(id, val) { if(!val) return; const p = getPatient(id); if(!p.iso) p.iso = []; if(!p.iso.includes(val)) p.iso.push(val); saveData(); render(); }
-        function removeIso(id, val) { const p = getPatient(id); p.iso = p.iso.filter(x => x !== val); saveData(); render(); }
-        function addAbx(id) { const name = prompt("Antibiotikum Name:"); if(name) { const p = getPatient(id); if(!p.abx) p.abx = []; p.abx.push({name: name, start: new Date().toISOString().split('T')[0]}); saveData(); render(); } }
-        function removeAbx(id, idx) { const p = getPatient(id); p.abx.splice(idx, 1); saveData(); render(); }
-        function addAmio(id) { let val = parseFloat(prompt("Dosis in g hinzufügen (z.B. 0.9):", "0.9")); if(!isNaN(val)) { let p = getPatient(id); p.amio = (p.amio || 0) + val; saveData(); render(); } }
-        function toggleTodoLine(id, idx) { const p = getPatient(id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines[idx].startsWith('[x] ')) { lines[idx] = lines[idx].replace('[x] ', '[ ] '); } else if(lines[idx].startsWith('[ ] ')) { lines[idx] = lines[idx].replace('[ ] ', '[x] '); } else { lines[idx] = '[x] ' + lines[idx]; } p.todo_text = lines.join('\n'); saveData(); render(); }
-        function deleteTodoLine(id, idx) { const p = getPatient(id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.splice(idx, 1); p.todo_text = lines.join('\n'); saveData(); render(); }
-        function addTodoLine(id, text) { if(!text.trim()) return; const p = getPatient(id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.push('[ ] ' + text.trim()); p.todo_text = lines.join('\n'); saveData(); render(); }
-        function toggleConsult(id, c) { const p = getPatient(id); if(!p.consults) p.consults = {}; p.consults[c] = ((p.consults[c] || 0) + 1) % 3; saveData(); render(); }
+        function addIso(id, val) { if(!val) return; const p = AppState.patientMap.get(id); if(!p.iso) p.iso = []; if(!p.iso.includes(val)) p.iso.push(val); saveData(); render(); }
+        function removeIso(id, val) { const p = AppState.patientMap.get(id); p.iso = p.iso.filter(x => x !== val); saveData(); render(); }
+        function addAbx(id) { const name = prompt("Antibiotikum Name:"); if(name) { const p = AppState.patientMap.get(id); if(!p.abx) p.abx = []; p.abx.push({name: name, start: new Date().toISOString().split('T')[0]}); saveData(); render(); } }
+        function removeAbx(id, idx) { const p = AppState.patientMap.get(id); p.abx.splice(idx, 1); saveData(); render(); }
+        function addAmio(id) { let val = parseFloat(prompt("Dosis in g hinzufügen (z.B. 0.9):", "0.9")); if(!isNaN(val)) { let p = AppState.patientMap.get(id); p.amio = (p.amio || 0) + val; saveData(); render(); } }
+        function toggleTodoLine(id, idx) { const p = AppState.patientMap.get(id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines[idx].startsWith('[x] ')) { lines[idx] = lines[idx].replace('[x] ', '[ ] '); } else if(lines[idx].startsWith('[ ] ')) { lines[idx] = lines[idx].replace('[ ] ', '[x] '); } else { lines[idx] = '[x] ' + lines[idx]; } p.todo_text = lines.join('\n'); saveData(); render(); }
+        function deleteTodoLine(id, idx) { const p = AppState.patientMap.get(id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.splice(idx, 1); p.todo_text = lines.join('\n'); saveData(); render(); }
+        function addTodoLine(id, text) { if(!text.trim()) return; const p = AppState.patientMap.get(id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.push('[ ] ' + text.trim()); p.todo_text = lines.join('\n'); saveData(); render(); }
+        function toggleConsult(id, c) { const p = AppState.patientMap.get(id); if(!p.consults) p.consults = {}; p.consults[c] = ((p.consults[c] || 0) + 1) % 3; saveData(); render(); }
 
         // --- RENDER LOGIC ---
-        function render() {
-            const container = document.getElementById('patient-list');
-            const printBody = document.getElementById('print-table-body');
-            const empty = document.getElementById('empty-state');
-            container.innerHTML = ''; printBody.innerHTML = ''; 
 
-            if(AppState.patients.length===0) { empty.classList.remove('hidden'); return; } else empty.classList.add('hidden');
-            AppState.patients.sort((a,b) => a.room.localeCompare(b.room, undefined, {numeric: true}));
-
-            let currentRoom = null;
-            const containerFrag = document.createDocumentFragment();
-            const printBodyFrag = document.createDocumentFragment();
-
-
-            AppState.patients.forEach(p => {
-                // Ensure structured objects exist for older backups
-                const labs = p.labs || {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''};
-                const vol = p.vol || {ziel:'', aktuell:''};
-                const social = p.social || {reha:'', physio:'', pflegegrad:''};
-                const isos = p.iso || [];
-                const abx = p.abx || [];
-
-                let displayRoom = p.room ? p.room : "Gang";
-                if(displayRoom !== currentRoom) {
-                    currentRoom = displayRoom;
-                    let roomHeader = document.createElement('div');
-                    roomHeader.className = "col-span-full mt-4 mb-1 flex items-center gap-2 border-b border-indigo-200 pb-1 no-print";
-                    roomHeader.innerHTML = `<span class="bg-indigo-600 text-white font-bold px-3 py-1 rounded shadow-sm">Zimmer ${currentRoom}</span>`;
-                    containerFrag.appendChild(roomHeader);
-                }
-
-                const age = getAge(p.dob);
-                const dnrClass = p.dnr ? 'resus-active' : ''; const dniClass = p.dni ? 'resus-active' : '';
-                
-                let card = document.createElement('div');
+        function renderPatientCard(p, labs, vol, social, isos, abx, age, dnrClass, dniClass) {
+            let card = document.createElement('div');
                 card.className = "bg-white rounded border border-slate-300 p-2 patient-card flex flex-col gap-1 shadow-sm hover:shadow-md transition relative";
                 
                 // HEADER (Zi, Name, Rhythmus, Nüchtern)
@@ -265,9 +250,11 @@
                 let footer = `<div class="flex justify-between items-center mt-1 pt-1 no-print gap-1"><button onclick="openExamModal('${p.id}')" class="text-[9px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded flex-1 border border-slate-200">📝 Notizen</button><button onclick="openScoreModal('${p.id}')" class="text-[9px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-1 rounded border border-indigo-100">🧮 Scores</button></div>`;
 
                 card.innerHTML = header + warnHtml + diag + cvrfHtml + labsVolHtml + tasksHtml + todoHtml + abxHtml + meds + diagGrid + consultHtml + planHtml + footer;
-                containerFrag.appendChild(card);
-                
-                // --- PRINT VIEW ---
+                return card;
+        }
+
+        function renderPrintRow(p, labs, vol, social, isos, abx, age) {
+            // --- PRINT VIEW ---
                 let mainDiagPrint = p.main_diagnosis ? `<div class="print-main-diag" style="font-size:10pt; font-weight:900; margin-bottom:2px;">${p.main_diagnosis}</div>` : '';
                 let diagPrint = mainDiagPrint + `<div class="print-diag-rest">` + (p.diagnosis || "").replace(/\n/g, '<br>') + `</div>`;
                 let historyPrint = p.history ? `<div class="text-[8pt] text-slate-600 mt-1 print-history">${p.history.replace(/\n/g, ', ')}</div>` : '';
@@ -311,7 +298,49 @@
                     <td class="col-name"><span class="print-name">${p.name} ${rhythmPrint}</span><span class="print-dob"><b>* ${dobD}</b></span><span class="print-age">${age}</span><div class="mt-1">${alertStr}</div>${cvrfStr}</td>
                     <td class="col-diag"><span class="print-diag-curr">${diagPrint}${eGFRPrint}</span>${historyPrint}${medsPrint}</td>
                     <td class="col-todo">${labPrint}${fullTodoPrint}</td>`;
+                return tr;
+        }
+function render() {
+            const container = document.getElementById('patient-list');
+            const printBody = document.getElementById('print-table-body');
+            const empty = document.getElementById('empty-state');
+            container.innerHTML = ''; printBody.innerHTML = '';
+
+            if(AppState.patients.length===0) { empty.classList.remove('hidden'); return; } else empty.classList.add('hidden');
+            AppState.patients.sort((a,b) => a.room.localeCompare(b.room, undefined, {numeric: true}));
+
+            let currentRoom = null;
+            const containerFrag = document.createDocumentFragment();
+            const printBodyFrag = document.createDocumentFragment();
+
+
+            AppState.patients.forEach(p => {
+                // Ensure structured objects exist for older backups
+                const labs = p.labs || {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''};
+                const vol = p.vol || {ziel:'', aktuell:''};
+                const social = p.social || {reha:'', physio:'', pflegegrad:''};
+                const isos = p.iso || [];
+                const abx = p.abx || [];
+
+                let displayRoom = p.room ? p.room : "Gang";
+                if(displayRoom !== currentRoom) {
+                    currentRoom = displayRoom;
+                    let roomHeader = document.createElement('div');
+                    roomHeader.className = "col-span-full mt-4 mb-1 flex items-center gap-2 border-b border-indigo-200 pb-1 no-print";
+                    roomHeader.innerHTML = `<span class="bg-indigo-600 text-white font-bold px-3 py-1 rounded shadow-sm">Zimmer ${currentRoom}</span>`;
+                    containerFrag.appendChild(roomHeader);
+                }
+
+                const age = getAge(p.dob);
+                const dnrClass = p.dnr ? 'resus-active' : ''; const dniClass = p.dni ? 'resus-active' : '';
+
+
+                const card = renderPatientCard(p, labs, vol, social, isos, abx, age, dnrClass, dniClass);
+                containerFrag.appendChild(card);
+
+                const tr = renderPrintRow(p, labs, vol, social, isos, abx, age);
                 printBodyFrag.appendChild(tr);
+
             });
             container.appendChild(containerFrag);
             printBody.appendChild(printBodyFrag);
@@ -382,53 +411,35 @@
             document.getElementById('previewCount').innerText = AppState.parsedPatients.length;
             document.getElementById('btnImportAction').disabled = AppState.parsedPatients.length === 0;
         }
-        function executeImport() { if(AppState.parsedPatients.length===0) return; let count=0; AppState.parsedPatients.forEach(imp => { const exists = AppState.patients.some(p => p.name === imp.name); if(!exists) { const id = Date.now().toString() + Math.random().toString().slice(2,5); AppState.patients.push({id, room: imp.room, name: imp.name, dob: imp.dob, diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }); count++; } }); saveData(); render(); document.getElementById('importModal').style.display='none'; alert(`${count} Patienten importiert.`); }
+        function executeImport() { if(AppState.parsedPatients.length===0) return; let count=0; AppState.parsedPatients.forEach(imp => { const exists = AppState.patients.some(p => p.name === imp.name); if(!exists) { const id = Date.now().toString() + Math.random().toString().slice(2,5); const newP = {id, room: imp.room, name: imp.name, dob: imp.dob, diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }; AppState.patients.push(newP); AppState.patientMap.set(id, newP); count++; } }); saveData(); render(); document.getElementById('importModal').style.display='none'; alert(`${count} Patienten importiert.`); }
 
         function exportData() { const d = JSON.stringify(AppState.patients, null, 2); const b = new Blob([d], {type: "application/json"}); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = `station_backup_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
-        function importData(i) { const f = i.files[0]; if(!f)return; const r = new FileReader(); r.onload=function(e){try{const d=JSON.parse(e.target.result);if(Array.isArray(d)){if(confirm(`Backup mit ${d.length} Patienten laden?`)){AppState.patients=d;saveData();render();alert("Geladen!");}}}catch(err){alert("Fehler!");}};r.readAsText(f);i.value=''; }
-        function addNewPatient() { const id = Date.now().toString(); AppState.patients.push({id, room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }); saveData(); render(); setTimeout(()=>{const i=document.querySelector(`input[data-pid="${id}"]`);if(i)i.focus();},100); }
-        let _lastPatientsRef = null;
-        function getPatient(id) {
-            if (!AppState.patientMap || _lastPatientsRef !== AppState.patients || AppState.patientMap.size !== AppState.patients.length) {
-                AppState.patientMap = new Map();
-                for (let i = 0; i < AppState.patients.length; i++) {
-                    AppState.patientMap.set(AppState.patients[i].id, AppState.patients[i]);
-                }
-                _lastPatientsRef = AppState.patients;
-            }
-            let p = AppState.patientMap.get(id);
-            if (!p) {
-                p = AppState.patients.find(x => x.id === id);
-                if (p) {
-                    AppState.patientMap.set(p.id, p);
-                }
-            }
-            return p;
-        }
-        function updateField(id, f, v) { const p = getPatient(id); if(p){p[f]=v;saveData();} }
-        function updateFieldRender(id, f, v) { const p = getPatient(id); if(p){p[f]=v;saveData();render();} }
+        function importData(i) { const f = i.files[0]; if(!f)return; const r = new FileReader(); r.onload=function(e){try{const d=JSON.parse(e.target.result);if(Array.isArray(d)){if(confirm(`Backup mit ${d.length} Patienten laden?`)){AppState.patients=d;rebuildPatientMap();saveData();render();alert("Geladen!");}}}catch(err){alert("Fehler!");}};r.readAsText(f);i.value=''; }
+        function addNewPatient() { const id = Date.now().toString(); const p = {id, room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }; AppState.patients.push(p); AppState.patientMap.set(id, p); saveData(); render(); setTimeout(()=>{const i=document.querySelector(`input[data-pid="${id}"]`);if(i)i.focus();},100); }
+        function updateField(id, f, v) { const p = AppState.patientMap.get(id); if(p){p[f]=v;saveData();} }
+        function updateFieldRender(id, f, v) { const p = AppState.patientMap.get(id); if(p){p[f]=v;saveData();render();} }
         function getAge(d) { if(!d) return ""; const a=getAgeNum(d); return isNaN(a)?"":`(${a}J)`; }
         
-        function openMedModal(id) { AppState.currentEditingId = id; const p = getPatient(id); document.getElementById('med-search').value = ""; document.getElementById('med-custom').value = ""; AppState.tempSelectedMeds.clear(); const cm = p.meds_current ? p.meds_current.split(',').map(s=>s.trim()) : []; cm.forEach(m=>{if(m)AppState.tempSelectedMeds.add(m);}); renderMedList(""); document.getElementById('medModal').style.display = "block"; setTimeout(()=>document.getElementById('med-search').focus(),100); }
+        function openMedModal(id) { AppState.currentEditingId = id; const p = AppState.patientMap.get(id); document.getElementById('med-search').value = ""; document.getElementById('med-custom').value = ""; AppState.tempSelectedMeds.clear(); const cm = p.meds_current ? p.meds_current.split(',').map(s=>s.trim()) : []; cm.forEach(m=>{if(m)AppState.tempSelectedMeds.add(m);}); renderMedList(""); document.getElementById('medModal').style.display = "block"; setTimeout(()=>document.getElementById('med-search').focus(),100); }
         function closeMedModal() { document.getElementById('medModal').style.display = "none"; }
         function handleModalKey(e, mId) { if(e.key==="Escape")document.getElementById(mId).style.display="none"; if(e.key==="Enter"&&e.target.tagName!=='TEXTAREA'&&mId==='medModal')saveMeds(); }
         function toggleTempMed(n, c) { if(c) AppState.tempSelectedMeds.add(n); else AppState.tempSelectedMeds.delete(n); }
         function renderMedList(f) { const c = document.getElementById('med-selector'); const s = f.toLowerCase(); let finalHtml = ""; for (const [g, m] of Object.entries(MED_GROUPS)) { const mm = m.filter(x=>x.toLowerCase().includes(s)); if(s&&mm.length===0)continue; const open=s?"open":""; let h=`<details ${open} class="group bg-slate-50 border border-slate-200 rounded"><summary class="cursor-pointer p-2 font-bold text-sm text-slate-700 hover:bg-slate-100 select-none flex justify-between items-center"><span>${g}</span><span class="text-xs text-slate-400">▼</span></summary><div class="p-2 bg-white border-t border-slate-100 grid grid-cols-2 md:grid-cols-4 gap-2">`; mm.forEach(x=>{ const ch=AppState.tempSelectedMeds.has(x)?"checked":""; h+=`<label class="flex items-center gap-1 text-xs cursor-pointer hover:bg-blue-50 p-1 rounded focus-within:ring-2 focus-within:ring-blue-500"><input type="checkbox" value="${x}" class="accent-blue-600" ${ch} onchange="toggleTempMed('${x}', this.checked)"> ${x}</label>`; }); h+=`</div></details>`; finalHtml+=h; } c.innerHTML = finalHtml; }
-        function saveMeds() { const p = getPatient(AppState.currentEditingId); const s = Array.from(AppState.tempSelectedMeds); const c = document.getElementById('med-custom').value; if(c) s.push(c); s.sort(); p.meds_current = s.join(", "); saveData(); render(); closeMedModal(); }
+        function saveMeds() { const p = AppState.patientMap.get(AppState.currentEditingId); const s = Array.from(AppState.tempSelectedMeds); const c = document.getElementById('med-custom').value; if(c) s.push(c); s.sort(); p.meds_current = s.join(", "); saveData(); render(); closeMedModal(); }
 
-        function toggleDiag(e, id, d) { e.preventDefault(); const p = getPatient(id); if(!p.diag_status) p.diag_status={}; p.diag_status[d] = ((p.diag_status[d]||0)+1)%3; if(e.type==='contextmenu'){ const r = prompt(`Befund ${d}:`, (p.diag_results||{})[d]||""); if(r!==null){ if(!p.diag_results)p.diag_results={}; p.diag_results[d]=r; if(r)p.diag_status[d]=2; }} saveData(); render(); setTimeout(()=>{const b=document.getElementById(`btn-diag-${id}-${d}`);if(b)b.focus();},50); }
-        function toggleCVRF(id, k) { const p = getPatient(id); if(!p.cvrf) p.cvrf=[]; if(p.cvrf.includes(k)) p.cvrf=p.cvrf.filter(x=>x!==k); else p.cvrf.push(k); saveData(); render(); }
-        function toggleResus(id, t) { const p = getPatient(id); if(p){p[t]=!p[t];saveData();render();} }
-        function toggleDaily(id, k) { const p = getPatient(id); if(!p.daily) p.daily={}; p.daily[k]=!p.daily[k]; saveData(); render(); }
-        function deletePatient(id) { if(confirm("Löschen?")) { AppState.patients=AppState.patients.filter(x=>x.id!==id); saveData(); render(); } }
+        function toggleDiag(e, id, d) { e.preventDefault(); const p = AppState.patientMap.get(id); if(!p.diag_status) p.diag_status={}; p.diag_status[d] = ((p.diag_status[d]||0)+1)%3; if(e.type==='contextmenu'){ const r = prompt(`Befund ${d}:`, (p.diag_results||{})[d]||""); if(r!==null){ if(!p.diag_results)p.diag_results={}; p.diag_results[d]=r; if(r)p.diag_status[d]=2; }} saveData(); render(); setTimeout(()=>{const b=document.getElementById(`btn-diag-${id}-${d}`);if(b)b.focus();},50); }
+        function toggleCVRF(id, k) { const p = AppState.patientMap.get(id); if(!p.cvrf) p.cvrf=[]; if(p.cvrf.includes(k)) p.cvrf=p.cvrf.filter(x=>x!==k); else p.cvrf.push(k); saveData(); render(); }
+        function toggleResus(id, t) { const p = AppState.patientMap.get(id); if(p){p[t]=!p[t];saveData();render();} }
+        function toggleDaily(id, k) { const p = AppState.patientMap.get(id); if(!p.daily) p.daily={}; p.daily[k]=!p.daily[k]; saveData(); render(); }
+        function deletePatient(id) { if(confirm("Löschen?")) { AppState.patients=AppState.patients.filter(x=>x.id!==id); AppState.patientMap.delete(id); saveData(); render(); } }
         function startNewDay() { if(confirm("Neuer Tag?")) { AppState.patients.forEach(p=>p.daily={}); saveData(); render(); } }
         
         function setupExamBuilder() { const c = document.getElementById('status-builder'); if(typeof EXAM_CONFIG === 'undefined') return; let fullHtml = ""; for(const [k, d] of Object.entries(EXAM_CONFIG)) { let h=`<div class="border rounded bg-slate-50 p-2"><div class="font-bold text-xs text-slate-500 uppercase mb-1">${k}</div><div class="flex flex-wrap gap-1">`; d.options.forEach(o => { h+=`<button class="px-2 py-1 bg-white hover:bg-blue-100 border border-slate-200 rounded text-xs transition" onclick="insertExamText('${k}', '${o}')">${o}</button>`; }); h+=`</div></div>`; fullHtml += h; } c.innerHTML = fullHtml; }
-        function openExamModal(id) { AppState.currentEditingId = id; const p = getPatient(id); document.getElementById('gen-text-output').value = p.exam_text || "Standard Aufnahme..."; document.getElementById('examModal').style.display = "block"; }
+        function openExamModal(id) { AppState.currentEditingId = id; const p = AppState.patientMap.get(id); document.getElementById('gen-text-output').value = p.exam_text || "Standard Aufnahme..."; document.getElementById('examModal').style.display = "block"; }
         function insertExamText(c, t) { document.getElementById('gen-text-output').value += `\n[${c}]: ${t}`; }
-        function saveExamToPatient() { getPatient(AppState.currentEditingId).exam_text = document.getElementById('gen-text-output').value; saveData(); document.getElementById('examModal').style.display = 'none'; }
+        function saveExamToPatient() { AppState.patientMap.get(AppState.currentEditingId).exam_text = document.getElementById('gen-text-output').value; saveData(); document.getElementById('examModal').style.display = 'none'; }
         
-        function openScoreModal(id) { const p = getPatient(id); const list = document.getElementById('score-list'); list.innerHTML = ""; let relevantScores = []; if(typeof SCORE_DEFINITIONS !== 'undefined') { relevantScores = SCORE_DEFINITIONS.filter(s => s.check(p)); } if(relevantScores.length === 0) { list.innerHTML = `<div class="p-4 text-slate-400 text-center col-span-2">Keine spezifischen Scores erkannt.<br>(Prüfe Diagnosen-Schreibweise)</div>`; } else { let scoresHtml = ""; relevantScores.forEach(s => { const link = s.url ? `href="${s.url}" target="_blank"` : ""; const tag = s.url ? "a" : "div"; scoresHtml += `<${tag} ${link} class="score-card group"><div><span class="score-name">${s.name}</span><span class="score-info">${s.info}</span></div><div class="score-arrow group-hover:text-blue-500">➜</div></${tag}>`; }); list.innerHTML = scoresHtml; } document.getElementById('scoreModal').style.display = "block"; }
+        function openScoreModal(id) { const p = AppState.patientMap.get(id); const list = document.getElementById('score-list'); list.innerHTML = ""; let relevantScores = []; if(typeof SCORE_DEFINITIONS !== 'undefined') { relevantScores = SCORE_DEFINITIONS.filter(s => s.check(p)); } if(relevantScores.length === 0) { list.innerHTML = `<div class="p-4 text-slate-400 text-center col-span-2">Keine spezifischen Scores erkannt.<br>(Prüfe Diagnosen-Schreibweise)</div>`; } else { let scoresHtml = ""; relevantScores.forEach(s => { const link = s.url ? `href="${s.url}" target="_blank"` : ""; const tag = s.url ? "a" : "div"; scoresHtml += `<${tag} ${link} class="score-card group"><div><span class="score-name">${s.name}</span><span class="score-info">${s.info}</span></div><div class="score-arrow group-hover:text-blue-500">➜</div></${tag}>`; }); list.innerHTML = scoresHtml; } document.getElementById('scoreModal').style.display = "block"; }
     </script>
 </body>
 </html>
