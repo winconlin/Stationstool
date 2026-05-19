@@ -75,7 +75,12 @@
     <script>
         if(typeof MED_GROUPS === 'undefined') showToast("ACHTUNG: Config Dateien fehlen!", true);
 
-        const AppState = { patients: [], currentEditingId: null, tempSelectedMeds: new Set(), parsedPatients: [] };
+        const AppState = { patients: [], patientMap: new Map(), currentEditingId: null, tempSelectedMeds: new Set(), parsedPatients: [] };
+
+        function rebuildPatientMap() {
+            AppState.patientMap.clear();
+            AppState.patients.forEach(p => AppState.patientMap.set(p.id, p));
+        }
 
         function createDefaultPatient(overrides = {}) {
             const defaults = {
@@ -111,7 +116,7 @@
         }
 
         function resizeTx(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; }
-        function loadData() { const stored = localStorage.getItem('station_v17_data'); if (stored) AppState.patients = JSON.parse(stored); }
+        function loadData() { const stored = localStorage.getItem('station_v17_data'); if (stored) { AppState.patients = JSON.parse(stored); rebuildPatientMap(); } }
         function saveData() { localStorage.setItem('station_v17_data', JSON.stringify(AppState.patients)); }
         
         function getDaysSince(dateString) {
@@ -121,19 +126,19 @@
         }
 
         // --- MODEL UPDATES (Deep properties) ---
-        function updateDeepField(id, obj, field, val) { const p = AppState.patients.find(x => x.id === id); if(!p[obj]) p[obj] = {}; p[obj][field] = val; saveData(); }
+        function updateDeepField(id, obj, field, val) { const p = AppState.patientMap.get(id); if(!p[obj]) p[obj] = {}; p[obj][field] = val; saveData(); }
         function updateDeepFieldRender(id, obj, field, val) { updateDeepField(id, obj, field, val); render(); }
         
         // Arrays/Complex
-        function addIso(id, val) { if(!val) return; const p = AppState.patients.find(x => x.id === id); if(!p.iso) p.iso = []; if(!p.iso.includes(val)) p.iso.push(val); saveData(); render(); }
-        function removeIso(id, val) { const p = AppState.patients.find(x => x.id === id); p.iso = p.iso.filter(x => x !== val); saveData(); render(); }
-        function addAbx(id) { const name = prompt("Antibiotikum Name:"); if(name) { const p = AppState.patients.find(x => x.id===id); if(!p.abx) p.abx = []; p.abx.push({name: name, start: new Date().toISOString().split('T')[0]}); saveData(); render(); } }
-        function removeAbx(id, idx) { const p = AppState.patients.find(x => x.id===id); p.abx.splice(idx, 1); saveData(); render(); }
-        function addAmio(id) { let val = parseFloat(prompt("Dosis in g hinzufügen (z.B. 0.9):", "0.9")); if(!isNaN(val)) { let p = AppState.patients.find(x => x.id === id); p.amio = (p.amio || 0) + val; saveData(); render(); } }
-        function toggleTodoLine(id, idx) { const p = AppState.patients.find(x => x.id === id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines[idx].startsWith('[x] ')) { lines[idx] = lines[idx].replace('[x] ', '[ ] '); } else if(lines[idx].startsWith('[ ] ')) { lines[idx] = lines[idx].replace('[ ] ', '[x] '); } else { lines[idx] = '[x] ' + lines[idx]; } p.todo_text = lines.join('\n'); saveData(); render(); }
-        function deleteTodoLine(id, idx) { const p = AppState.patients.find(x => x.id === id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.splice(idx, 1); p.todo_text = lines.join('\n'); saveData(); render(); }
-        function addTodoLine(id, text) { if(!text.trim()) return; const p = AppState.patients.find(x => x.id === id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.push('[ ] ' + text.trim()); p.todo_text = lines.join('\n'); saveData(); render(); }
-        function toggleConsult(id, c) { const p = AppState.patients.find(x => x.id === id); if(!p.consults) p.consults = {}; p.consults[c] = ((p.consults[c] || 0) + 1) % 3; saveData(); render(); }
+        function addIso(id, val) { if(!val) return; const p = AppState.patientMap.get(id); if(!p.iso) p.iso = []; if(!p.iso.includes(val)) p.iso.push(val); saveData(); render(); }
+        function removeIso(id, val) { const p = AppState.patientMap.get(id); p.iso = p.iso.filter(x => x !== val); saveData(); render(); }
+        function addAbx(id) { const name = prompt("Antibiotikum Name:"); if(name) { const p = AppState.patientMap.get(id); if(!p.abx) p.abx = []; p.abx.push({name: name, start: new Date().toISOString().split('T')[0]}); saveData(); render(); } }
+        function removeAbx(id, idx) { const p = AppState.patientMap.get(id); p.abx.splice(idx, 1); saveData(); render(); }
+        function addAmio(id) { let val = parseFloat(prompt("Dosis in g hinzufügen (z.B. 0.9):", "0.9")); if(!isNaN(val)) { let p = AppState.patientMap.get(id); p.amio = (p.amio || 0) + val; saveData(); render(); } }
+        function toggleTodoLine(id, idx) { const p = AppState.patientMap.get(id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines[idx].startsWith('[x] ')) { lines[idx] = lines[idx].replace('[x] ', '[ ] '); } else if(lines[idx].startsWith('[ ] ')) { lines[idx] = lines[idx].replace('[ ] ', '[x] '); } else { lines[idx] = '[x] ' + lines[idx]; } p.todo_text = lines.join('\n'); saveData(); render(); }
+        function deleteTodoLine(id, idx) { const p = AppState.patientMap.get(id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.splice(idx, 1); p.todo_text = lines.join('\n'); saveData(); render(); }
+        function addTodoLine(id, text) { if(!text.trim()) return; const p = AppState.patientMap.get(id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.push('[ ] ' + text.trim()); p.todo_text = lines.join('\n'); saveData(); render(); }
+        function toggleConsult(id, c) { const p = AppState.patientMap.get(id); if(!p.consults) p.consults = {}; p.consults[c] = ((p.consults[c] || 0) + 1) % 3; saveData(); render(); }
 
         // --- RENDER LOGIC ---
         function render() {
@@ -394,64 +399,35 @@
             document.getElementById('previewCount').innerText = AppState.parsedPatients.length;
             document.getElementById('btnImportAction').disabled = AppState.parsedPatients.length === 0;
         }
-        function executeImport() {
-            if(AppState.parsedPatients.length === 0) return;
-            let count = 0;
-            AppState.parsedPatients.forEach(imp => {
-                const exists = AppState.patients.some(p => p.name === imp.name);
-                if(!exists) {
-                    const id = Date.now().toString() + Math.random().toString().slice(2,5);
-                    AppState.patients.push(createDefaultPatient({
-                        id,
-                        room: imp.room,
-                        name: imp.name,
-                        dob: imp.dob
-                    }));
-                    count++;
-                }
-            });
-            saveData();
-            render();
-            document.getElementById('importModal').style.display = 'none';
-            alert(`${count} Patienten importiert.`);
-        }
+        function executeImport() { if(AppState.parsedPatients.length===0) return; let count=0; AppState.parsedPatients.forEach(imp => { const exists = AppState.patients.some(p => p.name === imp.name); if(!exists) { const id = Date.now().toString() + Math.random().toString().slice(2,5); const newP = {id, room: imp.room, name: imp.name, dob: imp.dob, diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }; AppState.patients.push(newP); AppState.patientMap.set(id, newP); count++; } }); saveData(); render(); document.getElementById('importModal').style.display='none'; alert(`${count} Patienten importiert.`); }
 
         function exportData() { const d = JSON.stringify(AppState.patients, null, 2); const b = new Blob([d], {type: "application/json"}); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = `station_backup_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
-        function importData(i) { const f = i.files[0]; if(!f)return; const r = new FileReader(); r.onload=function(e){try{const d=JSON.parse(e.target.result);if(Array.isArray(d)){if(confirm(`Backup mit ${d.length} Patienten laden?`)){AppState.patients=d;saveData();render();alert("Geladen!");}}}catch(err){alert("Fehler!");}};r.readAsText(f);i.value=''; }
-        function addNewPatient() {
-            const id = Date.now().toString();
-            AppState.patients.push(createDefaultPatient({ id }));
-            saveData();
-            render();
-            setTimeout(() => {
-                const i = document.querySelector(`input[data-pid="${id}"]`);
-                if(i) i.focus();
-            }, 100);
-        }
-        function updateField(id, f, v) { const p = AppState.patients.find(x => x.id === id); if(p){p[f]=v;saveData();} }
-        function updateFieldRender(id, f, v) { const p = AppState.patients.find(x => x.id === id); if(p){p[f]=v;saveData();render();} }
+        function importData(i) { const f = i.files[0]; if(!f)return; const r = new FileReader(); r.onload=function(e){try{const d=JSON.parse(e.target.result);if(Array.isArray(d)){if(confirm(`Backup mit ${d.length} Patienten laden?`)){AppState.patients=d;rebuildPatientMap();saveData();render();alert("Geladen!");}}}catch(err){alert("Fehler!");}};r.readAsText(f);i.value=''; }
+        function addNewPatient() { const id = Date.now().toString(); const p = {id, room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }; AppState.patients.push(p); AppState.patientMap.set(id, p); saveData(); render(); setTimeout(()=>{const i=document.querySelector(`input[data-pid="${id}"]`);if(i)i.focus();},100); }
+        function updateField(id, f, v) { const p = AppState.patientMap.get(id); if(p){p[f]=v;saveData();} }
+        function updateFieldRender(id, f, v) { const p = AppState.patientMap.get(id); if(p){p[f]=v;saveData();render();} }
         function getAge(d) { if(!d) return ""; const a=getAgeNum(d); return isNaN(a)?"":`(${a}J)`; }
         
-        function openMedModal(id) { AppState.currentEditingId = id; const p = AppState.patients.find(x => x.id === id); document.getElementById('med-search').value = ""; document.getElementById('med-custom').value = ""; AppState.tempSelectedMeds.clear(); const cm = p.meds_current ? p.meds_current.split(',').map(s=>s.trim()) : []; cm.forEach(m=>{if(m)AppState.tempSelectedMeds.add(m);}); renderMedList(""); document.getElementById('medModal').style.display = "block"; setTimeout(()=>document.getElementById('med-search').focus(),100); }
+        function openMedModal(id) { AppState.currentEditingId = id; const p = AppState.patientMap.get(id); document.getElementById('med-search').value = ""; document.getElementById('med-custom').value = ""; AppState.tempSelectedMeds.clear(); const cm = p.meds_current ? p.meds_current.split(',').map(s=>s.trim()) : []; cm.forEach(m=>{if(m)AppState.tempSelectedMeds.add(m);}); renderMedList(""); document.getElementById('medModal').style.display = "block"; setTimeout(()=>document.getElementById('med-search').focus(),100); }
         function closeMedModal() { document.getElementById('medModal').style.display = "none"; }
         function handleModalKey(e, mId) { if(e.key==="Escape")document.getElementById(mId).style.display="none"; if(e.key==="Enter"&&e.target.tagName!=='TEXTAREA'&&mId==='medModal')saveMeds(); }
         function toggleTempMed(n, c) { if(c) AppState.tempSelectedMeds.add(n); else AppState.tempSelectedMeds.delete(n); }
         function renderMedList(f) { const c = document.getElementById('med-selector'); const s = f.toLowerCase(); let finalHtml = ""; for (const [g, m] of Object.entries(MED_GROUPS)) { const mm = m.filter(x=>x.toLowerCase().includes(s)); if(s&&mm.length===0)continue; const open=s?"open":""; let h=`<details ${open} class="group bg-slate-50 border border-slate-200 rounded"><summary class="cursor-pointer p-2 font-bold text-sm text-slate-700 hover:bg-slate-100 select-none flex justify-between items-center"><span>${g}</span><span class="text-xs text-slate-400">▼</span></summary><div class="p-2 bg-white border-t border-slate-100 grid grid-cols-2 md:grid-cols-4 gap-2">`; mm.forEach(x=>{ const ch=AppState.tempSelectedMeds.has(x)?"checked":""; h+=`<label class="flex items-center gap-1 text-xs cursor-pointer hover:bg-blue-50 p-1 rounded focus-within:ring-2 focus-within:ring-blue-500"><input type="checkbox" value="${x}" class="accent-blue-600" ${ch} onchange="toggleTempMed('${x}', this.checked)"> ${x}</label>`; }); h+=`</div></details>`; finalHtml+=h; } c.innerHTML = finalHtml; }
-        function saveMeds() { const p = AppState.patients.find(x => x.id === AppState.currentEditingId); const s = Array.from(AppState.tempSelectedMeds); const c = document.getElementById('med-custom').value; if(c) s.push(c); s.sort(); p.meds_current = s.join(", "); saveData(); render(); closeMedModal(); }
+        function saveMeds() { const p = AppState.patientMap.get(AppState.currentEditingId); const s = Array.from(AppState.tempSelectedMeds); const c = document.getElementById('med-custom').value; if(c) s.push(c); s.sort(); p.meds_current = s.join(", "); saveData(); render(); closeMedModal(); }
 
-        function toggleDiag(e, id, d) { e.preventDefault(); const p = AppState.patients.find(x => x.id === id); if(!p.diag_status) p.diag_status={}; p.diag_status[d] = ((p.diag_status[d]||0)+1)%3; if(e.type==='contextmenu'){ const r = prompt(`Befund ${d}:`, (p.diag_results||{})[d]||""); if(r!==null){ if(!p.diag_results)p.diag_results={}; p.diag_results[d]=r; if(r)p.diag_status[d]=2; }} saveData(); render(); setTimeout(()=>{const b=document.getElementById(`btn-diag-${id}-${d}`);if(b)b.focus();},50); }
-        function toggleCVRF(id, k) { const p = AppState.patients.find(x => x.id === id); if(!p.cvrf) p.cvrf=[]; if(p.cvrf.includes(k)) p.cvrf=p.cvrf.filter(x=>x!==k); else p.cvrf.push(k); saveData(); render(); }
-        function toggleResus(id, t) { const p = AppState.patients.find(x => x.id === id); if(p){p[t]=!p[t];saveData();render();} }
-        function toggleDaily(id, k) { const p = AppState.patients.find(x => x.id === id); if(!p.daily) p.daily={}; p.daily[k]=!p.daily[k]; saveData(); render(); }
-        function deletePatient(id) { if(confirm("Löschen?")) { AppState.patients=AppState.patients.filter(x=>x.id!==id); saveData(); render(); } }
+        function toggleDiag(e, id, d) { e.preventDefault(); const p = AppState.patientMap.get(id); if(!p.diag_status) p.diag_status={}; p.diag_status[d] = ((p.diag_status[d]||0)+1)%3; if(e.type==='contextmenu'){ const r = prompt(`Befund ${d}:`, (p.diag_results||{})[d]||""); if(r!==null){ if(!p.diag_results)p.diag_results={}; p.diag_results[d]=r; if(r)p.diag_status[d]=2; }} saveData(); render(); setTimeout(()=>{const b=document.getElementById(`btn-diag-${id}-${d}`);if(b)b.focus();},50); }
+        function toggleCVRF(id, k) { const p = AppState.patientMap.get(id); if(!p.cvrf) p.cvrf=[]; if(p.cvrf.includes(k)) p.cvrf=p.cvrf.filter(x=>x!==k); else p.cvrf.push(k); saveData(); render(); }
+        function toggleResus(id, t) { const p = AppState.patientMap.get(id); if(p){p[t]=!p[t];saveData();render();} }
+        function toggleDaily(id, k) { const p = AppState.patientMap.get(id); if(!p.daily) p.daily={}; p.daily[k]=!p.daily[k]; saveData(); render(); }
+        function deletePatient(id) { if(confirm("Löschen?")) { AppState.patients=AppState.patients.filter(x=>x.id!==id); AppState.patientMap.delete(id); saveData(); render(); } }
         function startNewDay() { if(confirm("Neuer Tag?")) { AppState.patients.forEach(p=>p.daily={}); saveData(); render(); } }
         
         function setupExamBuilder() { const c = document.getElementById('status-builder'); if(typeof EXAM_CONFIG === 'undefined') return; let fullHtml = ""; for(const [k, d] of Object.entries(EXAM_CONFIG)) { let h=`<div class="border rounded bg-slate-50 p-2"><div class="font-bold text-xs text-slate-500 uppercase mb-1">${k}</div><div class="flex flex-wrap gap-1">`; d.options.forEach(o => { h+=`<button class="px-2 py-1 bg-white hover:bg-blue-100 border border-slate-200 rounded text-xs transition" onclick="insertExamText('${k}', '${o}')">${o}</button>`; }); h+=`</div></div>`; fullHtml += h; } c.innerHTML = fullHtml; }
-        function openExamModal(id) { AppState.currentEditingId = id; const p = AppState.patients.find(x => x.id === id); document.getElementById('gen-text-output').value = p.exam_text || "Standard Aufnahme..."; document.getElementById('examModal').style.display = "block"; }
+        function openExamModal(id) { AppState.currentEditingId = id; const p = AppState.patientMap.get(id); document.getElementById('gen-text-output').value = p.exam_text || "Standard Aufnahme..."; document.getElementById('examModal').style.display = "block"; }
         function insertExamText(c, t) { document.getElementById('gen-text-output').value += `\n[${c}]: ${t}`; }
-        function saveExamToPatient() { AppState.patients.find(x => x.id === AppState.currentEditingId).exam_text = document.getElementById('gen-text-output').value; saveData(); document.getElementById('examModal').style.display = 'none'; }
+        function saveExamToPatient() { AppState.patientMap.get(AppState.currentEditingId).exam_text = document.getElementById('gen-text-output').value; saveData(); document.getElementById('examModal').style.display = 'none'; }
         
-        function openScoreModal(id) { const p = AppState.patients.find(x => x.id === id); const list = document.getElementById('score-list'); list.innerHTML = ""; let relevantScores = []; if(typeof SCORE_DEFINITIONS !== 'undefined') { relevantScores = SCORE_DEFINITIONS.filter(s => s.check(p)); } if(relevantScores.length === 0) { list.innerHTML = `<div class="p-4 text-slate-400 text-center col-span-2">Keine spezifischen Scores erkannt.<br>(Prüfe Diagnosen-Schreibweise)</div>`; } else { let scoresHtml = ""; relevantScores.forEach(s => { const link = s.url ? `href="${s.url}" target="_blank"` : ""; const tag = s.url ? "a" : "div"; scoresHtml += `<${tag} ${link} class="score-card group"><div><span class="score-name">${s.name}</span><span class="score-info">${s.info}</span></div><div class="score-arrow group-hover:text-blue-500">➜</div></${tag}>`; }); list.innerHTML = scoresHtml; } document.getElementById('scoreModal').style.display = "block"; }
+        function openScoreModal(id) { const p = AppState.patientMap.get(id); const list = document.getElementById('score-list'); list.innerHTML = ""; let relevantScores = []; if(typeof SCORE_DEFINITIONS !== 'undefined') { relevantScores = SCORE_DEFINITIONS.filter(s => s.check(p)); } if(relevantScores.length === 0) { list.innerHTML = `<div class="p-4 text-slate-400 text-center col-span-2">Keine spezifischen Scores erkannt.<br>(Prüfe Diagnosen-Schreibweise)</div>`; } else { let scoresHtml = ""; relevantScores.forEach(s => { const link = s.url ? `href="${s.url}" target="_blank"` : ""; const tag = s.url ? "a" : "div"; scoresHtml += `<${tag} ${link} class="score-card group"><div><span class="score-name">${s.name}</span><span class="score-info">${s.info}</span></div><div class="score-arrow group-hover:text-blue-500">➜</div></${tag}>`; }); list.innerHTML = scoresHtml; } document.getElementById('scoreModal').style.display = "block"; }
     </script>
 </body>
 </html>
