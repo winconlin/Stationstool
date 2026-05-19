@@ -47,5 +47,53 @@ test('getAgeNum', async (t) => {
         assert.strictEqual(getAgeNum('1990-05-15'), 34);
     });
 
+    await t.test('handles leap year birthdays - non-leap year before birthday', () => {
+        const tempDate = global.Date;
+        global.Date = class extends OriginalDate {
+            constructor(...args) {
+                if (args.length === 0) {
+                    super('2023-02-28T12:00:00Z');
+                } else {
+                    super(...args);
+                }
+            }
+        };
+        // Born 2000-02-29, today 2023-02-28. Has not reached birthday yet.
+        assert.strictEqual(getAgeNum('2000-02-29'), 22);
+        global.Date = tempDate;
+    });
+
+    await t.test('handles leap year birthdays - non-leap year after birthday', () => {
+        const tempDate = global.Date;
+        global.Date = class extends OriginalDate {
+            constructor(...args) {
+                if (args.length === 0) {
+                    super('2023-03-01T12:00:00Z');
+                } else {
+                    super(...args);
+                }
+            }
+        };
+        // Born 2000-02-29, today 2023-03-01. Has passed birthday.
+        assert.strictEqual(getAgeNum('2000-02-29'), 23);
+        global.Date = tempDate;
+    });
+
+    await t.test('handles leap year birthdays - leap year birthday', () => {
+        const tempDate = global.Date;
+        global.Date = class extends OriginalDate {
+            constructor(...args) {
+                if (args.length === 0) {
+                    super('2024-02-29T12:00:00Z');
+                } else {
+                    super(...args);
+                }
+            }
+        };
+        // Born 2000-02-29, today 2024-02-29. Exactly on birthday.
+        assert.strictEqual(getAgeNum('2000-02-29'), 24);
+        global.Date = tempDate;
+    });
+
     global.Date = OriginalDate;
 });
