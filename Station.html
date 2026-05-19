@@ -62,6 +62,7 @@
     <div id="medModal" class="modal no-print" onkeydown="handleModalKey(event, 'medModal')">
         <div class="modal-content max-w-3xl flex flex-col max-h-[90vh]">
             <div class="flex justify-between items-center mb-2 border-b pb-2 flex-shrink-0"><h2 class="text-xl font-bold">Medikation wählen</h2><button onclick="closeMedModal()" class="text-2xl px-2">&times;</button></div>
+            <div id="med-modal-warnings" class="w-full mb-2 empty:hidden"></div>
             <div class="mb-2 flex-shrink-0"><input type="text" id="med-search" placeholder="🔍 Suche..." class="w-full border-2 border-blue-200 rounded p-2 focus:border-blue-500 outline-none text-lg"></div>
             <div id="med-selector" class="space-y-2 mb-4 overflow-y-auto flex-grow px-1"></div>
             <div class="border-t pt-4 flex-shrink-0"><input type="text" id="med-custom" class="w-full border p-2 rounded bg-slate-50 mb-2" placeholder="Zusatz..."><div class="flex justify-end gap-2"><button onclick="saveMeds()" class="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-500">Übernehmen (Enter)</button></div></div>
@@ -86,27 +87,10 @@
     <script>
         if(typeof MED_GROUPS === 'undefined') showToast("ACHTUNG: Config Dateien fehlen!", true);
 
-        const AppState = { patients: [], patientMap: new Map(), currentEditingId: null, tempSelectedMeds: new Set(), parsedPatients: [] };
+        const AppState = { patients: [], currentEditingId: null, tempSelectedMeds: new Set(), tempPausedMeds: new Set(), tempBedarfMeds: new Set(), parsedPatients: [] };
 
-        function rebuildPatientMap() {
-            AppState.patientMap.clear();
-            AppState.patients.forEach(p => AppState.patientMap.set(p.id, p));
-        }
 
-        function createDefaultPatient(overrides = {}) {
-            const defaults = {
-                id: Date.now().toString(),
-                room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [],
-                meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "",
-                daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false,
-                exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0,
-                fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {},
-                social: {reha:'', physio:'', pflegegrad:''},
-                labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''},
-                vol: {ziel:'', aktuell:''}
-            };
-            return { ...defaults, ...overrides };
-        }
+
 
         function showToast(msg, isError = false) { const t = document.createElement("div"); t.className = `fixed bottom-4 right-4 text-white px-4 py-2 rounded shadow-lg transition-opacity duration-300 z-50 ${isError ? "bg-red-600" : "bg-green-600"}`; t.innerText = msg; document.body.appendChild(t); setTimeout(() => { t.style.opacity = "0"; setTimeout(() => t.remove(), 300); }, 2000); }
 
@@ -127,7 +111,7 @@
         }
 
         function resizeTx(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; }
-        function loadData() { const stored = localStorage.getItem('station_v17_data'); if (stored) { AppState.patients = JSON.parse(stored); rebuildPatientMap(); } }
+        function loadData() { const stored = localStorage.getItem('station_v17_data'); if (stored) AppState.patients = JSON.parse(stored); }
         function saveData() { localStorage.setItem('station_v17_data', JSON.stringify(AppState.patients)); }
         
         function getDaysSince(dateString) {
@@ -137,59 +121,199 @@
         }
 
         // --- MODEL UPDATES (Deep properties) ---
-        function updateDeepField(id, obj, field, val) { const p = AppState.patientMap.get(id); if(!p[obj]) p[obj] = {}; p[obj][field] = val; saveData(); }
+
+        function parseEgfr(egfrStr) {
+            if (!egfrStr) return null;
+            let m = egfrStr.match(/\d+/);
+            if (m) return parseInt(m[0], 10);
+            return null;
+        }
+
+        function getAnticoagulationStatus(p) {
+            let statusText = "Keine Antikoagulation";
+            let warnings = [];
+            let isCurrent = (med) => p.meds_current && p.meds_current.toLowerCase().includes(med.toLowerCase());
+
+            // Define categories
+            let oaks = ["Apixaban", "Eliquis", "Rivaroxaban", "Xarelto", "Edoxaban", "Lixiana", "Dabigatran", "Pradaxa", "Marcumar", "Phenprocoumon"];
+            let heparins = ["Enoxaparin", "Clexane", "Certoparin", "Mono-Embolex", "Fondaparinux", "Arixtra", "Heparin", "Liquemin", "Dalteparin", "Fragmin", "Nadroparin", "Fraxiparine"];
+            let antiplatelets = ["ASS", "Aspirin", "Clopidogrel", "Plavix", "Prasugrel", "Efient", "Ticagrelor", "Brilique"];
+
+            let foundOaks = oaks.filter(isCurrent);
+            let foundHeparins = heparins.filter(isCurrent);
+            let foundAntiplatelets = antiplatelets.filter(isCurrent);
+
+            let hasOak = foundOaks.length > 0;
+            let hasHeparin = foundHeparins.length > 0;
+            let aptCount = foundAntiplatelets.length;
+
+            // Warnings
+            if (foundOaks.length > 1) warnings.push("⚠️ " + foundOaks.length + " NOAKs/OAKs!");
+            if (foundHeparins.length > 1) warnings.push("⚠️ " + foundHeparins.length + " Heparine!");
+            if (hasOak && hasHeparin) warnings.push("⚠️ OAK + Heparin");
+
+            // Status Logic
+            if (hasOak && aptCount == 1) statusText = "OAK + SAPT";
+            else if (hasOak && aptCount > 1) statusText = "Triple (OAK + DAPT)";
+            else if (hasOak) statusText = "OAK (" + foundOaks[0] + ")";
+            else if (hasHeparin && aptCount == 1) statusText = "Heparin + SAPT";
+            else if (hasHeparin && aptCount > 1) statusText = "Heparin + DAPT";
+            else if (hasHeparin) statusText = "Heparin (" + foundHeparins[0] + ")";
+            else if (aptCount == 1) statusText = "SAPT (" + foundAntiplatelets[0] + ")";
+            else if (aptCount > 1) statusText = "DAPT (" + foundAntiplatelets.join(" + ") + ")";
+
+            return { status: statusText, warnings: warnings };
+        }
+
+        function updateDeepField(id, obj, field, val) { const p = AppState.patients.find(x => x.id === id); if(!p[obj]) p[obj] = {}; p[obj][field] = val; saveData(); }
         function updateDeepFieldRender(id, obj, field, val) { updateDeepField(id, obj, field, val); render(); }
         
         // Arrays/Complex
-        function addIso(id, val) { if(!val) return; const p = AppState.patientMap.get(id); if(!p.iso) p.iso = []; if(!p.iso.includes(val)) p.iso.push(val); saveData(); render(); }
-        function removeIso(id, val) { const p = AppState.patientMap.get(id); p.iso = p.iso.filter(x => x !== val); saveData(); render(); }
-        function addAbx(id) { const name = prompt("Antibiotikum Name:"); if(name) { const p = AppState.patientMap.get(id); if(!p.abx) p.abx = []; p.abx.push({name: name, start: new Date().toISOString().split('T')[0]}); saveData(); render(); } }
-        function removeAbx(id, idx) { const p = AppState.patientMap.get(id); p.abx.splice(idx, 1); saveData(); render(); }
-        function addAmio(id) { let val = parseFloat(prompt("Dosis in g hinzufügen (z.B. 0.9):", "0.9")); if(!isNaN(val)) { let p = AppState.patientMap.get(id); p.amio = (p.amio || 0) + val; saveData(); render(); } }
-        function toggleTodoLine(id, idx) { const p = AppState.patientMap.get(id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines[idx].startsWith('[x] ')) { lines[idx] = lines[idx].replace('[x] ', '[ ] '); } else if(lines[idx].startsWith('[ ] ')) { lines[idx] = lines[idx].replace('[ ] ', '[x] '); } else { lines[idx] = '[x] ' + lines[idx]; } p.todo_text = lines.join('\n'); saveData(); render(); }
-        function deleteTodoLine(id, idx) { const p = AppState.patientMap.get(id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.splice(idx, 1); p.todo_text = lines.join('\n'); saveData(); render(); }
-        function addTodoLine(id, text) { if(!text.trim()) return; const p = AppState.patientMap.get(id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.push('[ ] ' + text.trim()); p.todo_text = lines.join('\n'); saveData(); render(); }
-        function toggleConsult(id, c) { const p = AppState.patientMap.get(id); if(!p.consults) p.consults = {}; p.consults[c] = ((p.consults[c] || 0) + 1) % 3; saveData(); render(); }
+        function addIso(id, val) { if(!val) return; const p = AppState.patients.find(x => x.id === id); if(!p.iso) p.iso = []; if(!p.iso.includes(val)) p.iso.push(val); saveData(); render(); }
+        function removeIso(id, val) { const p = AppState.patients.find(x => x.id === id); p.iso = p.iso.filter(x => x !== val); saveData(); render(); }
+        function addAbx(id) { const name = prompt("Antibiotikum Name:"); if(name) { const p = AppState.patients.find(x => x.id===id); if(!p.abx) p.abx = []; p.abx.push({name: name, start: new Date().toISOString().split('T')[0]}); saveData(); render(); } }
+        function removeAbx(id, idx) { const p = AppState.patients.find(x => x.id===id); p.abx.splice(idx, 1); saveData(); render(); }
+        function addAmio(id) { let val = parseFloat(prompt("Dosis in g hinzufügen (z.B. 0.9):", "0.9")); if(!isNaN(val)) { let p = AppState.patients.find(x => x.id === id); p.amio = (p.amio || 0) + val; saveData(); render(); } }
+        function toggleTodoLine(id, idx) { const p = AppState.patients.find(x => x.id === id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines[idx].startsWith('[x] ')) { lines[idx] = lines[idx].replace('[x] ', '[ ] '); } else if(lines[idx].startsWith('[ ] ')) { lines[idx] = lines[idx].replace('[ ] ', '[x] '); } else { lines[idx] = '[x] ' + lines[idx]; } p.todo_text = lines.join('\n'); saveData(); render(); }
+        function deleteTodoLine(id, idx) { const p = AppState.patients.find(x => x.id === id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.splice(idx, 1); p.todo_text = lines.join('\n'); saveData(); render(); }
+        function addTodoLine(id, text) { if(!text.trim()) return; const p = AppState.patients.find(x => x.id === id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.push('[ ] ' + text.trim()); p.todo_text = lines.join('\n'); saveData(); render(); }
+        function toggleConsult(id, c) { const p = AppState.patients.find(x => x.id === id); if(!p.consults) p.consults = {}; p.consults[c] = ((p.consults[c] || 0) + 1) % 3; saveData(); render(); }
 
         // --- RENDER LOGIC ---
+        function render() {
+            const container = document.getElementById('patient-list');
+            const printBody = document.getElementById('print-table-body');
+            const empty = document.getElementById('empty-state');
+            container.innerHTML = ''; printBody.innerHTML = '';
 
-        function renderPatientCard(p, labs, vol, social, isos, abx, age, dnrClass, dniClass) {
-            let card = document.createElement('div');
+            if(AppState.patients.length===0) { empty.classList.remove('hidden'); return; } else empty.classList.add('hidden');
+            AppState.patients.sort((a,b) => a.room.localeCompare(b.room, undefined, {numeric: true}));
+
+            let currentRoom = null;
+            const containerFrag = document.createDocumentFragment();
+            const printBodyFrag = document.createDocumentFragment();
+
+
+            AppState.patients.forEach(p => {
+                // Ensure structured objects exist for older backups
+                const labs = p.labs || {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''};
+                const vol = p.vol || {ziel:'', aktuell:''};
+                const social = p.social || {reha:'', physio:'', pflegegrad:''};
+                const isos = p.iso || [];
+                const abx = p.abx || [];
+
+                let displayRoom = p.room ? p.room : "Gang";
+                if(displayRoom !== currentRoom) {
+                    currentRoom = displayRoom;
+                    let roomHeader = document.createElement('div');
+                    roomHeader.className = "col-span-full mt-4 mb-1 flex items-center gap-2 border-b border-indigo-200 pb-1 no-print";
+                    roomHeader.innerHTML = `<span class="bg-indigo-600 text-white font-bold px-3 py-1 rounded shadow-sm">Zimmer ${currentRoom}</span>`;
+                    containerFrag.appendChild(roomHeader);
+                }
+
+                const age = getAge(p.dob);
+                const dnrClass = p.dnr ? 'resus-active' : ''; const dniClass = p.dni ? 'resus-active' : '';
+
+                let card = document.createElement('div');
                 card.className = "bg-white rounded border border-slate-300 p-2 patient-card flex flex-col gap-1 shadow-sm hover:shadow-md transition relative";
                 
                 // HEADER (Zi, Name, Rhythmus, Nüchtern)
-                let rhythmSel = `<select onchange="updateFieldRender('${p.id}', 'rhythm', this.value)" class="text-[10px] font-bold outline-none bg-transparent cursor-pointer ${p.rhythm === 'VHF' || p.rhythm === 'AF' ? 'vhf-blink' : 'text-slate-500'}"><option value="SR" ${p.rhythm==='SR'?'selected':''}>[ SR ]</option><option value="VHF" ${p.rhythm==='VHF'?'selected':''}>[ VHF ]</option><option value="AF" ${p.rhythm==='AF'?'selected':''}>[ A-Flatt ]</option><option value="PM/ICD" ${p.rhythm==='PM/ICD'?'selected':''}>[ PM/ICD ]</option></select>`;
+                let rhythmSel = `
+                    <div class="flex flex-col ml-2 border-l border-slate-200 pl-2">
+                        <div class="flex items-center gap-1">
+                            <select onchange="updateFieldRender('${p.id}', 'rhythm', this.value)" class="text-[10px] font-bold outline-none bg-transparent cursor-pointer ${p.rhythm === 'VHF' || p.rhythm === 'AF' ? 'vhf-blink' : 'text-slate-500'}">
+                                <option value="SR" ${p.rhythm==='SR'?'selected':''}>[ SR ]</option>
+                                <option value="VHF" ${p.rhythm==='VHF'?'selected':''}>[ VHF ]</option>
+                                <option value="AF" ${p.rhythm==='AF'?'selected':''}>[ A-Flatt ]</option>
+                                <option value="PM/ICD" ${p.rhythm==='PM/ICD'?'selected':''}>[ PM/ICD ]</option>
+                            </select>
+                            <input type="text" value="${p.rhythm_history || ''}" onchange="updateField('${p.id}', 'rhythm_history', this.value)" class="text-[9px] text-slate-400 bg-transparent outline-none w-24 placeholder-slate-300" placeholder="Zuletzt SR am...">
+                        </div>
+                        <div class="flex items-center gap-1 mt-0.5">
+                            <span class="text-[8px] text-slate-400 font-bold">LVEF:</span>
+                            <input type="text" value="${p.lvef || ''}" onchange="updateField('${p.id}', 'lvef', this.value)" class="text-[9px] w-8 bg-slate-50 border border-slate-200 rounded text-center font-bold text-slate-700 outline-none" placeholder="%">
+                            <span class="text-[8px] text-slate-400 font-bold ml-1">Klappen:</span>
+                            <input type="text" value="${p.valves || ''}" onchange="updateField('${p.id}', 'valves', this.value)" class="text-[9px] w-20 bg-slate-50 border border-slate-200 rounded px-1 text-slate-700 outline-none" placeholder="z.B. MI II°">
+                        </div>
+                    </div>`;
                 let fastBtn = `<button onclick="updateFieldRender('${p.id}', 'fasting', ${!p.fasting})" class="text-[8px] px-1 py-0.5 rounded font-bold transition-colors ${p.fasting ? 'badge-nüchtern' : 'badge-kost'}">${p.fasting ? '⛔ Nüchtern' : '🍔 Kostaufbau'}</button>`;
                 
-                let header = `<div class="flex justify-between items-start pb-1 border-b border-slate-100"><div class="flex items-center gap-2 w-full"><input type="text" data-pid="${p.id}" value="${p.room}" onchange="updateFieldRender('${p.id}', 'room', this.value)" class="font-bold text-xl w-12 text-center text-blue-900 bg-blue-50 rounded p-room" placeholder="#"><div class="w-full"><div class="flex items-center gap-1"><input type="text" value="${p.name}" onchange="updateFieldRender('${p.id}', 'name', this.value)" class="font-bold text-sm text-slate-900 p-name flex-grow" placeholder="Name">${rhythmSel}</div><div class="flex items-center gap-1 no-print"><input type="date" value="${p.dob}" onchange="updateFieldRender('${p.id}', 'dob', this.value)" class="text-[10px] text-slate-400 w-24 bg-transparent"><span class="text-xs font-bold">${age}</span></div></div></div><div class="flex flex-col gap-1 items-end"><div class="flex gap-1 items-center">${fastBtn}<button onclick="toggleResus('${p.id}', 'dnr')" class="resus-btn ${dnrClass}">DNR</button><button onclick="toggleResus('${p.id}', 'dni')" class="resus-btn ${dniClass}">DNI</button></div><button onclick="deletePatient('${p.id}')" aria-label="Patient löschen" title="Patient löschen" tabindex="-1" class="text-slate-300 hover:text-red-500 text-lg leading-none no-print">&times;</button></div></div>`;
+                let isoBanner = isos.length > 0 ? `<div class="bg-red-600 text-white font-bold text-[9px] px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse shadow-md whitespace-nowrap"><span class="text-xs">☣️</span> ${isos.join(', ')}</div>` : '';
+                let header = `<div class="flex justify-between items-start pb-1 border-b border-slate-100"><div class="flex items-center gap-2 w-full"><input type="text" data-pid="${p.id}" value="${p.room}" onchange="updateFieldRender('${p.id}', 'room', this.value)" class="font-bold text-xl w-12 text-center text-blue-900 bg-blue-50 rounded p-room" placeholder="#"><div class="w-full"><div class="flex items-center gap-1">${isoBanner}<input type="text" value="${p.name}" onchange="updateFieldRender('${p.id}', 'name', this.value)" class="font-bold text-sm text-slate-900 p-name flex-grow" placeholder="Name">${rhythmSel}</div><div class="flex items-center gap-1 no-print"><input type="date" value="${p.dob}" onchange="updateFieldRender('${p.id}', 'dob', this.value)" class="text-[10px] text-slate-400 w-24 bg-transparent"><span class="text-xs font-bold">${age}</span></div></div></div><div class="flex flex-col gap-1 items-end"><div class="flex gap-1 items-center">${fastBtn}</div><button onclick="deletePatient('${p.id}')" aria-label="Patient löschen" title="Patient löschen" tabindex="-1" class="text-slate-300 hover:text-red-500 text-lg leading-none no-print">&times;</button></div></div>`;
                 
                 // ISOLATION & WARNUNGEN
                 let warnColor = p.warnings ? 'bg-red-100 border-red-300 text-red-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-400 italic';
                 let isoTags = isos.map(iso => `<span class="text-[8px] bg-red-600 text-white px-1 rounded font-bold flex items-center gap-1">${iso} <button onclick="removeIso('${p.id}', '${iso}')" class="hover:text-red-200">×</button></span>`).join('');
                 let isoSel = `<select onchange="addIso('${p.id}', this.value); this.value='';" class="text-[8px] bg-red-50 text-red-700 border border-red-200 rounded outline-none w-16"><option value="">+ Keim/Iso</option><option value="MRSA">MRSA</option><option value="3MRGN">3MRGN</option><option value="4MRGN">4MRGN</option><option value="VRE">VRE</option><option value="CDAD">Clostr.</option><option value="Influenza">Influenza</option><option value="RSV">RSV</option><option value="Covid">Covid</option></select>`;
-                let warnHtml = `<div class="flex flex-wrap items-center gap-1"><input type="text" value="${p.warnings || ''}" onchange="updateField('${p.id}', 'warnings', this.value)" class="flex-grow text-[10px] rounded p-1 outline-none transition-colors uppercase placeholder-slate-300 ${warnColor}" placeholder="⚠️ Allergien / Warnungen...">${isoTags}${isoSel}</div>`;
+                let customIsoBtn = `<button onclick="let v=prompt('Erreger:'); if(v) addIso('${p.id}', v);" class="text-[8px] bg-red-50 text-red-700 border border-red-200 rounded px-1 hover:bg-red-100">+</button>`;
+                let warnHtml = `<div class="flex flex-wrap items-center gap-1"><input type="text" value="${p.warnings || ''}" onchange="updateField('${p.id}', 'warnings', this.value)" class="flex-grow text-[10px] rounded p-1 outline-none transition-colors uppercase placeholder-slate-300 ${warnColor}" placeholder="⚠️ Allergien / Warnungen...">${isoTags}${isoSel}${customIsoBtn}</div>`;
 
                 // DIAGNOSEN
                 let diagTextClass = p.expDiag ? "text-expanded" : (p.diagnosis && p.diagnosis.length > 150 ? "text-truncated" : "");
                 let diagToggleBtn = (p.diagnosis && p.diagnosis.length > 150) ? `<button onclick="updateFieldRender('${p.id}', 'expDiag', ${!p.expDiag})" class="text-[9px] text-blue-500 hover:underline w-full text-right bg-red-50 pr-1 pb-1 rounded-b">${p.expDiag ? 'Weniger anzeigen' : 'Mehr lesen...'}</button>` : '';
                 let diag = `<div class="bg-red-50 rounded border border-red-100 relative p-1 flex flex-col gap-1"><input type="text" value="${p.main_diagnosis || ''}" onchange="updateField('${p.id}', 'main_diagnosis', this.value)" class="w-full text-sm font-black text-red-900 bg-red-100/50 placeholder-red-300 outline-none p-1 rounded" placeholder="HAUPTDIAGNOSE / Aufnahmegrund"><textarea oninput="resizeTx(this); updateField('${p.id}', 'diagnosis', this.value)" class="auto-expand w-full text-xs font-medium text-red-900 bg-transparent leading-tight outline-none ${diagTextClass}" placeholder="Weitere Diagnosen...">${p.diagnosis || ''}</textarea>${diagToggleBtn}</div>`;
-                let cvrfHtml = `<div class="flex gap-2 justify-center py-1">`; if(typeof CVRF_CONFIG !== 'undefined') CVRF_CONFIG.forEach(c => { const active = p.cvrf && p.cvrf.includes(c.key) ? 'cvrf-active' : ''; cvrfHtml += `<button type="button" onclick="toggleCVRF('${p.id}', '${c.key}')" class="cvrf-btn ${active} text-sm p-0.5" title="${c.label}">${c.icon}</button>`; }); cvrfHtml += `</div>`;
+                let cvrfHtml = `<div class="flex items-center justify-between py-1 bg-slate-50 border-y border-slate-100 mb-1 px-1 rounded">
+                    <div class="flex gap-1">`;
+                if(typeof CVRF_CONFIG !== 'undefined') CVRF_CONFIG.forEach(c => {
+                    const active = p.cvrf && p.cvrf.includes(c.key) ? 'cvrf-active' : '';
+                    cvrfHtml += `<button type="button" onclick="toggleCVRF('${p.id}', '${c.key}')" class="cvrf-btn ${active} text-sm p-0.5" title="${c.label}">${c.icon}</button>`;
+                });
+                cvrfHtml += `</div>
+                    <div class="flex gap-2 border-l border-slate-200 pl-2">
+                        <select onchange="updateFieldRender('${p.id}', 'nyha', this.value)" class="text-[9px] outline-none bg-transparent cursor-pointer text-slate-600 font-bold">
+                            <option value="">NYHA -</option>
+                            <option value="I" ${p.nyha==='I'?'selected':''}>NYHA I</option>
+                            <option value="II" ${p.nyha==='II'?'selected':''}>NYHA II</option>
+                            <option value="III" ${p.nyha==='III'?'selected':''}>NYHA III</option>
+                            <option value="IV" ${p.nyha==='IV'?'selected':''}>NYHA IV</option>
+                        </select>
+                        <select onchange="updateFieldRender('${p.id}', 'ehra', this.value)" class="text-[9px] outline-none bg-transparent cursor-pointer text-slate-600 font-bold">
+                            <option value="">EHRA -</option>
+                            <option value="I" ${p.ehra==='I'?'selected':''}>EHRA I</option>
+                            <option value="IIa" ${p.ehra==='IIa'?'selected':''}>EHRA IIa</option>
+                            <option value="IIb" ${p.ehra==='IIb'?'selected':''}>EHRA IIb</option>
+                            <option value="III" ${p.ehra==='III'?'selected':''}>EHRA III</option>
+                            <option value="IV" ${p.ehra==='IV'?'selected':''}>EHRA IV</option>
+                        </select>
+                    </div>
+                </div>`;
                 
                 // QUICK LABS & VOLUMEN
-                let eGFRWarn = labs.egfr && labs.egfr < 30 ? 'egfr-warn' : 'bg-white';
+                let eGFRValue = parseEgfr(labs.egfr);
+                let eGFRWarn = eGFRValue !== null && eGFRValue < 30 ? 'bg-red-500 text-white animate-pulse font-bold' : 'bg-white text-blue-900';
                 let labsVolHtml = `
                 <div class="flex flex-col gap-1 no-print">
                     <div class="grid grid-cols-5 gap-1 bg-blue-50 border border-blue-100 rounded p-1">
                         <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">Hb</label><input value="${labs.hb}" onchange="updateDeepField('${p.id}','labs','hb',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200"></div>
                         <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">Krea</label><input value="${labs.krea}" onchange="updateDeepField('${p.id}','labs','krea',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200"></div>
-                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">eGFR</label><input value="${labs.egfr}" onchange="updateDeepFieldRender('${p.id}','labs','egfr',this.value)" class="text-[9px] outline-none border-b border-blue-200 rounded-t ${eGFRWarn}"></div>
+                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">eGFR</label><input value="${labs.egfr}" onchange="updateDeepFieldRender('${p.id}','labs','egfr',this.value)" class="text-[9px] outline-none border-b border-blue-200 rounded-t ${eGFRWarn}" title="${eGFRWarn.includes('red') ? 'WARNUNG: eGFR < 30' : ''}"></div>
                         <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">K+</label><input value="${labs.k}" onchange="updateDeepField('${p.id}','labs','k',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200"></div>
                         <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">CRP/BNP</label><input value="${labs.crp}" onchange="updateDeepField('${p.id}','labs','crp',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200" placeholder="z.B. 10|2000"></div>
                     </div>
-                    <div class="flex gap-2 items-center bg-cyan-50 border border-cyan-100 rounded p-1 text-[9px]">
-                        <span class="font-bold text-cyan-700">⚖️ Vol:</span>
-                        <label class="text-cyan-600 font-semibold">Ziel:</label><input value="${vol.ziel}" onchange="updateDeepField('${p.id}','vol','ziel',this.value)" placeholder="-500" class="w-10 bg-transparent outline-none border-b border-cyan-200">
-                        <label class="text-cyan-600 font-semibold">Aktuell:</label><input value="${vol.aktuell}" onchange="updateDeepField('${p.id}','vol','aktuell',this.value)" placeholder="+200" class="w-10 bg-transparent outline-none border-b border-cyan-200">
+                    <div class="flex gap-1">
+                        <div class="flex-1 flex flex-col gap-1 bg-cyan-50 border border-cyan-100 rounded p-1 text-[9px]">
+                            <div class="font-bold text-cyan-800 border-b border-cyan-100 pb-0.5">⚖️ Bilanz & Gewicht</div>
+                            <div class="grid grid-cols-2 gap-1">
+                                <div class="flex flex-col"><label class="text-[7px] text-cyan-600 font-bold uppercase">Gewicht (kg)</label><input value="${p.weight || ''}" onchange="updateField('${p.id}','weight',this.value)" class="text-[9px] bg-white outline-none border border-cyan-200 rounded px-1" placeholder="z.B. 85.5"></div>
+                                <div class="flex flex-col"><label class="text-[7px] text-cyan-600 font-bold uppercase">Drainagen (ml)</label><input value="${p.drainage || ''}" onchange="updateField('${p.id}','drainage',this.value)" class="text-[9px] bg-white outline-none border border-cyan-200 rounded px-1" placeholder="Pleura re 500"></div>
+                                <div class="flex flex-col"><label class="text-[7px] text-cyan-600 font-bold uppercase">Einfuhr (ml)</label><input value="${vol.ziel || ''}" onchange="updateDeepField('${p.id}','vol','ziel',this.value)" class="text-[9px] bg-white outline-none border border-cyan-200 rounded px-1" placeholder="1500"></div>
+                                <div class="flex flex-col"><label class="text-[7px] text-cyan-600 font-bold uppercase">Ausfuhr (ml)</label><input value="${vol.aktuell || ''}" onchange="updateDeepField('${p.id}','vol','aktuell',this.value)" class="text-[9px] bg-white outline-none border border-cyan-200 rounded px-1" placeholder="2200"></div>
+                            </div>
+                        </div>
+                        <div class="flex-1 flex flex-col gap-1 bg-orange-50 border border-orange-100 rounded p-1 text-[9px]">
+                            <div class="font-bold text-orange-800 border-b border-orange-100 pb-0.5 flex justify-between">
+                                <span>🤝 Care-Status</span>
+                                <div class="flex gap-1">
+                                    <button onclick="toggleResus('${p.id}', 'dnr')" class="resus-btn ${dnrClass}">DNR</button>
+                                    <button onclick="toggleResus('${p.id}', 'dni')" class="resus-btn ${dniClass}">DNI</button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-1">
+                                <div class="flex flex-col"><label class="text-[7px] text-orange-600 font-bold uppercase">Pflegegrad</label><select onchange="updateDeepFieldRender('${p.id}', 'social', 'pflegegrad', this.value)" class="text-[9px] bg-white outline-none border border-orange-200 rounded px-1"><option value="">-</option><option value="1" ${social.pflegegrad==='1'?'selected':''}>PG 1</option><option value="2" ${social.pflegegrad==='2'?'selected':''}>PG 2</option><option value="3" ${social.pflegegrad==='3'?'selected':''}>PG 3</option><option value="4" ${social.pflegegrad==='4'?'selected':''}>PG 4</option><option value="5" ${social.pflegegrad==='5'?'selected':''}>PG 5</option></select></div>
+                                <div class="flex flex-col"><label class="text-[7px] text-orange-600 font-bold uppercase">Betreuung</label><input value="${social.physio || ''}" onchange="updateDeepField('${p.id}','social','physio',this.value)" class="text-[9px] bg-white outline-none border border-orange-200 rounded px-1" placeholder="Ehefrau / Berufsbetr."></div>
+                                <div class="flex flex-col col-span-2"><label class="text-[7px] text-orange-600 font-bold uppercase">Reha / Ziel</label><input value="${social.reha || ''}" onchange="updateDeepField('${p.id}','social','reha',this.value)" class="text-[9px] bg-white outline-none border border-orange-200 rounded px-1" placeholder="AHB / Kurzzeitpflege"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>`;
 
@@ -219,7 +343,12 @@
                     <div class="flex gap-1 mb-1 no-print">
                         <div class="flex-1 bg-red-50 rounded border border-red-100 p-1 cursor-pointer hover:bg-red-100" onclick="openMedModal('${p.id}')"><label class="text-[8px] uppercase text-red-500 font-bold block mb-0.5">Pausiert ⏸️</label><div class="w-full text-[9px] text-red-800 min-h-[14px] leading-tight">${p.meds_paused || '<span class="opacity-50">Keine</span>'}</div></div>
                         <div class="flex-1 bg-purple-50 rounded border border-purple-100 p-1 cursor-pointer hover:bg-purple-100" onclick="openMedModal('${p.id}')"><label class="text-[8px] uppercase text-purple-600 font-bold block mb-0.5">Bedarf 💊</label><div class="w-full text-[9px] text-purple-800 min-h-[14px] leading-tight">${p.meds_bedarf || '<span class="opacity-50">Keine</span>'}</div></div>
-                        <div class="flex-1 bg-blue-50 rounded border border-blue-100 p-1"><label class="text-[8px] uppercase text-blue-600 font-bold block mb-0.5">DAPT / OAK 🩸</label><input type="text" value="${p.dapt_oak || ''}" onchange="updateField('${p.id}', 'dapt_oak', this.value)" class="w-full text-[9px] bg-transparent outline-none text-blue-800" placeholder="z.B. bis 05/26"></div>
+                        <div class="flex-1 bg-blue-50 rounded border border-blue-100 p-1 flex flex-col justify-between">
+                            <label class="text-[8px] uppercase text-blue-600 font-bold block mb-0.5">Antikoagulation 🩸</label>
+                            <div class="text-[9px] font-bold text-blue-900 leading-tight">${getAnticoagulationStatus(p).status}</div>
+                            ${getAnticoagulationStatus(p).warnings.map(w => `<div class="text-[8px] text-red-600 font-bold animate-pulse">${w}</div>`).join('')}
+                            <input type="text" value="${p.dapt_oak || ''}" onchange="updateField('${p.id}', 'dapt_oak', this.value)" class="w-full mt-1 text-[8px] bg-white border border-blue-200 rounded px-1 outline-none text-blue-800" placeholder="Indikation & Dauer...">
+                        </div>
                     </div>
                     ${amioBtn}
                     <details class="group"><summary class="text-[9px] text-slate-400 cursor-pointer list-none hover:text-blue-500 no-print focus:outline-none focus:text-blue-600">▶ Aufnahme/Vor.D.</summary><div class="mt-1 pt-1 border-t border-slate-100"><div class="mb-1 med-hidden-print"><label class="text-[9px] text-slate-400 uppercase">Aufnahme-Med</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'meds_admission', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1" rows="1">${p.meds_admission || ""}</textarea></div><div><label class="text-[9px] text-slate-400 uppercase">Vordiagnosen</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'history', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1 leading-tight outline-none border-b border-transparent focus:border-slate-300 ${histTextClass}" placeholder="Vordiagnosen...">${p.history || ""}</textarea>${histToggleBtn}</div></div></details>
@@ -262,11 +391,9 @@
                 let footer = `<div class="flex justify-between items-center mt-1 pt-1 no-print gap-1"><button onclick="openExamModal('${p.id}')" class="text-[9px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded flex-1 border border-slate-200">📝 Notizen</button><button onclick="openScoreModal('${p.id}')" class="text-[9px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-1 rounded border border-indigo-100">🧮 Scores</button></div>`;
 
                 card.innerHTML = header + warnHtml + diag + cvrfHtml + labsVolHtml + tasksHtml + todoHtml + abxHtml + meds + diagGrid + consultHtml + planHtml + footer;
-                return card;
-        }
+                containerFrag.appendChild(card);
 
-        function renderPrintRow(p, labs, vol, social, isos, abx, age) {
-            // --- PRINT VIEW ---
+                // --- PRINT VIEW ---
                 let mainDiagPrint = p.main_diagnosis ? `<div class="print-main-diag" style="font-size:10pt; font-weight:900; margin-bottom:2px;">${p.main_diagnosis}</div>` : '';
                 let diagPrint = mainDiagPrint + `<div class="print-diag-rest">` + (p.diagnosis || "").replace(/\n/g, '<br>') + `</div>`;
                 let historyPrint = p.history ? `<div class="text-[8pt] text-slate-600 mt-1 print-history">${p.history.replace(/\n/g, ', ')}</div>` : '';
@@ -311,49 +438,7 @@
                     <td class="col-name"><span class="print-name">${p.name} ${rhythmPrint}</span><span class="print-dob"><b>* ${dobD}</b></span><span class="print-age">${age}</span><div class="mt-1">${alertStr}</div>${cvrfStr}</td>
                     <td class="col-diag"><span class="print-diag-curr">${diagPrint}${eGFRPrint}</span>${historyPrint}${medsPrint}</td>
                     <td class="col-todo">${labPrint}${fullTodoPrint}</td>`;
-                return tr;
-        }
-function render() {
-            const container = document.getElementById('patient-list');
-            const printBody = document.getElementById('print-table-body');
-            const empty = document.getElementById('empty-state');
-            container.innerHTML = ''; printBody.innerHTML = '';
-
-            if(AppState.patients.length===0) { empty.classList.remove('hidden'); return; } else empty.classList.add('hidden');
-            AppState.patients.sort((a,b) => a.room.localeCompare(b.room, undefined, {numeric: true}));
-
-            let currentRoom = null;
-            const containerFrag = document.createDocumentFragment();
-            const printBodyFrag = document.createDocumentFragment();
-
-
-            AppState.patients.forEach(p => {
-                // Ensure structured objects exist for older backups
-                const labs = p.labs || {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''};
-                const vol = p.vol || {ziel:'', aktuell:''};
-                const social = p.social || {reha:'', physio:'', pflegegrad:''};
-                const isos = p.iso || [];
-                const abx = p.abx || [];
-
-                let displayRoom = p.room ? p.room : "Gang";
-                if(displayRoom !== currentRoom) {
-                    currentRoom = displayRoom;
-                    let roomHeader = document.createElement('div');
-                    roomHeader.className = "col-span-full mt-4 mb-1 flex items-center gap-2 border-b border-indigo-200 pb-1 no-print";
-                    roomHeader.innerHTML = `<span class="bg-indigo-600 text-white font-bold px-3 py-1 rounded shadow-sm">Zimmer ${currentRoom}</span>`;
-                    containerFrag.appendChild(roomHeader);
-                }
-
-                const age = getAge(p.dob);
-                const dnrClass = p.dnr ? 'resus-active' : ''; const dniClass = p.dni ? 'resus-active' : '';
-
-
-                const card = renderPatientCard(p, labs, vol, social, isos, abx, age, dnrClass, dniClass);
-                containerFrag.appendChild(card);
-
-                const tr = renderPrintRow(p, labs, vol, social, isos, abx, age);
                 printBodyFrag.appendChild(tr);
-
             });
             container.appendChild(containerFrag);
             printBody.appendChild(printBodyFrag);
@@ -424,35 +509,231 @@ function render() {
             document.getElementById('previewCount').innerText = AppState.parsedPatients.length;
             document.getElementById('btnImportAction').disabled = AppState.parsedPatients.length === 0;
         }
-        function executeImport() { if(AppState.parsedPatients.length===0) return; let count=0; AppState.parsedPatients.forEach(imp => { const exists = AppState.patients.some(p => p.name === imp.name); if(!exists) { const id = Date.now().toString() + Math.random().toString().slice(2,5); const newP = {id, room: imp.room, name: imp.name, dob: imp.dob, diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }; AppState.patients.push(newP); AppState.patientMap.set(id, newP); count++; } }); saveData(); render(); document.getElementById('importModal').style.display='none'; alert(`${count} Patienten importiert.`); }
+        function executeImport() { if(AppState.parsedPatients.length===0) return; let count=0; AppState.parsedPatients.forEach(imp => { const exists = AppState.patients.some(p => p.name === imp.name); if(!exists) { const id = Date.now().toString() + Math.random().toString().slice(2,5); AppState.patients.push({id, room: imp.room, name: imp.name, dob: imp.dob, diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", meds_bedarf: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }); count++; } }); saveData(); render(); document.getElementById('importModal').style.display='none'; alert(`${count} Patienten importiert.`); }
 
         function exportData() { const d = JSON.stringify(AppState.patients, null, 2); const b = new Blob([d], {type: "application/json"}); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = `station_backup_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
-        function importData(i) { const f = i.files[0]; if(!f)return; const r = new FileReader(); r.onload=function(e){try{const d=JSON.parse(e.target.result);if(Array.isArray(d)){if(confirm(`Backup mit ${d.length} Patienten laden?`)){AppState.patients=d;rebuildPatientMap();saveData();render();alert("Geladen!");}}}catch(err){alert("Fehler!");}};r.readAsText(f);i.value=''; }
-        function addNewPatient() { const id = Date.now().toString(); const p = {id, room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }; AppState.patients.push(p); AppState.patientMap.set(id, p); saveData(); render(); setTimeout(()=>{const i=document.querySelector(`input[data-pid="${id}"]`);if(i)i.focus();},100); }
-        function updateField(id, f, v) { const p = AppState.patientMap.get(id); if(p){p[f]=v;saveData();} }
-        function updateFieldRender(id, f, v) { const p = AppState.patientMap.get(id); if(p){p[f]=v;saveData();render();} }
+        function importData(i) { const f = i.files[0]; if(!f)return; const r = new FileReader(); r.onload=function(e){try{const d=JSON.parse(e.target.result);if(Array.isArray(d)){if(confirm(`Backup mit ${d.length} Patienten laden?`)){AppState.patients=d;saveData();render();alert("Geladen!");}}}catch(err){alert("Fehler!");}};r.readAsText(f);i.value=''; }
+        function addNewPatient() { const id = Date.now().toString(); AppState.patients.push({id, room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", meds_bedarf: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''} }); saveData(); render(); setTimeout(()=>{const i=document.querySelector(`input[data-pid="${id}"]`);if(i)i.focus();},100); }
+        function updateField(id, f, v) { const p = AppState.patients.find(x => x.id === id); if(p){p[f]=v;saveData();} }
+        function updateFieldRender(id, f, v) { const p = AppState.patients.find(x => x.id === id); if(p){p[f]=v;saveData();render();} }
         function getAge(d) { if(!d) return ""; const a=getAgeNum(d); return isNaN(a)?"":`(${a}J)`; }
         
-        function openMedModal(id) { AppState.currentEditingId = id; const p = AppState.patientMap.get(id); document.getElementById('med-search').value = ""; document.getElementById('med-custom').value = ""; AppState.tempSelectedMeds.clear(); const cm = p.meds_current ? p.meds_current.split(',').map(s=>s.trim()) : []; cm.forEach(m=>{if(m)AppState.tempSelectedMeds.add(m);}); renderMedList(""); document.getElementById('medModal').style.display = "block"; setTimeout(()=>document.getElementById('med-search').focus(),100); }
+        function openMedModal(id) {
+    AppState.currentEditingId = id;
+    const p = AppState.patients.find(x => x.id === id);
+    document.getElementById('med-search').value = "";
+    document.getElementById('med-custom').value = "";
+    AppState.tempSelectedMeds.clear();
+    AppState.tempPausedMeds.clear();
+    AppState.tempBedarfMeds.clear();
+
+    const wDiv = document.getElementById('med-modal-warnings');
+    if(wDiv) {
+        wDiv.innerHTML = "";
+        if (p.warnings) {
+            wDiv.innerHTML += `<div class="bg-red-600 text-white font-bold p-3 rounded mb-2 shadow animate-pulse">🛑 CAVE / ALLERGIE: ${p.warnings}</div>`;
+        }
+        const egfr = parseEgfr(p.labs?.egfr);
+        if (egfr !== null && egfr < 30) {
+            wDiv.innerHTML += `<div class="bg-orange-500 text-white font-bold p-3 rounded mb-2 shadow">⚠️ eGFR < 30 (${egfr} ml/min)! Dosis von NOAKs und Antibiotika prüfen!</div>`;
+        }
+    }
+
+
+    const cm = p.meds_current ? p.meds_current.split(',').map(s=>s.trim()) : [];
+    cm.forEach(m=>{if(m)AppState.tempSelectedMeds.add(m);});
+    const pm = p.meds_paused ? p.meds_paused.split(',').map(s=>s.trim()) : [];
+    pm.forEach(m=>{if(m)AppState.tempPausedMeds.add(m);});
+    const bm = p.meds_bedarf ? p.meds_bedarf.split(',').map(s=>s.trim()) : [];
+    bm.forEach(m=>{if(m)AppState.tempBedarfMeds.add(m);});
+
+    renderMedList("");
+    document.getElementById('medModal').style.display = "block";
+    setTimeout(()=>document.getElementById('med-search').focus(),100);
+}
+
+
+        function openBmpModal() {
+            if(!AppState.patients.length) { alert("Bitte lege zuerst einen Patienten an oder wähle einen aus."); return; }
+            if(!AppState.currentEditingId) {
+                // Try to use the first patient if none selected, or prompt user to select
+                AppState.currentEditingId = AppState.patients[0].id;
+                showToast("Erster Patient ausgewählt für Import.", false);
+            }
+            document.getElementById('bmp-input').value = "";
+            document.getElementById('bmpModal').style.display = "block";
+            setTimeout(()=>document.getElementById('bmp-input').focus(), 100);
+        }
+        function closeBmpModal() { document.getElementById('bmpModal').style.display = "none"; }
+
+        function processBmpScan() {
+            const xmlStr = document.getElementById('bmp-input').value;
+            if(!xmlStr) return;
+
+            try {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(xmlStr, "text/xml");
+                if(doc.getElementsByTagName("parsererror").length > 0) {
+                    alert("Fehler beim Parsen des Barcodes (Kein valides XML).");
+                    return;
+                }
+
+                const p = AppState.patients.find(x => x.id === AppState.currentEditingId);
+                if(!p) { alert("Kein Patient ausgewählt."); return; }
+
+                let addedMeds = 0;
+                let addedBedarf = 0;
+
+                const sCur = p.meds_current ? p.meds_current.split(',').map(s=>s.trim()).filter(Boolean) : [];
+                const sBed = p.meds_bedarf ? p.meds_bedarf.split(',').map(s=>s.trim()).filter(Boolean) : [];
+
+                const pEl = doc.getElementsByTagName("P")[0];
+                if (pEl) {
+                    const f = pEl.getAttribute("f") || "";
+                    const g = pEl.getAttribute("g") || "";
+                    const name = (f && g) ? `${f}, ${g}` : (f || g);
+                    const b = pEl.getAttribute("b"); // YYYYMMDD
+
+                    if(name && !p.name) p.name = name;
+                    if(b && b.length === 8 && !p.dob) p.dob = `${b.substring(0,4)}-${b.substring(4,6)}-${b.substring(6,8)}`;
+                }
+
+                const sections = doc.getElementsByTagName("S");
+                for (let i = 0; i < sections.length; i++) {
+                    const sEl = sections[i];
+                    const sectionBedarf = sEl.getAttribute("c") === "411";
+
+                    const mEls = sEl.getElementsByTagName("M");
+                    for (let j = 0; j < mEls.length; j++) {
+                        const mEl = mEls[j];
+
+                        const nameAttr = mEl.getAttribute("a") || "";
+                        const reasonAttr = mEl.getAttribute("r") || "";
+                        const pznAttr = mEl.getAttribute("p") || "";
+                        const dosageT = mEl.getAttribute("t") || "";
+                        const bedarfX = mEl.getAttribute("x") || "";
+
+                        let medName = nameAttr;
+                        if(!medName) medName = reasonAttr;
+                        if(!medName) medName = `PZN: ${pznAttr}`;
+
+                        if(!medName) continue;
+
+                        const isBedarf = sectionBedarf || bedarfX !== "" || dosageT.toLowerCase().includes("bedarf");
+
+                        if(isBedarf) {
+                            if(!sBed.includes(medName)) {
+                                sBed.push(medName);
+                                addedBedarf++;
+                            }
+                        } else {
+                            if(!sCur.includes(medName)) {
+                                sCur.push(medName);
+                                addedMeds++;
+                            }
+                        }
+                    }
+                }
+
+                p.meds_current = sCur.join(", ");
+                p.meds_bedarf = sBed.join(", ");
+
+                saveData();
+                render();
+                closeBmpModal();
+                showToast(`BMP Importiert: ${addedMeds} Aktuell, ${addedBedarf} Bedarf.`);
+
+            } catch(e) {
+                alert("Ein Fehler ist beim Lesen des BMP aufgetreten.");
+                console.error(e);
+            }
+        }
+
         function closeMedModal() { document.getElementById('medModal').style.display = "none"; }
         function handleModalKey(e, mId) { if(e.key==="Escape")document.getElementById(mId).style.display="none"; if(e.key==="Enter"&&e.target.tagName!=='TEXTAREA'&&mId==='medModal')saveMeds(); }
-        function toggleTempMed(n, c) { if(c) AppState.tempSelectedMeds.add(n); else AppState.tempSelectedMeds.delete(n); }
-        function renderMedList(f) { const c = document.getElementById('med-selector'); const s = f.toLowerCase(); let finalHtml = ""; for (const [g, m] of Object.entries(MED_GROUPS)) { const mm = m.filter(x=>x.toLowerCase().includes(s)); if(s&&mm.length===0)continue; const open=s?"open":""; let h=`<details ${open} class="group bg-slate-50 border border-slate-200 rounded"><summary class="cursor-pointer p-2 font-bold text-sm text-slate-700 hover:bg-slate-100 select-none flex justify-between items-center"><span>${g}</span><span class="text-xs text-slate-400">▼</span></summary><div class="p-2 bg-white border-t border-slate-100 grid grid-cols-2 md:grid-cols-4 gap-2">`; mm.forEach(x=>{ const ch=AppState.tempSelectedMeds.has(x)?"checked":""; h+=`<label class="flex items-center gap-1 text-xs cursor-pointer hover:bg-blue-50 p-1 rounded focus-within:ring-2 focus-within:ring-blue-500"><input type="checkbox" value="${x}" class="accent-blue-600" ${ch} onchange="toggleTempMed('${x}', this.checked)"> ${x}</label>`; }); h+=`</div></details>`; finalHtml+=h; } c.innerHTML = finalHtml; }
-        function saveMeds() { const p = AppState.patientMap.get(AppState.currentEditingId); const s = Array.from(AppState.tempSelectedMeds); const c = document.getElementById('med-custom').value; if(c) s.push(c); s.sort(); p.meds_current = s.join(", "); saveData(); render(); closeMedModal(); }
+        function toggleTempMed(n, state) {
+    AppState.tempSelectedMeds.delete(n);
+    AppState.tempPausedMeds.delete(n);
+    AppState.tempBedarfMeds.delete(n);
+    if(state === 'current') AppState.tempSelectedMeds.add(n);
+    else if(state === 'paused') AppState.tempPausedMeds.add(n);
+    else if(state === 'bedarf') AppState.tempBedarfMeds.add(n);
+}
+        function renderMedList(f) {
+    const c = document.getElementById('med-selector');
+    const s = f.toLowerCase();
+    let finalHtml = "";
+    for (const [g, m] of Object.entries(MED_GROUPS)) {
+        const mm = m.filter(x=>x.toLowerCase().includes(s));
+        if(s&&mm.length===0)continue;
+        const open=s?"open":"";
+        let h=`<details ${open} class="group bg-slate-50 border border-slate-200 rounded"><summary class="cursor-pointer p-2 font-bold text-sm text-slate-700 hover:bg-slate-100 select-none flex justify-between items-center"><span>${g}</span><span class="text-xs text-slate-400">▼</span></summary><div class="p-2 bg-white border-t border-slate-100 grid grid-cols-1 xl:grid-cols-2 gap-2">`;
+        mm.forEach(x=>{
+            const isCur = AppState.tempSelectedMeds.has(x);
+            const isPau = AppState.tempPausedMeds.has(x);
+            const isBed = AppState.tempBedarfMeds.has(x);
+            const noneSel = !isCur && !isPau && !isBed;
+            const safeX = x.replace(/[^a-zA-Z0-9]/g, '_');
 
-        function toggleDiag(e, id, d) { e.preventDefault(); const p = AppState.patientMap.get(id); if(!p.diag_status) p.diag_status={}; p.diag_status[d] = ((p.diag_status[d]||0)+1)%3; if(e.type==='contextmenu'){ const r = prompt(`Befund ${d}:`, (p.diag_results||{})[d]||""); if(r!==null){ if(!p.diag_results)p.diag_results={}; p.diag_results[d]=r; if(r)p.diag_status[d]=2; }} saveData(); render(); setTimeout(()=>{const b=document.getElementById(`btn-diag-${id}-${d}`);if(b)b.focus();},50); }
-        function toggleCVRF(id, k) { const p = AppState.patientMap.get(id); if(!p.cvrf) p.cvrf=[]; if(p.cvrf.includes(k)) p.cvrf=p.cvrf.filter(x=>x!==k); else p.cvrf.push(k); saveData(); render(); }
-        function toggleResus(id, t) { const p = AppState.patientMap.get(id); if(p){p[t]=!p[t];saveData();render();} }
-        function toggleDaily(id, k) { const p = AppState.patientMap.get(id); if(!p.daily) p.daily={}; p.daily[k]=!p.daily[k]; saveData(); render(); }
-        function deletePatient(id) { if(confirm("Löschen?")) { AppState.patients=AppState.patients.filter(x=>x.id!==id); AppState.patientMap.delete(id); saveData(); render(); } }
+            h+=`<div class="flex flex-col sm:flex-row sm:items-center justify-between text-xs hover:bg-blue-50 p-1 rounded border border-transparent hover:border-blue-100 gap-1">
+                <span class="font-medium text-slate-700 sm:w-1/2 truncate pr-2" title="${x}">${x}</span>
+                <div class="flex gap-1 text-[10px] whitespace-nowrap overflow-x-auto pb-1 sm:pb-0">
+                    <label class="cursor-pointer px-1.5 py-1 rounded hover:opacity-80 bg-slate-200 text-slate-600 has-[:checked]:bg-green-600 has-[:checked]:text-white has-[:checked]:font-bold transition-colors">
+                        <input type="radio" name="med_${safeX}" value="current" class="hidden peer" ${isCur ? 'checked' : ''} onchange="toggleTempMed('${x}', 'current')"> Aktuell
+                    </label>
+                    <label class="cursor-pointer px-1.5 py-1 rounded hover:opacity-80 bg-slate-200 text-slate-600 has-[:checked]:bg-orange-500 has-[:checked]:text-white has-[:checked]:font-bold transition-colors">
+                        <input type="radio" name="med_${safeX}" value="paused" class="hidden peer" ${isPau ? 'checked' : ''} onchange="toggleTempMed('${x}', 'paused')"> Pause
+                    </label>
+                    <label class="cursor-pointer px-1.5 py-1 rounded hover:opacity-80 bg-slate-200 text-slate-600 has-[:checked]:bg-purple-600 has-[:checked]:text-white has-[:checked]:font-bold transition-colors">
+                        <input type="radio" name="med_${safeX}" value="bedarf" class="hidden peer" ${isBed ? 'checked' : ''} onchange="toggleTempMed('${x}', 'bedarf')"> Bedarf
+                    </label>
+                    <label class="cursor-pointer px-1.5 py-1 rounded hover:opacity-80 bg-slate-200 text-slate-600 has-[:checked]:bg-slate-400 has-[:checked]:text-white has-[:checked]:font-bold transition-colors">
+                        <input type="radio" name="med_${safeX}" value="none" class="hidden peer" ${noneSel ? 'checked' : ''} onchange="toggleTempMed('${x}', 'none')"> Aus
+                    </label>
+                </div>
+            </div>`;
+        });
+        h+=`</div></details>`;
+        finalHtml+=h;
+    }
+    c.innerHTML = finalHtml;
+}
+        function saveMeds() {
+    const p = AppState.patients.find(x => x.id === AppState.currentEditingId);
+
+    const sCur = Array.from(AppState.tempSelectedMeds);
+    const sPau = Array.from(AppState.tempPausedMeds);
+    const sBed = Array.from(AppState.tempBedarfMeds);
+
+    const c = document.getElementById('med-custom').value;
+    if(c) sCur.push(c);
+
+    sCur.sort();
+    sPau.sort();
+    sBed.sort();
+
+    p.meds_current = sCur.join(", ");
+    p.meds_paused = sPau.join(", ");
+    p.meds_bedarf = sBed.join(", ");
+
+    saveData();
+    render();
+    closeMedModal();
+}
+
+        function toggleDiag(e, id, d) { e.preventDefault(); const p = AppState.patients.find(x => x.id === id); if(!p.diag_status) p.diag_status={}; p.diag_status[d] = ((p.diag_status[d]||0)+1)%3; if(e.type==='contextmenu'){ const r = prompt(`Befund ${d}:`, (p.diag_results||{})[d]||""); if(r!==null){ if(!p.diag_results)p.diag_results={}; p.diag_results[d]=r; if(r)p.diag_status[d]=2; }} saveData(); render(); setTimeout(()=>{const b=document.getElementById(`btn-diag-${id}-${d}`);if(b)b.focus();},50); }
+        function toggleCVRF(id, k) { const p = AppState.patients.find(x => x.id === id); if(!p.cvrf) p.cvrf=[]; if(p.cvrf.includes(k)) p.cvrf=p.cvrf.filter(x=>x!==k); else p.cvrf.push(k); saveData(); render(); }
+        function toggleResus(id, t) { const p = AppState.patients.find(x => x.id === id); if(p){p[t]=!p[t];saveData();render();} }
+        function toggleDaily(id, k) { const p = AppState.patients.find(x => x.id === id); if(!p.daily) p.daily={}; p.daily[k]=!p.daily[k]; saveData(); render(); }
+        function deletePatient(id) { if(confirm("Löschen?")) { AppState.patients=AppState.patients.filter(x=>x.id!==id); saveData(); render(); } }
         function startNewDay() { if(confirm("Neuer Tag?")) { AppState.patients.forEach(p=>p.daily={}); saveData(); render(); } }
         
         function setupExamBuilder() { const c = document.getElementById('status-builder'); if(typeof EXAM_CONFIG === 'undefined') return; let fullHtml = ""; for(const [k, d] of Object.entries(EXAM_CONFIG)) { let h=`<div class="border rounded bg-slate-50 p-2"><div class="font-bold text-xs text-slate-500 uppercase mb-1">${k}</div><div class="flex flex-wrap gap-1">`; d.options.forEach(o => { h+=`<button class="px-2 py-1 bg-white hover:bg-blue-100 border border-slate-200 rounded text-xs transition" onclick="insertExamText('${k}', '${o}')">${o}</button>`; }); h+=`</div></div>`; fullHtml += h; } c.innerHTML = fullHtml; }
-        function openExamModal(id) { AppState.currentEditingId = id; const p = AppState.patientMap.get(id); document.getElementById('gen-text-output').value = p.exam_text || "Standard Aufnahme..."; document.getElementById('examModal').style.display = "block"; }
+        function openExamModal(id) { AppState.currentEditingId = id; const p = AppState.patients.find(x => x.id === id); document.getElementById('gen-text-output').value = p.exam_text || "Standard Aufnahme..."; document.getElementById('examModal').style.display = "block"; }
         function insertExamText(c, t) { document.getElementById('gen-text-output').value += `\n[${c}]: ${t}`; }
-        function saveExamToPatient() { AppState.patientMap.get(AppState.currentEditingId).exam_text = document.getElementById('gen-text-output').value; saveData(); document.getElementById('examModal').style.display = 'none'; }
+        function saveExamToPatient() { AppState.patients.find(x => x.id === AppState.currentEditingId).exam_text = document.getElementById('gen-text-output').value; saveData(); document.getElementById('examModal').style.display = 'none'; }
         
-        function openScoreModal(id) { const p = AppState.patientMap.get(id); const list = document.getElementById('score-list'); list.innerHTML = ""; let relevantScores = []; if(typeof SCORE_DEFINITIONS !== 'undefined') { relevantScores = SCORE_DEFINITIONS.filter(s => s.check(p)); } if(relevantScores.length === 0) { list.innerHTML = `<div class="p-4 text-slate-400 text-center col-span-2">Keine spezifischen Scores erkannt.<br>(Prüfe Diagnosen-Schreibweise)</div>`; } else { let scoresHtml = ""; relevantScores.forEach(s => { const link = s.url ? `href="${s.url}" target="_blank"` : ""; const tag = s.url ? "a" : "div"; scoresHtml += `<${tag} ${link} class="score-card group"><div><span class="score-name">${s.name}</span><span class="score-info">${s.info}</span></div><div class="score-arrow group-hover:text-blue-500">➜</div></${tag}>`; }); list.innerHTML = scoresHtml; } document.getElementById('scoreModal').style.display = "block"; }
+        function openScoreModal(id) { const p = AppState.patients.find(x => x.id === id); const list = document.getElementById('score-list'); list.innerHTML = ""; let relevantScores = []; if(typeof SCORE_DEFINITIONS !== 'undefined') { relevantScores = SCORE_DEFINITIONS.filter(s => s.check(p)); } if(relevantScores.length === 0) { list.innerHTML = `<div class="p-4 text-slate-400 text-center col-span-2">Keine spezifischen Scores erkannt.<br>(Prüfe Diagnosen-Schreibweise)</div>`; } else { let scoresHtml = ""; relevantScores.forEach(s => { const link = s.url ? `href="${s.url}" target="_blank"` : ""; const tag = s.url ? "a" : "div"; scoresHtml += `<${tag} ${link} class="score-card group"><div><span class="score-name">${s.name}</span><span class="score-info">${s.info}</span></div><div class="score-arrow group-hover:text-blue-500">➜</div></${tag}>`; }); list.innerHTML = scoresHtml; } document.getElementById('scoreModal').style.display = "block"; }
     </script>
 </body>
 </html>

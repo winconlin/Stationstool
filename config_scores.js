@@ -1,6 +1,11 @@
 // --- config_scores.js ---
 
-
+function hasKw(p, keywords) {
+    if (p._kwText === undefined) {
+        p._kwText = ((p.diagnosis || "") + " " + (p.history || "") + " " + (p.meds_current || "")).toLowerCase();
+    }
+    return keywords.some(k => p._kwText.includes(k));
+}
 
 const SCORE_DEFINITIONS = [
     { id: "cha2ds2", name: "CHA₂DS₂-VASc", info: "Schlaganfallrisiko bei VHF", url: "https://www.mdcalc.com/calc/801/cha2ds2-vasc-score-atrial-fibrillation-stroke-risk", check: (p) => hasKw(p, ["vhf", "vorhof", "flimmern", "arrhythmie", "pvi", "ablation"]) },
