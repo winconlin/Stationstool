@@ -82,8 +82,20 @@
             AppState.patients.forEach(p => AppState.patientMap.set(p.id, p));
         }
 
-
-
+        function createDefaultPatient(overrides = {}) {
+            const defaults = {
+                id: Date.now().toString(),
+                room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [],
+                meds_current: "", meds_paused: "", dapt_oak: "", discharge_date: "",
+                daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false,
+                exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0,
+                fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {},
+                social: {reha:'', physio:'', pflegegrad:''},
+                labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''},
+                vol: {ziel:'', aktuell:''}
+            };
+            return { ...defaults, ...overrides };
+        }
 
         function showToast(msg, isError = false) { const t = document.createElement("div"); t.className = `fixed bottom-4 right-4 text-white px-4 py-2 rounded shadow-lg transition-opacity duration-300 z-50 ${isError ? "bg-red-600" : "bg-green-600"}`; t.innerText = msg; document.body.appendChild(t); setTimeout(() => { t.style.opacity = "0"; setTimeout(() => t.remove(), 300); }, 2000); }
 
