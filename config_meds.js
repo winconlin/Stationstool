@@ -27,18 +27,24 @@ const MED_GROUPS = {
         "Timolol",
         "Urapidil",
         "Valsartan",
-        "Verciguat"
+        "Verciguat",
+        "Losartan",
+        "Dapaglifozin."
     ],
     "Gerinnung (OAK, DAPT, Heparine)": [
         "Apixaban (Eliquis)", "Argatroban", "ASS", "Certoparin (Mono-Embolex)",
         "Clopidogrel", "Dabigatran (Pradaxa)", "Dalteparin (Fragmin)",
         "Edoxaban (Lixiana)", "Enoxaparin (Clexane)", "Fondaparinux (Arixtra)",
         "Heparin (Perfusor)", "Marcumar (Phenprocoumon)", "Prasugrel",
-        "Rivaroxaban (Xarelto)", "Ticagrelor", "Tinzaparin (Innohep)"
+        "Rivaroxaban (Xarelto)", "Ticagrelor", "Tinzaparin (Innohep)",
+        "Apixaban",
+        "Edoxaban",
+        "Enoxaparin"
     ],
     "Diuretika & Volumen": [
         "Acetazolamid", "Chlortalidon", "Furosemid (Lasix)", "HCT",
-        "Torasemid", "Xipamid", "Tolvaptan"
+        "Torasemid", "Xipamid", "Tolvaptan",
+        "Hydrochlorothiazid"
     ],
     "Rhythmus & Ischämie": [
         "Adenosin", "Amiodaron", "Digitoxin", "Digoxin", "Diltiazem",
@@ -48,7 +54,8 @@ const MED_GROUPS = {
     "Lipidsenker & Stoffwechsel": [
         "Alirocumab", "Allopurinol", "Atorvastatin", "Bempedoinsäure",
         "Colchicin", "Evolocumab", "Ezetimib", "Febuxostat", "Fenofibrat",
-        "Pravastatin", "Rosuvastatin", "Simvastatin"
+        "Pravastatin", "Rosuvastatin", "Simvastatin",
+        "Sitagliptin"
     ],
     "Analgetika & Muskelrelaxantien": [
         "Baclofen", "Buprenorphin", "Celecoxib", "Codein", "Diclofenac", "Etoricoxib",
@@ -94,7 +101,10 @@ const MED_GROUPS = {
         "Beclometason/Formoterol (Foster)", "Budesonid/Formoterol",
         "Fluticason", "Ipratropium/Fenoterol (Berodual)", "Macitentan",
         "Prednisolon", "Riociguat", "Salbutamol", "Selexipag",
-        "Sildenafil", "Tadalafil", "Tiotropium", "Trimbow"
+        "Sildenafil", "Tadalafil", "Tiotropium", "Trimbow",
+        "ACC",
+        "Cetirizin",
+        "Viani"
     ],
     "Neurologie & Psychiatrie": [
 
@@ -128,7 +138,9 @@ const MED_GROUPS = {
         "Sedonium",
         "Sertralin",
         "Valproat",
-        "Zopiclon"
+        "Zopiclon",
+        "Dronabinol",
+        "Zolpidem"
     ],
     "Nephrologie & Urologie": [
 
@@ -168,6 +180,9 @@ const MED_GROUPS = {
         "Propylthiouracil",
         "Sterofundin",
         "Thiamazol",
-        "Thiamin (Vit B1)"
+        "Thiamin (Vit B1)",
+        "Alfacalcidol",
+        "Dekristol",
+        "Levothyroxin"
     ]
 };
