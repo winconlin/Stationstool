@@ -410,7 +410,54 @@
         function insertExamText(c, t) { document.getElementById('gen-text-output').value += `\n[${c}]: ${t}`; }
         function saveExamToPatient() { AppState.patients.find(x => x.id === AppState.currentEditingId).exam_text = document.getElementById('gen-text-output').value; saveData(); document.getElementById('examModal').style.display = 'none'; }
         
-        function openScoreModal(id) { const p = AppState.patients.find(x => x.id === id); const list = document.getElementById('score-list'); list.innerHTML = ""; let relevantScores = []; if(typeof SCORE_DEFINITIONS !== 'undefined') { relevantScores = SCORE_DEFINITIONS.filter(s => s.check(p)); } if(relevantScores.length === 0) { list.innerHTML = `<div class="p-4 text-slate-400 text-center col-span-2">Keine spezifischen Scores erkannt.<br>(Prüfe Diagnosen-Schreibweise)</div>`; } else { let scoresHtml = ""; relevantScores.forEach(s => { const link = s.url ? `href="${s.url}" target="_blank"` : ""; const tag = s.url ? "a" : "div"; scoresHtml += `<${tag} ${link} class="score-card group"><div><span class="score-name">${s.name}</span><span class="score-info">${s.info}</span></div><div class="score-arrow group-hover:text-blue-500">➜</div></${tag}>`; }); list.innerHTML = scoresHtml; } document.getElementById('scoreModal').style.display = "block"; }
+        function openScoreModal(id) {
+            const p = AppState.patients.find(x => x.id === id);
+            const list = document.getElementById('score-list');
+            list.innerHTML = "";
+            let relevantScores = [];
+            if(typeof SCORE_DEFINITIONS !== 'undefined') {
+                relevantScores = SCORE_DEFINITIONS.filter(s => s.check(p));
+            }
+            if(relevantScores.length === 0) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'p-4 text-slate-400 text-center col-span-2';
+                emptyDiv.innerHTML = 'Keine spezifischen Scores erkannt.<br>(Prüfe Diagnosen-Schreibweise)';
+                list.appendChild(emptyDiv);
+            } else {
+                const frag = document.createDocumentFragment();
+                relevantScores.forEach(s => {
+                    const tag = s.url ? 'a' : 'div';
+                    const el = document.createElement(tag);
+                    if (s.url) {
+                        el.href = s.url;
+                        el.target = '_blank';
+                    }
+                    el.className = 'score-card group';
+
+                    const innerDiv = document.createElement('div');
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'score-name';
+                    nameSpan.textContent = s.name;
+
+                    const infoSpan = document.createElement('span');
+                    infoSpan.className = 'score-info';
+                    infoSpan.textContent = s.info;
+
+                    innerDiv.appendChild(nameSpan);
+                    innerDiv.appendChild(infoSpan);
+
+                    const arrowDiv = document.createElement('div');
+                    arrowDiv.className = 'score-arrow group-hover:text-blue-500';
+                    arrowDiv.textContent = '➜';
+
+                    el.appendChild(innerDiv);
+                    el.appendChild(arrowDiv);
+                    frag.appendChild(el);
+                });
+                list.appendChild(frag);
+            }
+            document.getElementById('scoreModal').style.display = 'block';
+        }
     </script>
 </body>
 </html>
