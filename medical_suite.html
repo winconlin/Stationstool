@@ -411,15 +411,32 @@ Procedere
                         </div>`;
                      setTimeout(precheckRisks, 50);
                 } else {
-                    let html = `<label class="block text-[10px] uppercase font-bold text-slate-400 mb-0.5">${f.label}</label>`;
-                    if(f.type === 'select') {
-                        html += `<select id="f_${f.id}" class="w-full border p-1.5 rounded text-sm" onchange="updateEpikriseText()">`;
-                        f.options.forEach(o => html += `<option value="${o}">${o}</option>`);
-                        html += `</select>`;
+                    const label = document.createElement('label');
+                    label.className = "block text-[10px] uppercase font-bold text-slate-400 mb-0.5";
+                    label.textContent = f.label;
+                    div.appendChild(label);
+
+                    if (f.type === 'select') {
+                        const select = document.createElement('select');
+                        select.id = "f_" + f.id;
+                        select.className = "w-full border p-1.5 rounded text-sm";
+                        select.onchange = updateEpikriseText;
+                        f.options.forEach(o => {
+                            const option = document.createElement('option');
+                            option.value = o;
+                            option.textContent = o;
+                            select.appendChild(option);
+                        });
+                        div.appendChild(select);
                     } else {
-                        html += `<input type="${f.type}" id="f_${f.id}" value="${f.value||''}" class="w-full border p-1.5 rounded text-sm" oninput="updateEpikriseText()">`;
+                        const input = document.createElement('input');
+                        input.type = f.type;
+                        input.id = "f_" + f.id;
+                        input.value = f.value || '';
+                        input.className = "w-full border p-1.5 rounded text-sm";
+                        input.oninput = updateEpikriseText;
+                        div.appendChild(input);
                     }
-                    div.innerHTML = html;
                 }
                 fragment.appendChild(div);
             });
