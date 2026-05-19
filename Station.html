@@ -405,7 +405,37 @@
         function deletePatient(id) { if(confirm("Löschen?")) { AppState.patients=AppState.patients.filter(x=>x.id!==id); saveData(); render(); } }
         function startNewDay() { if(confirm("Neuer Tag?")) { AppState.patients.forEach(p=>p.daily={}); saveData(); render(); } }
         
-        function setupExamBuilder() { const c = document.getElementById('status-builder'); if(typeof EXAM_CONFIG === 'undefined') return; let fullHtml = ""; for(const [k, d] of Object.entries(EXAM_CONFIG)) { let h=`<div class="border rounded bg-slate-50 p-2"><div class="font-bold text-xs text-slate-500 uppercase mb-1">${k}</div><div class="flex flex-wrap gap-1">`; d.options.forEach(o => { h+=`<button class="px-2 py-1 bg-white hover:bg-blue-100 border border-slate-200 rounded text-xs transition" onclick="insertExamText('${k}', '${o}')">${o}</button>`; }); h+=`</div></div>`; fullHtml += h; } c.innerHTML = fullHtml; }
+        function setupExamBuilder() {
+            const c = document.getElementById('status-builder');
+            if(typeof EXAM_CONFIG === 'undefined') return;
+            c.innerHTML = '';
+            const frag = document.createDocumentFragment();
+            for(const [k, d] of Object.entries(EXAM_CONFIG)) {
+                const container = document.createElement('div');
+                container.className = "border rounded bg-slate-50 p-2";
+
+                const header = document.createElement('div');
+                header.className = "font-bold text-xs text-slate-500 uppercase mb-1";
+                header.textContent = k;
+                container.appendChild(header);
+
+                const btnContainer = document.createElement('div');
+                btnContainer.className = "flex flex-wrap gap-1";
+
+                d.options.forEach(o => {
+                    const btn = document.createElement('button');
+                    btn.className = "px-2 py-1 bg-white hover:bg-blue-100 border border-slate-200 rounded text-xs transition";
+                    btn.textContent = o;
+                    // Safely binding the click event to avoid inline onclick with unescaped variables
+                    btn.onclick = () => insertExamText(k, o);
+                    btnContainer.appendChild(btn);
+                });
+
+                container.appendChild(btnContainer);
+                frag.appendChild(container);
+            }
+            c.appendChild(frag);
+        }
         function openExamModal(id) { AppState.currentEditingId = id; const p = AppState.patients.find(x => x.id === id); document.getElementById('gen-text-output').value = p.exam_text || "Standard Aufnahme..."; document.getElementById('examModal').style.display = "block"; }
         function insertExamText(c, t) { document.getElementById('gen-text-output').value += `\n[${c}]: ${t}`; }
         function saveExamToPatient() { AppState.patients.find(x => x.id === AppState.currentEditingId).exam_text = document.getElementById('gen-text-output').value; saveData(); document.getElementById('examModal').style.display = 'none'; }
