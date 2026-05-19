@@ -29,3 +29,10 @@ function getAgeNum(dob) {
     if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
     return age;
 }
+
+function hasKw(p, keywords) {
+    if (p._kwText === undefined) {
+        p._kwText = ((p.diagnosis || "") + " " + (p.history || "") + " " + (p.meds_current || "")).toLowerCase();
+    }
+    return keywords.some(k => p._kwText.includes(k));
+}
