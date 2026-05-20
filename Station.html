@@ -219,27 +219,27 @@
                 
                 // HEADER (Zi, Name, Rhythmus, Nüchtern)
                 let rhythmSel = `
-                    <div class="flex flex-col ml-2 border-l border-slate-200 pl-2">
-                        <div class="flex items-center gap-1">
+                    <div class="flex flex-col flex-grow items-center justify-center border-x border-slate-200 px-1 mx-1 overflow-hidden min-w-0">
+                        <div class="flex items-center gap-1 w-full justify-center">
                             <select onchange="updateFieldRender('${p.id}', 'rhythm', this.value)" class="text-[10px] font-bold outline-none bg-transparent cursor-pointer ${p.rhythm === 'VHF' || p.rhythm === 'AF' ? 'vhf-blink' : 'text-slate-500'}">
                                 <option value="SR" ${p.rhythm==='SR'?'selected':''}>[ SR ]</option>
                                 <option value="VHF" ${p.rhythm==='VHF'?'selected':''}>[ VHF ]</option>
                                 <option value="AF" ${p.rhythm==='AF'?'selected':''}>[ A-Flatt ]</option>
                                 <option value="PM/ICD" ${p.rhythm==='PM/ICD'?'selected':''}>[ PM/ICD ]</option>
                             </select>
-                            <input type="text" value="${p.rhythm_history || ''}" onchange="updateField('${p.id}', 'rhythm_history', this.value)" class="text-[9px] text-slate-400 bg-transparent outline-none w-24 placeholder-slate-300" placeholder="Zuletzt SR am...">
+                            <input type="text" value="${p.rhythm_history || ''}" onchange="updateField('${p.id}', 'rhythm_history', this.value)" class="text-[9px] text-slate-400 bg-transparent outline-none w-16 sm:w-20 placeholder-slate-300" placeholder="Zuletzt SR am...">
                         </div>
-                        <div class="flex items-center gap-1 mt-0.5">
+                        <div class="flex items-center gap-1 mt-0.5 w-full justify-center">
                             <span class="text-[8px] text-slate-400 font-bold">LVEF:</span>
-                            <input type="text" value="${p.lvef || ''}" onchange="updateField('${p.id}', 'lvef', this.value)" class="text-[9px] w-8 bg-slate-50 border border-slate-200 rounded text-center font-bold text-slate-700 outline-none" placeholder="%">
+                            <input type="text" value="${p.lvef || ''}" onchange="updateField('${p.id}', 'lvef', this.value)" class="text-[9px] w-6 bg-white border border-slate-200 rounded text-center font-bold text-slate-700 outline-none" placeholder="%">
                             <span class="text-[8px] text-slate-400 font-bold ml-1">Klappen:</span>
-                            <input type="text" value="${p.valves || ''}" onchange="updateField('${p.id}', 'valves', this.value)" class="text-[9px] w-20 bg-slate-50 border border-slate-200 rounded px-1 text-slate-700 outline-none" placeholder="z.B. MI II°">
+                            <input type="text" value="${p.valves || ''}" onchange="updateField('${p.id}', 'valves', this.value)" class="text-[9px] w-16 sm:w-20 bg-white border border-slate-200 rounded px-1 text-slate-700 outline-none flex-grow min-w-0" placeholder="z.B. MI II°">
                         </div>
                     </div>`;
                 let fastBtn = `<button onclick="updateFieldRender('${p.id}', 'fasting', ${!p.fasting})" class="text-[8px] px-1 py-0.5 rounded font-bold transition-colors ${p.fasting ? 'badge-nüchtern' : 'badge-kost'}">${p.fasting ? '⛔ Nüchtern' : '🍔 Kostaufbau'}</button>`;
                 
                 let isoBanner = isos.length > 0 ? `<div class="bg-red-600 text-white font-bold text-[9px] px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse shadow-md whitespace-nowrap"><span class="text-xs">☣️</span> ${isos.join(', ')}</div>` : '';
-                let header = `<div class="flex justify-between items-start pb-1 border-b border-slate-100"><div class="flex items-center gap-2 w-full"><input type="text" data-pid="${p.id}" value="${p.room}" onchange="updateFieldRender('${p.id}', 'room', this.value)" class="font-bold text-xl w-12 text-center text-blue-900 bg-blue-50 rounded p-room" placeholder="#"><div class="w-full"><div class="flex items-center gap-1">${isoBanner}<input type="text" value="${p.name}" onchange="updateFieldRender('${p.id}', 'name', this.value)" class="font-bold text-sm text-slate-900 p-name flex-grow" placeholder="Name">${rhythmSel}</div><div class="flex items-center gap-1 no-print"><input type="date" value="${p.dob}" onchange="updateFieldRender('${p.id}', 'dob', this.value)" class="text-[10px] text-slate-400 w-24 bg-transparent"><span class="text-xs font-bold">${age}</span></div></div></div><div class="flex flex-col gap-1 items-end"><div class="flex gap-1 items-center">${fastBtn}</div><button onclick="deletePatient('${p.id}')" aria-label="Patient löschen" title="Patient löschen" tabindex="-1" class="text-slate-300 hover:text-red-500 text-lg leading-none no-print">&times;</button></div></div>`;
+                let header = `<div class="flex justify-between items-start pb-1 border-b border-slate-100"><div class="flex items-start gap-2 flex-grow min-w-0"><input type="text" data-pid="${p.id}" value="${p.room}" onchange="updateFieldRender('${p.id}', 'room', this.value)" class="font-bold text-xl w-12 text-center text-blue-900 bg-blue-50 rounded p-room flex-shrink-0" placeholder="#"><div class="flex-grow min-w-0"><div class="flex items-center gap-1">${isoBanner}<input type="text" value="${p.name}" onchange="updateFieldRender('${p.id}', 'name', this.value)" class="font-bold text-sm text-slate-900 p-name flex-grow min-w-0" placeholder="Name"></div><div class="flex items-center gap-1 no-print"><input type="date" value="${p.dob}" onchange="updateFieldRender('${p.id}', 'dob', this.value)" class="text-[10px] text-slate-400 w-24 bg-transparent"><span class="text-xs font-bold">${age}</span></div></div></div><div class="flex flex-col gap-1 items-end flex-shrink-0 ml-2"><div class="flex gap-1 items-center">${fastBtn}</div><button onclick="deletePatient('${p.id}')" aria-label="Patient löschen" title="Patient löschen" tabindex="-1" class="text-slate-300 hover:text-red-500 text-lg leading-none no-print">&times;</button></div></div>`;
                 
                 // ISOLATION & WARNUNGEN
                 let warnColor = p.warnings ? 'bg-red-100 border-red-300 text-red-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-400 italic';
@@ -252,14 +252,15 @@
                 let diagTextClass = p.expDiag ? "text-expanded" : (p.diagnosis && p.diagnosis.length > 150 ? "text-truncated" : "");
                 let diagToggleBtn = (p.diagnosis && p.diagnosis.length > 150) ? `<button onclick="updateFieldRender('${p.id}', 'expDiag', ${!p.expDiag})" class="text-[9px] text-blue-500 hover:underline w-full text-right bg-red-50 pr-1 pb-1 rounded-b">${p.expDiag ? 'Weniger anzeigen' : 'Mehr lesen...'}</button>` : '';
                 let diag = `<div class="bg-red-50 rounded border border-red-100 relative p-1 flex flex-col gap-1"><input type="text" value="${p.main_diagnosis || ''}" onchange="updateField('${p.id}', 'main_diagnosis', this.value)" class="w-full text-sm font-black text-red-900 bg-red-100/50 placeholder-red-300 outline-none p-1 rounded" placeholder="HAUPTDIAGNOSE / Aufnahmegrund"><textarea oninput="resizeTx(this); updateField('${p.id}', 'diagnosis', this.value)" class="auto-expand w-full text-xs font-medium text-red-900 bg-transparent leading-tight outline-none ${diagTextClass}" placeholder="Weitere Diagnosen...">${p.diagnosis || ''}</textarea>${diagToggleBtn}</div>`;
-                let cvrfHtml = `<div class="flex items-center justify-between py-1 bg-slate-50 border-y border-slate-100 mb-1 px-1 rounded">
-                    <div class="flex gap-1">`;
+                let cvrfHtml = `<div class="flex items-center justify-between py-1 bg-slate-50 border-y border-slate-100 mb-1 px-1 rounded overflow-hidden">
+                    <div class="flex gap-1 flex-shrink-0">`;
                 if(typeof CVRF_CONFIG !== 'undefined') CVRF_CONFIG.forEach(c => {
                     const active = p.cvrf && p.cvrf.includes(c.key) ? 'cvrf-active' : '';
                     cvrfHtml += `<button type="button" onclick="toggleCVRF('${p.id}', '${c.key}')" class="cvrf-btn ${active} text-sm p-0.5" title="${c.label}">${c.icon}</button>`;
                 });
                 cvrfHtml += `</div>
-                    <div class="flex gap-2 border-l border-slate-200 pl-2">
+                    ${rhythmSel}
+                    <div class="flex gap-2 flex-shrink-0">
                         <select onchange="updateFieldRender('${p.id}', 'nyha', this.value)" class="text-[9px] outline-none bg-transparent cursor-pointer text-slate-600 font-bold">
                             <option value="">NYHA -</option>
                             <option value="I" ${p.nyha==='I'?'selected':''}>NYHA I</option>
