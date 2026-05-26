@@ -240,6 +240,16 @@
             }, 2000);
         }
 
+        function esc(str) {
+            if (!str) return "";
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         // --- 4. ANAMNESE BUILDER LOGIC ---
         function renderAnamneseBuilder() {
             const c = document.getElementById('anamnese-builder');
@@ -247,14 +257,14 @@
             for (const [category, items] of Object.entries(ANAMNESE_BLOCKS)) {
                 let html = `<div class="exam-cat-title">${category}</div><div class="grid grid-cols-1 gap-1">`;
                 items.forEach(item => {
-                    html += `<button onclick="addAnamneseText('${item.t}')" class="anam-btn bg-slate-50" title="${item.s}">${item.t}</button>`;
+                    html += `<button onclick="addAnamneseText(${esc(JSON.stringify(item.t))})" class="anam-btn bg-slate-50" title="${esc(item.s)}">${esc(item.t)}</button>`;
                 });
                 html += `</div>`;
                 fullHtml += html;
             }
             c.innerHTML = fullHtml;
             // Auto-Fill Start
-            addAnamneseText(`${globalPat.nom} stellt sich vor.`, true);
+            addAnamneseText(`${esc(globalPat.nom)} stellt sich vor.`, true);
         }
 
         function addAnamneseText(text, isStart = false) {
@@ -277,7 +287,7 @@
             for (const [cat, opts] of Object.entries(EXAM_CONFIG)) {
                 let html = `<div class="exam-cat-title">${cat}</div><div class="flex flex-wrap gap-1">`;
                 opts.forEach(opt => {
-                     html += `<button onclick="addExamText('${cat}', '${opt}')" class="anam-btn bg-slate-50">${opt}</button>`;
+                     html += `<button onclick="addExamText(${esc(JSON.stringify(cat))}, ${esc(JSON.stringify(opt))})" class="anam-btn bg-slate-50">${esc(opt)}</button>`;
                 });
                 html += `</div>`;
                 fullHtml += html;
@@ -411,13 +421,13 @@ Procedere
                         </div>`;
                      setTimeout(precheckRisks, 50);
                 } else {
-                    let html = `<label class="block text-[10px] uppercase font-bold text-slate-400 mb-0.5">${f.label}</label>`;
+                    let html = `<label class="block text-[10px] uppercase font-bold text-slate-400 mb-0.5">${esc(f.label)}</label>`;
                     if(f.type === 'select') {
                         html += `<select id="f_${f.id}" class="w-full border p-1.5 rounded text-sm" onchange="updateEpikriseText()">`;
-                        f.options.forEach(o => html += `<option value="${o}">${o}</option>`);
+                        f.options.forEach(o => html += `<option value="${esc(o)}">${esc(o)}</option>`);
                         html += `</select>`;
                     } else {
-                        html += `<input type="${f.type}" id="f_${f.id}" value="${f.value||''}" class="w-full border p-1.5 rounded text-sm" oninput="updateEpikriseText()">`;
+                        html += `<input type="${f.type}" id="f_${f.id}" value="${esc(f.value||'')}" class="w-full border p-1.5 rounded text-sm" oninput="updateEpikriseText()">`;
                     }
                     div.innerHTML = html;
                 }
