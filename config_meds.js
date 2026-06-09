@@ -167,6 +167,7 @@ const MED_GROUPS = {
         "Eisen III",
         "Folsäure",
         "Glimepirid",
+        "Metformin",
         "Hydrocortison",
         "Insulin (Actrapid)",
         "Insulin (Basal)",
