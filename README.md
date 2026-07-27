@@ -40,6 +40,7 @@ Um Daten dauerhaft zu sichern oder auf andere Geräte zu übertragen, gibt es fo
 *   **📂 Import:** Lädt eine zuvor erstellte `.json`-Datei und stellt den Zustand wieder her.
 *   **👻 Anon Backup (Neu):** Exportiert ebenfalls ein Backup, jedoch werden **alle Patientennamen durch Platzhalter (z.B. "Anonym 1") ersetzt und die Geburtsdaten auf "01.01.1900" genullt.** Dies ist ideal, um eine Kopie der Station (z.B. für Support-Zwecke oder zur Weitergabe von Medikamenten-Mustern) zu teilen, ohne gegen den Datenschutz zu verstoßen.
 *   **📋 KIS-Import:** Ein Text-Parser, der Copy-Paste Daten aus dem Krankenhausinformationssystem (KIS) einlesen und Patienten automatisch anlegen kann.
+*   **💊 KIS-Medikationsimport:** In der Medikationsaufnahme können kopierte KIS-Medikationspläne mit Dosis, Pausenstatus und Applikationsweg eingelesen werden. Vor dem Import werden Name und Geburtsdatum geprüft. Noch nicht konfigurierte Präparate werden ausschließlich lokal im Browserkatalog ergänzt.
 
 ---
 

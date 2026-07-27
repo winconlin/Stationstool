@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="config_base.js"></script> 
     <script src="config_meds.js"></script> 
+    <script src="kis_med_import.js"></script>
     <script src="config_exam.js"></script> 
     <script src="config_scores.js"></script> 
     <link rel="stylesheet" href="style.css">
@@ -65,7 +66,18 @@
             <div id="med-modal-warnings" class="w-full mb-2 empty:hidden"></div>
             <div class="mb-2 flex-shrink-0"><input type="text" id="med-search" placeholder="🔍 Suche..." class="w-full border-2 border-blue-200 rounded p-2 focus:border-blue-500 outline-none text-lg"></div>
             <div id="med-selector" class="space-y-2 mb-4 overflow-y-auto flex-grow px-1"></div>
-            <div class="border-t pt-4 flex-shrink-0"><div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 mb-2"><input type="text" id="med-custom" class="w-full border p-2 rounded bg-slate-50" placeholder="Zusatz / Freitext-Medikament..."><select id="med-custom-state" class="border p-2 rounded bg-white"><option value="current">Aktuell</option><option value="paused">Pausiert</option><option value="bedarf">Bei Bedarf</option></select></div><div class="flex justify-end gap-2"><button onclick="saveMeds()" class="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-500">Übernehmen (Enter)</button></div></div>
+            <div class="border-t pt-4 flex-shrink-0"><div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 mb-2"><input type="text" id="med-custom" class="w-full border p-2 rounded bg-slate-50" placeholder="Zusatz / Freitext-Medikament..."><select id="med-custom-state" class="border p-2 rounded bg-white"><option value="current">Aktuell</option><option value="paused">Pausiert</option><option value="bedarf">Bei Bedarf</option></select></div><div class="flex justify-between gap-2"><button onclick="openKisMedModal()" class="bg-teal-600 text-white px-4 py-2 rounded font-bold hover:bg-teal-500">📋 Aus KIS importieren</button><button onclick="saveMeds()" class="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-500">Übernehmen (Enter)</button></div></div>
+        </div>
+    </div>
+
+    <div id="kisMedModal" class="modal no-print" onkeydown="handleModalKey(event, 'kisMedModal')">
+        <div class="modal-content max-w-4xl flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center border-b pb-2 mb-2"><h2 class="text-xl font-bold text-teal-900">KIS-Medikationsimport</h2><button onclick="closeKisMedModal()" class="text-2xl px-2">&times;</button></div>
+            <p class="text-xs text-slate-500 mb-2">Export vollständig einfügen. Name und Geburtsdatum werden mit dem ausgewählten Patienten verglichen; unbekannte Präparate bleiben lokal auf diesem Gerät gespeichert.</p>
+            <textarea id="kis-med-input" class="w-full h-48 border p-2 font-mono text-xs bg-slate-50 rounded" placeholder="KIS-Medikationsplan hier einfügen …" oninput="previewKisMedication()"></textarea>
+            <div id="kis-med-patient-check" class="my-2"></div>
+            <div id="kis-med-preview" class="flex-grow min-h-24 border rounded bg-white overflow-y-auto p-2"></div>
+            <div class="flex justify-end mt-3"><button id="kis-med-import-button" onclick="executeKisMedicationImport()" disabled class="bg-teal-600 text-white font-bold px-5 py-2 rounded disabled:opacity-40">Medikamente importieren</button></div>
         </div>
     </div>
 
@@ -87,7 +99,7 @@
     <script>
         if(typeof MED_GROUPS === 'undefined') showToast("ACHTUNG: Config Dateien fehlen!", true);
 
-        const AppState = { patients: [], currentEditingId: null, tempSelectedMeds: new Set(), tempPausedMeds: new Set(), tempBedarfMeds: new Set(), parsedPatients: [] };
+        const AppState = { patients: [], currentEditingId: null, tempSelectedMeds: new Set(), tempPausedMeds: new Set(), tempBedarfMeds: new Set(), parsedPatients: [], parsedKisMedication: null };
 
 
 
@@ -96,6 +108,7 @@
 
         window.onload = function() {
             loadData();
+            loadCustomMedicationCatalog();
             render();
             document.getElementById('med-search').addEventListener('input', (e) => { renderMedList(e.target.value); });
             setupExamBuilder();
@@ -114,6 +127,19 @@
         function resizeTx(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; }
         function loadData() { const stored = localStorage.getItem('station_v17_data'); if (stored) AppState.patients = JSON.parse(stored); }
         function saveData() { localStorage.setItem('station_v17_data', JSON.stringify(AppState.patients)); }
+        function escapeHtml(value) { const el = document.createElement('div'); el.textContent = value == null ? '' : String(value); return el.innerHTML; }
+        function loadCustomMedicationCatalog() {
+            let custom = [];
+            try { custom = JSON.parse(localStorage.getItem('station_v17_custom_meds') || '[]'); } catch (_) { custom = []; }
+            if(custom.length) MED_GROUPS['Eigene / importierte Medikamente'] = [...new Set(custom)].sort((a,b)=>a.localeCompare(b, 'de'));
+        }
+        function rememberCustomMedications(names) {
+            let custom = [];
+            try { custom = JSON.parse(localStorage.getItem('station_v17_custom_meds') || '[]'); } catch (_) { custom = []; }
+            custom = [...new Set([...custom, ...names.filter(Boolean)])].sort((a,b)=>a.localeCompare(b, 'de'));
+            localStorage.setItem('station_v17_custom_meds', JSON.stringify(custom));
+            if(custom.length) MED_GROUPS['Eigene / importierte Medikamente'] = custom;
+        }
         
         function getDaysSince(dateString) {
             if(!dateString) return 0;
@@ -598,6 +624,56 @@
     document.getElementById('medModal').style.display = "block";
     setTimeout(()=>document.getElementById('med-search').focus(),100);
 }
+
+        function openKisMedModal() {
+            document.getElementById('kis-med-input').value = '';
+            AppState.parsedKisMedication = null;
+            previewKisMedication();
+            document.getElementById('kisMedModal').style.display = 'block';
+            setTimeout(() => document.getElementById('kis-med-input').focus(), 100);
+        }
+        function closeKisMedModal() { document.getElementById('kisMedModal').style.display = 'none'; }
+        function previewKisMedication() {
+            const text = document.getElementById('kis-med-input').value;
+            const preview = document.getElementById('kis-med-preview');
+            const check = document.getElementById('kis-med-patient-check');
+            const button = document.getElementById('kis-med-import-button');
+            if(!text.trim()) {
+                AppState.parsedKisMedication = null;
+                preview.innerHTML = '<p class="text-xs text-slate-400">Noch keine Daten eingefügt.</p>';
+                check.innerHTML = '';
+                button.disabled = true;
+                return;
+            }
+            const result = KisMedicationImport.parse(text, MED_GROUPS);
+            const patient = AppState.patients.find(x => x.id === AppState.currentEditingId);
+            const match = KisMedicationImport.samePatient(result.patient, patient || {});
+            AppState.parsedKisMedication = { ...result, match };
+            const matches = match.nameMatches && match.dobMatches;
+            const importedIdentity = [result.patient.name || 'Name nicht erkannt', result.patient.dob || 'Geburtsdatum nicht erkannt'].join(' · ');
+            check.innerHTML = `<div class="${matches ? 'bg-green-50 text-green-800 border-green-200' : 'bg-orange-50 text-orange-900 border-orange-300'} border rounded p-2 text-sm"><strong>${matches ? '✓ Patient stimmt überein' : '⚠ Patientendaten weichen ab'}</strong><div class="text-xs">KIS: ${escapeHtml(importedIdentity)} · Stationstool: ${escapeHtml(patient?.name || '–')} · ${escapeHtml(patient?.dob || '–')}</div>${matches ? '' : '<div class="text-xs font-bold mt-1">Der Import ist trotzdem möglich und muss im nächsten Schritt ausdrücklich bestätigt werden.</div>'}</div>`;
+            preview.innerHTML = result.medications.length ? result.medications.map((med) => `<div class="flex justify-between gap-2 border-b py-1 text-xs"><span><strong>${escapeHtml(med.knownName || med.name)}</strong>${med.knownName ? '' : ' <span class="text-orange-600">(neu)</span>'}<br><span class="text-slate-500">${escapeHtml([med.dose, med.route].filter(Boolean).join(' · '))}</span></span><span class="font-bold ${med.paused ? 'text-orange-600' : 'text-green-600'}">${med.paused ? 'PAUSE' : 'AKTUELL'}</span></div>`).join('') : '<p class="text-sm text-red-600">Keine Medikamente erkannt. Bitte prüfen, ob der vollständige KIS-Export eingefügt wurde.</p>';
+            button.disabled = result.medications.length === 0;
+        }
+        function executeKisMedicationImport() {
+            const result = AppState.parsedKisMedication;
+            const patient = AppState.patients.find(x => x.id === AppState.currentEditingId);
+            if(!result || !patient || !result.medications.length) return;
+            if((!result.match.nameMatches || !result.match.dobMatches) && !confirm('Name oder Geburtsdatum stimmen nicht überein. Medikamente trotzdem in den ausgewählten Patienten importieren?')) return;
+            const unknown = [];
+            result.medications.forEach((med) => {
+                const formatted = KisMedicationImport.formatMedication(med);
+                AppState.tempSelectedMeds.delete(formatted);
+                AppState.tempPausedMeds.delete(formatted);
+                (med.paused ? AppState.tempPausedMeds : AppState.tempSelectedMeds).add(formatted);
+                if(!med.knownName) unknown.push(med.name);
+            });
+            rememberCustomMedications(unknown);
+            renderMedList('');
+            closeKisMedModal();
+            saveMeds();
+            showToast(`${result.medications.length} Medikamente übernommen (${unknown.length} neu erkannt).`);
+        }
 
 
         function openBmpModal() {
