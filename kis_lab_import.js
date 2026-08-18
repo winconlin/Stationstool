@@ -5,17 +5,21 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
     "use strict";
 
-    // Zeilen, die das KIS als Auftrags-/Gruppenkopf ausgibt und die keinen Messwert tragen.
-    const IGNORED_VALUES = new Set(["nb", "siehe befund", "auftrag aktiviert", "auftrag"]);
-    const IGNORED_CODES = /^(V_PROBE|V_AUFTRAG|PROBE)$/i;
+    // Die ersten vier Spalten beschreiben den Parameter, danach folgt je Messung eine Wertspalte.
+    const HEADER_COLUMNS = 4;
+    const IGNORED_VALUES = new Set(["nb", "siehe befund", "auftrag aktiviert", "auftrag", "nein", "ja"]);
+    const IGNORED_CODES = /^(V_PROBE|V_AUFTRAG|PROBE|RM_STORNO|STORNO)$/i;
+    const SAMPLE_TYPE_KEYS = ["probentyp", "probenart", "material", "probenmaterial"];
+    const TIMESTAMP_KEYS = ["datum", "zeit", "datum zeit", "zeitpunkt", "entnahme", "abnahme",
+        "entnahmezeit", "probenzeit", "abnahmezeit", "analysezeit", "messzeit", "abnahmedatum"];
 
-    // Fallback-Referenzen für die BGA: viele KIS liefern hier keine Normbereiche mit.
+    // Fallback-Referenzen für die BGA: manche Geräte liefern keine Normbereiche mit.
     const BGA_REFERENCE = {
         "ph": { kind: "range", low: 7.35, high: 7.45 },
         "pco2": { kind: "range", low: 35, high: 45 },
         "po2": { kind: "range", low: 75, high: 100 },
         "hco3": { kind: "range", low: 22, high: 26 },
-        "hco3 akt": { kind: "range", low: 22, high: 26 },
+        "sbc": { kind: "range", low: 22, high: 26 },
         "standardbikarbonat": { kind: "range", low: 22, high: 26 },
         "bikarbonat": { kind: "range", low: 22, high: 26 },
         "be": { kind: "range", low: -2, high: 2 },
@@ -25,6 +29,7 @@
         "basenabweichung": { kind: "range", low: -2, high: 2 },
         "so2": { kind: "range", low: 94, high: 99 },
         "sauerstoffsattigung": { kind: "range", low: 94, high: 99 },
+        "lac": { kind: "max", high: 2 },
         "lactat": { kind: "max", high: 2 },
         "laktat": { kind: "max", high: 2 },
         "cohb": { kind: "max", high: 2 },
@@ -33,8 +38,9 @@
     };
 
     // Kennzeichen, an denen eine BGA von einem Laborbefund unterschieden wird.
-    const BGA_MARKERS = ["ph", "pco2", "po2", "hco3", "be", "abe", "sbe", "so2", "cohb", "methb",
-        "basenuberschuss", "basenabweichung", "standardbikarbonat", "sauerstoffsattigung", "lactat", "laktat"];
+    const BGA_MARKERS = ["ph", "pco2", "po2", "so2", "hco3", "sbc", "sbe", "abe", "be", "fio2", "thb",
+        "lac", "lactat", "laktat", "cohb", "methb", "o2hb", "hhb", "to2", "p50 act", "anionenlucke",
+        "basenuberschuss", "basenabweichung", "sauerstoffsattigung", "standardbikarbonat"];
 
     // Zuordnung der Schnellfelder auf der Patientenkarte.
     const QUICK_FIELDS = {
@@ -48,6 +54,11 @@
     function normalize(value) {
         return (value || "").toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
             .replace(/ß/g, "ss").replace(/[^a-z0-9]+/g, " ").trim();
+    }
+
+    // "V_PH" und "RM_pH" beschreiben denselben Parameter.
+    function bareCode(code) {
+        return normalize(code).replace(/^(v|rm)\s/, "");
     }
 
     function toNumber(value) {
@@ -65,27 +76,26 @@
         return String(num).replace(".", ",");
     }
 
-    // "." , "-" oder leere Zellen sind im KIS-Export Platzhalter statt Messwerte.
     function isPlaceholder(value) {
         const normalized = normalize(value);
         return !normalized || IGNORED_VALUES.has(normalized);
     }
 
     function splitColumns(line) {
-        const columns = line.includes("\t") ? line.split("\t") : line.split(/ {2,}| {2,}/);
+        const columns = line.includes("\t") ? line.split("\t") : line.split(/ {2,}/);
         return columns.map((column) => column.replace(/ /g, " ").trim());
     }
 
     function parseReference(ref) {
         const text = (ref || "").trim();
-        if (!text) return { kind: "none", text: "" };
+        if (!text || /^-{1,2}$/.test(text)) return { kind: "none", text: "" };
         const range = text.match(/^(-?[\d.,]+)\s*(?:-|–|bis)\s*(-?[\d.,]+)$/i);
         if (range) {
             const low = toNumber(range[1]);
             const high = toNumber(range[2]);
             if (low !== null && high !== null) return { kind: "range", low, high, text };
         }
-        const max = text.match(/^<\s*=?\s*(-?[\d.,]+)$/);
+        const max = text.match(/^[<-]\s*=?\s*([\d.,]+)$/);
         if (max) return { kind: "max", high: toNumber(max[1]), text };
         const min = text.match(/^>\s*=?\s*(-?[\d.,]+)$/);
         if (min) return { kind: "min", low: toNumber(min[1]), text };
@@ -101,8 +111,9 @@
         return "";
     }
 
+    // Geräte hängen an den Wert eine Bewertung an: N (normal), + / H (hoch), - / L (niedrig).
     function splitFlag(value) {
-        const match = (value || "").match(/^(.*?)\s*(\+{1,3}|-{1,3}|!{1,3}|\*{1,3})$/);
+        const match = (value || "").match(/^(.*?)\s+(\+{1,3}|-{1,3}|!{1,3}|\*{1,3}|[NnHhLl])$/);
         if (!match || !match[1].trim()) return { value: (value || "").trim(), flag: "" };
         return { value: match[1].trim(), flag: match[2] };
     }
@@ -114,7 +125,7 @@
     }
 
     function fallbackReference(entry) {
-        const keys = [normalize(entry.label), normalize(entry.code).replace(/^v /, "")];
+        const keys = [normalize(entry.label), bareCode(entry.code)];
         for (const key of keys) {
             if (key && Object.prototype.hasOwnProperty.call(BGA_REFERENCE, key)) return BGA_REFERENCE[key];
         }
@@ -123,8 +134,9 @@
 
     function evaluate(entry) {
         if (entry.flag) {
-            if (/^-/.test(entry.flag)) return "low";
-            if (/^\+/.test(entry.flag)) return "high";
+            if (/^[Nn]$/.test(entry.flag)) return "normal";
+            if (/^(-|[Ll])/.test(entry.flag)) return "low";
+            if (/^(\+|[Hh])/.test(entry.flag)) return "high";
         }
         const reference = entry.reference;
         if (entry.num === null || !reference) return "unknown";
@@ -138,75 +150,103 @@
         return "unknown";
     }
 
-    function detectDate(text) {
-        const match = (text || "").match(/(\d{2})\.(\d{2})\.(\d{4})(?:[ ,]+(\d{2}:\d{2}))?/);
-        if (!match) return { date: "", time: "" };
-        return { date: `${match[3]}-${match[2]}-${match[1]}`, time: match[4] || "" };
+    function detectTimestamp(text) {
+        const match = (text || "").match(/(\d{2})\.(\d{2})\.(\d{4})(?:[ ,]+(\d{1,2}:\d{2}))?/);
+        if (match) return { date: `${match[3]}-${match[2]}-${match[1]}`, time: match[4] || "" };
+        const isoMatch = (text || "").match(/(\d{4})-(\d{2})-(\d{2})(?:[ T]+(\d{1,2}:\d{2}))?/);
+        if (isoMatch) return { date: `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`, time: isoMatch[4] || "" };
+        const timeMatch = (text || "").match(/^(\d{1,2}:\d{2})/);
+        return { date: "", time: timeMatch ? timeMatch[1] : "" };
     }
 
     function looksLikeBga(entries) {
-        const hits = entries.filter((entry) => {
-            const label = normalize(entry.label);
-            const code = normalize(entry.code).replace(/^v /, "");
-            return BGA_MARKERS.includes(label) || BGA_MARKERS.includes(code);
-        });
+        const hits = entries.filter((entry) =>
+            BGA_MARKERS.includes(normalize(entry.label)) || BGA_MARKERS.includes(bareCode(entry.code)));
         return hits.length >= 3;
+    }
+
+    // Ermittelt, an welchen Spaltenpositionen tatsächlich Messwerte stehen.
+    // Mehrspaltige Exporte (z. B. venöse und arterielle BGA nebeneinander) ergeben mehrere Messungen.
+    function findValueColumns(rows) {
+        const width = rows.reduce((max, row) => Math.max(max, row.length), 0);
+        const filled = [];
+        for (let index = HEADER_COLUMNS; index < width; index++) {
+            if (rows.some((row) => (row[index] || "").trim())) filled.push(index);
+        }
+        if (filled.length) return { valueColumns: filled, refColumn: 3, unitColumn: 2 };
+        if (rows.some((row) => (row[3] || "").trim())) return { valueColumns: [3], refColumn: -1, unitColumn: 2 };
+        return { valueColumns: [2], refColumn: -1, unitColumn: -1 };
     }
 
     function parse(text, options) {
         const settings = options || {};
         const source = (text || "").replace(/\\n/g, "\n");
-        const header = detectDate(source);
-        const entries = [];
+        const documentStamp = detectTimestamp(source.split(/\r?\n/).slice(0, 3).join(" "));
+
+        const rows = source.split(/\r?\n/)
+            .map((line) => line.replace(/ /g, " ").trimEnd())
+            .filter((line) => line.trim())
+            .map(splitColumns)
+            .filter((columns) => columns.length >= 2 && columns[0]);
+
+        const layout = findValueColumns(rows);
+        const columns = layout.valueColumns.map((index) => ({ index, label: "", date: "", time: "", hasOwnStamp: false, entries: [] }));
         const sections = [];
         let section = "";
         let skipped = 0;
 
-        source.split(/\r?\n/).forEach((line) => {
-            const trimmed = line.replace(/ /g, " ").trim();
-            if (!trimmed) return;
-            const columns = splitColumns(trimmed);
-            if (columns.length < 2 || !columns[0]) { skipped++; return; }
+        rows.forEach((row) => {
+            const code = row[0];
+            const label = row[1] || "";
+            const unit = layout.unitColumn >= 0 ? (row[layout.unitColumn] || "") : "";
+            const ref = layout.refColumn >= 0 ? (row[layout.refColumn] || "") : "";
+            const cells = columns.map((column) => (row[column.index] || "").trim());
+            const key = normalize(label) || bareCode(code);
 
-            const code = columns[0];
-            const label = columns[1] || "";
-            let unit = columns[2] || "";
-            let ref = columns[3] || "";
-            let rawValue = columns.slice(4).filter(Boolean).pop() || "";
-            if (!rawValue) { rawValue = ref; ref = ""; }
-            if (!rawValue) { rawValue = unit; unit = ""; }
-
-            const isSectionHeader = /:$/.test(label) && isPlaceholder(rawValue);
-            if (isSectionHeader) {
+            if (cells.every(isPlaceholder) && /:$/.test(label)) {
                 section = label.replace(/:$/, "").trim();
                 if (section) sections.push(section);
                 return;
             }
-            if (IGNORED_CODES.test(code) || isPlaceholder(rawValue) || normalize(rawValue) === normalize(label)) {
-                skipped++;
+            if (SAMPLE_TYPE_KEYS.includes(key)) {
+                cells.forEach((cell, position) => { if (cell) columns[position].label = cell; });
                 return;
             }
+            if (TIMESTAMP_KEYS.includes(key)) {
+                cells.forEach((cell, position) => {
+                    const stamp = detectTimestamp(cell);
+                    if (stamp.date) { columns[position].date = stamp.date; columns[position].hasOwnStamp = true; }
+                    if (stamp.time) { columns[position].time = stamp.time; columns[position].hasOwnStamp = true; }
+                });
+                return;
+            }
+            if (IGNORED_CODES.test(code)) { skipped++; return; }
 
-            const flagged = splitFlag(rawValue);
-            const measured = parseMeasurement(flagged.value);
-            const entry = {
-                code, label: label || code, unit, section,
-                raw: trimmed,
-                value: flagged.value,
-                flag: flagged.flag,
-                comparator: measured.comparator,
-                num: measured.num,
-                reference: parseReference(ref),
-                refSource: ref ? "kis" : "none"
-            };
-            entries.push(entry);
+            let used = false;
+            cells.forEach((cell, position) => {
+                if (isPlaceholder(cell) || normalize(cell) === normalize(label)) return;
+                const flagged = splitFlag(cell);
+                const measured = parseMeasurement(flagged.value);
+                columns[position].entries.push({
+                    code, label: label || code, unit, section,
+                    value: flagged.value,
+                    flag: flagged.flag,
+                    comparator: measured.comparator,
+                    num: measured.num,
+                    reference: parseReference(ref),
+                    refSource: ref && parseReference(ref).kind !== "none" ? "kis" : "none"
+                });
+                used = true;
+            });
+            if (!used) skipped++;
         });
 
+        const allEntries = columns.flatMap((column) => column.entries);
         const type = settings.type && settings.type !== "auto"
             ? settings.type
-            : (looksLikeBga(entries) ? "bga" : "labor");
+            : (looksLikeBga(allEntries) ? "bga" : "labor");
 
-        entries.forEach((entry) => {
+        allEntries.forEach((entry) => {
             if (type === "bga" && entry.reference.kind === "none") {
                 const fallback = fallbackReference(entry);
                 if (fallback) { entry.reference = fallback; entry.refSource = "fallback"; }
@@ -216,13 +256,28 @@
             entry.abnormal = entry.status === "low" || entry.status === "high";
         });
 
+        const usedLabels = {};
+        columns.forEach((column, position) => {
+            column.date = column.date || settings.date || documentStamp.date || "";
+            column.time = column.time || (columns.length === 1 ? (settings.time || documentStamp.time) : column.time) || "";
+            column.abnormal = column.entries.filter((entry) => entry.abnormal);
+            if (!column.label && columns.length > 1) column.label = `Messung ${position + 1}`;
+            // Gleichnamige Spalten (z. B. zweimal "Arteriell") müssen unterscheidbar bleiben.
+            if (column.label) {
+                usedLabels[column.label] = (usedLabels[column.label] || 0) + 1;
+                if (usedLabels[column.label] > 1) column.label = `${column.label} (${usedLabels[column.label]})`;
+            }
+        });
+
+        const primary = columns[0] || { entries: [], abnormal: [], date: "", time: "", label: "" };
         return {
             type,
-            date: settings.date || header.date || "",
-            time: settings.time || header.time || "",
-            entries,
+            date: settings.date || documentStamp.date || "",
+            time: settings.time || documentStamp.time || "",
+            columns,
+            entries: primary.entries,
+            abnormal: primary.abnormal,
             sections,
-            abnormal: entries.filter((entry) => entry.abnormal),
             skipped
         };
     }
@@ -249,12 +304,17 @@
         return match ? `${match[3]}.${match[2]}.` : (value || "");
     }
 
+    function setTitle(set) {
+        if (!set) return "";
+        return [formatDate(set.date), set.time, set.label].filter(Boolean).join(" ");
+    }
+
     function sortSets(sets) {
         return (sets || []).filter((set) => set && Array.isArray(set.entries) && set.entries.length)
             .slice().sort((a, b) => `${a.date || ""}${a.time || ""}`.localeCompare(`${b.date || ""}${b.time || ""}`));
     }
 
-    // Baut eine Verlaufstabelle (eine Spalte je Abnahme) für den Epikrisen-Prompt.
+    // Baut eine Verlaufstabelle (eine Spalte je Messung) für den Epikrisen-Prompt.
     function buildCourse(sets, options) {
         const settings = options || {};
         const list = sortSets(sets).slice(-(settings.maxColumns || 8));
@@ -277,9 +337,9 @@
             });
         });
 
-        const headers = list.map((set) => `${formatDate(set.date)}${set.time ? ` ${set.time}` : ""}` || "Wert");
+        const headers = list.map((set) => setTitle(set) || "Wert");
         const name = (row) => [row.label, row.unit ? `[${row.unit}]` : "", row.ref ? `(${row.ref})` : ""].filter(Boolean).join(" ");
-        const nameWidth = Math.max(6, ...order.map((key) => name(rows.get(key)).length));
+        const nameWidth = Math.max(9, ...order.map((key) => name(rows.get(key)).length));
         const widths = headers.map((headline, index) =>
             Math.max(headline.length, ...order.map((key) => (rows.get(key).values[index] || "–").length)));
 
@@ -292,6 +352,26 @@
         return lines.join("\n");
     }
 
+    // Fasst die Spalten eines Imports zu Zeilen zusammen (eine Zeile je Parameter).
+    function mergeColumns(columns) {
+        const order = [];
+        const rows = new Map();
+        (columns || []).forEach((column, position) => {
+            column.entries.forEach((entry) => {
+                const key = entry.code || entry.label;
+                if (!rows.has(key)) {
+                    rows.set(key, { label: entry.label || entry.code, unit: entry.unit || "", ref: entry.ref || "",
+                        section: entry.section || "", refSource: entry.refSource, cells: [] });
+                    order.push(key);
+                }
+                const row = rows.get(key);
+                if (!row.ref && entry.ref) { row.ref = entry.ref; row.refSource = entry.refSource; }
+                row.cells[position] = entry;
+            });
+        });
+        return order.map((key) => rows.get(key));
+    }
+
     function buildAbnormalSummary(sets) {
         const list = sortSets(sets);
         if (!list.length) return "";
@@ -302,7 +382,7 @@
     }
 
     return {
-        parse, quickLabs, buildCourse, buildAbnormalSummary, formatEntry, formatDate,
+        parse, quickLabs, buildCourse, buildAbnormalSummary, formatEntry, formatDate, setTitle, mergeColumns,
         parseReference, normalize, toNumber, sortSets, BGA_REFERENCE
     };
 });

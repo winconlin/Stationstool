@@ -147,7 +147,7 @@
     <script>
         if(typeof MED_GROUPS === 'undefined') showToast("ACHTUNG: Config Dateien fehlen!", true);
 
-        const AppState = { patients: [], currentEditingId: null, tempSelectedMeds: new Set(), tempPausedMeds: new Set(), tempBedarfMeds: new Set(), parsedPatients: [], parsedKisMedication: null, parsedLabImport: null, labDateTouched: false };
+        const AppState = { patients: [], currentEditingId: null, tempSelectedMeds: new Set(), tempPausedMeds: new Set(), tempBedarfMeds: new Set(), parsedPatients: [], parsedKisMedication: null, parsedLabImport: null, labDateTouched: false, labColumnSelection: [] };
 
 
 
@@ -935,10 +935,7 @@
         function saveExamToPatient() { AppState.patients.find(x => x.id === AppState.currentEditingId).exam_text = document.getElementById('gen-text-output').value; saveData(); document.getElementById('examModal').style.display = 'none'; }
         
         // --- LABOR / BGA IMPORT ---
-        function labSetStamp(set) {
-            if(!set) return '';
-            return `${KisLabImport.formatDate(set.date)}${set.time ? ' ' + set.time : ''}`;
-        }
+        function labSetStamp(set) { return KisLabImport.setTitle(set); }
         function sortedLabSets(p, type) {
             const sets = (p && p.labSets ? p.labSets : []).filter(set => !type || set.type === type);
             return KisLabImport.sortSets(sets);
@@ -981,19 +978,51 @@
                 dateField.value = result.date;
                 if(result.time) timeField.value = result.time;
             }
-            result.date = dateField.value || result.date;
-            result.time = timeField.value || result.time;
+            // Spalten ohne eigenen Zeitstempel im Export bekommen Datum/Uhrzeit aus dem Formular.
+            result.columns.forEach(column => {
+                if(column.hasOwnStamp) return;
+                column.date = dateField.value || column.date;
+                if(result.columns.length === 1) column.time = timeField.value || column.time;
+            });
+            if(!AppState.parsedLabImport || AppState.parsedLabImport.columns.length !== result.columns.length) {
+                AppState.labColumnSelection = result.columns.map(() => true);
+            }
             AppState.parsedLabImport = result;
 
-            const usesFallback = result.entries.some(entry => entry.refSource === 'fallback');
-            summary.innerHTML = `<div class="border rounded p-2 ${result.abnormal.length ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-green-50 border-green-200 text-green-800'}"><strong>${result.type === 'bga' ? 'BGA' : 'Labor'}</strong> · ${result.entries.length} Werte · <strong>${result.abnormal.length} außerhalb der Norm</strong>${result.skipped ? ` · ${result.skipped} Zeile(n) ignoriert` : ''}${usesFallback ? '<div class="text-[10px] mt-1">* Referenzbereich aus hinterlegter Standardtabelle ergänzt (im KIS-Export nicht enthalten).</div>' : ''}</div>`;
+            const selection = AppState.labColumnSelection || [];
+            const selectedCount = result.columns.filter((column, index) => selection[index] !== false).length;
+            const abnormalCount = result.columns.reduce((sum, column, index) => selection[index] === false ? sum : sum + column.abnormal.length, 0);
+            const valueCount = result.columns.reduce((sum, column, index) => selection[index] === false ? sum : sum + column.entries.length, 0);
+            const usesFallback = result.columns.some(column => column.entries.some(entry => entry.refSource === 'fallback'));
+            summary.innerHTML = `<div class="border rounded p-2 ${abnormalCount ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-green-50 border-green-200 text-green-800'}"><strong>${result.type === 'bga' ? 'BGA' : 'Labor'}</strong> · ${result.columns.length} Messung(en) erkannt · ${valueCount} Werte · <strong>${abnormalCount} außerhalb der Norm</strong>${result.skipped ? ` · ${result.skipped} Zeile(n) ignoriert` : ''}${usesFallback ? '<div class="text-[10px] mt-1">* Referenzbereich aus hinterlegter Standardtabelle ergänzt (im Export nicht enthalten).</div>' : ''}</div>`;
 
-            preview.innerHTML = result.entries.length ? result.entries.map(entry => {
-                const tone = entry.status === 'high' ? 'text-red-700' : entry.status === 'low' ? 'text-sky-700' : 'text-slate-700';
-                const arrow = entry.status === 'high' ? '↑' : entry.status === 'low' ? '↓' : '';
-                return `<div class="flex justify-between gap-2 border-b py-0.5 text-xs"><span>${escapeHtml(entry.label)}${entry.section ? ` <span class="text-slate-400">${escapeHtml(entry.section)}</span>` : ''}</span><span class="${tone} font-bold whitespace-nowrap">${escapeHtml(entry.value)} ${escapeHtml(entry.unit)} ${arrow} <span class="text-slate-400 font-normal">${entry.ref ? 'Norm ' + escapeHtml(entry.ref) : 'ohne Referenz'}${entry.refSource === 'fallback' ? ' *' : ''}</span></span></div>`;
-            }).join('') : '<p class="text-sm text-red-600">Keine Werte erkannt. Bitte die Spalten des KIS-Exports (mit Tabulatoren) vollständig einfügen.</p>';
-            button.disabled = result.entries.length === 0;
+            const rows = KisLabImport.mergeColumns(result.columns);
+            if(!rows.length) {
+                preview.innerHTML = '<p class="text-sm text-red-600">Keine Werte erkannt. Bitte die Spalten des KIS-Exports (mit Tabulatoren) vollständig einfügen.</p>';
+                button.disabled = true;
+                return;
+            }
+            const head = result.columns.map((column, index) => `<th class="text-right px-1 font-bold whitespace-nowrap"><label class="flex items-center justify-end gap-1 cursor-pointer">${result.columns.length > 1 ? `<input type="checkbox" ${selection[index] === false ? '' : 'checked'} onchange="toggleLabColumn(${index}, this.checked)">` : ''}${escapeHtml(column.label || KisLabImport.formatDate(column.date) || 'Wert')}</label><div class="font-normal text-[9px] text-slate-400">${escapeHtml([KisLabImport.formatDate(column.date), column.time].filter(Boolean).join(' '))}</div></th>`).join('');
+            const body = rows.map(row => {
+                const cells = result.columns.map((column, index) => {
+                    const entry = row.cells[index];
+                    if(!entry) return '<td class="text-right px-1 text-slate-300">–</td>';
+                    const tone = entry.status === 'high' ? 'text-red-700 font-bold' : entry.status === 'low' ? 'text-sky-700 font-bold' : 'text-slate-700';
+                    const arrow = entry.status === 'high' ? ' ↑' : entry.status === 'low' ? ' ↓' : '';
+                    const faded = selection[index] === false ? 'opacity-40' : '';
+                    return `<td class="text-right px-1 whitespace-nowrap ${tone} ${faded}">${escapeHtml(entry.value)}${arrow}</td>`;
+                }).join('');
+                return `<tr class="border-b"><td class="py-0.5">${escapeHtml(row.label)}${row.unit ? ` <span class="text-slate-400">${escapeHtml(row.unit)}</span>` : ''}</td><td class="px-1 text-slate-400 whitespace-nowrap">${row.ref ? escapeHtml(row.ref) + (row.refSource === 'fallback' ? ' *' : '') : '–'}</td>${cells}</tr>`;
+            }).join('');
+            preview.innerHTML = `<table class="w-full text-[11px]"><thead><tr class="border-b-2 text-slate-500"><th class="text-left py-0.5">Parameter</th><th class="text-left px-1">Norm</th>${head}</tr></thead><tbody>${body}</tbody></table>`;
+            button.disabled = selectedCount === 0;
+            button.innerText = result.columns.length > 1 ? `${selectedCount} Messung(en) übernehmen` : 'Werte übernehmen';
+        }
+
+        function toggleLabColumn(index, checked) {
+            if(!AppState.labColumnSelection) return;
+            AppState.labColumnSelection[index] = checked;
+            previewLabImport();
         }
 
         function applyQuickLabs(p, entries) {
@@ -1009,34 +1038,42 @@
         function executeLabImport() {
             const result = AppState.parsedLabImport;
             const p = AppState.patients.find(x => x.id === AppState.currentEditingId);
-            if(!result || !p || !result.entries.length) return;
+            if(!result || !p) return;
+            const selection = AppState.labColumnSelection || [];
+            const chosen = result.columns.filter((column, index) => selection[index] !== false && column.entries.length);
+            if(!chosen.length) return;
             if(!p.labSets) p.labSets = [];
-            const set = {
+
+            const stamp = (item) => `${item.type}|${item.date}|${item.time}|${item.label || ''}`;
+            const sets = chosen.map(column => ({
                 id: Date.now().toString() + Math.random().toString().slice(2, 5),
                 type: result.type,
-                date: result.date || new Date().toISOString().slice(0, 10),
-                time: result.time || '',
-                entries: result.entries.map(entry => ({ code: entry.code, label: entry.label, unit: entry.unit,
+                date: column.date || new Date().toISOString().slice(0, 10),
+                time: column.time || '',
+                label: column.label || '',
+                entries: column.entries.map(entry => ({ code: entry.code, label: entry.label, unit: entry.unit,
                     ref: entry.ref, section: entry.section, value: entry.value, status: entry.status,
                     flag: entry.flag, refSource: entry.refSource }))
-            };
-            const stamp = (item) => `${item.type}|${item.date}|${item.time}`;
-            const existing = p.labSets.findIndex(item => stamp(item) === stamp(set));
-            if(existing >= 0) {
-                if(!confirm(`Für ${set.date} liegt bereits eine ${set.type === 'bga' ? 'BGA' : 'Laborabnahme'} vor. Überschreiben?`)) return;
-                set.id = p.labSets[existing].id;
-                p.labSets[existing] = set;
-            } else {
-                p.labSets.push(set);
-            }
-            p.labSets = KisLabImport.sortSets(p.labSets).slice(-40);
-            if(set.type === 'labor') applyQuickLabs(p, set.entries);
+            }));
+            const duplicates = sets.filter(set => p.labSets.some(item => stamp(item) === stamp(set)));
+            if(duplicates.length && !confirm(`${duplicates.length} dieser Messungen ist/sind bereits gespeichert (${duplicates.map(labSetStamp).join(', ')}). Überschreiben?`)) return;
+
+            sets.forEach(set => {
+                const existing = p.labSets.findIndex(item => stamp(item) === stamp(set));
+                if(existing >= 0) { set.id = p.labSets[existing].id; p.labSets[existing] = set; }
+                else p.labSets.push(set);
+            });
+            p.labSets = KisLabImport.sortSets(p.labSets).slice(-60);
+            const lastLab = sets.filter(set => set.type === 'labor').pop();
+            if(lastLab) applyQuickLabs(p, lastLab.entries);
             saveData();
             render();
             renderLabHistory();
             document.getElementById('lab-input').value = '';
+            AppState.parsedLabImport = null;
             previewLabImport();
-            showToast(`${set.entries.length} Werte übernommen (${result.abnormal.length} auffällig).`);
+            const abnormal = sets.reduce((sum, set) => sum + set.entries.filter(entry => entry.status === 'high' || entry.status === 'low').length, 0);
+            showToast(`${sets.length} Messung(en) übernommen · ${abnormal} auffällige Werte.`);
         }
 
         function renderLabHistory() {
