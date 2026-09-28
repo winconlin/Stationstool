@@ -20,11 +20,15 @@ Da die Anwendung rein clientbasiert ist, gibt es keinen komplizierten Setup-Proz
 
 *   **Patientenverwaltung:** Anlage von Patienten mit Raumnummer, Name, Geburtsdatum und Rhythmus-Status.
 *   **Diagnosen & Verlauf:** Dokumentation von Hauptdiagnosen, Vordiagnosen und täglichen To-Dos.
+*   **Anamnese bei Aufnahme:** Eigenes Feld je Patient (unter *Aufnahme: Anamnese, Medikation, Vordiagnosen*), das automatisch in den Epikrisen-Prompt einfließt.
 *   **Medikamenten-Manager:** Zuweisung von aktuellen und pausierten Medikamenten inkl. einer Suchfunktion (basierend auf vorkonfigurierten Listen).
 *   **Klinische Werkzeuge:**
     *   **Labor & Volumen:** Schnelleingabe von Hb, Krea, eGFR, K+, CRP/BNP sowie Volumenzielen.
     *   **Labor- & BGA-Import (KIS):** Kopierte KIS-Befunde werden je Patient eingelesen, gegen den mitgelieferten Referenzbereich geprüft und als Verlauf gespeichert. Abweichende Werte erscheinen direkt auf der Patientenkarte und im Ausdruck.
     *   **Epikrisen-Prompt:** Aus den erfassten Daten wird pro Patient ein fertiger KI-Prompt zur Epikrisenerstellung erzeugt – ohne Name und Geburtsdatum.
+    *   **Laborverlauf auf der Karte:** Für Hb, Leukozyten, Thrombozyten, CRP, Kreatinin, eGFR, Natrium und Kalium zeigt die Patientenkarte eine kleine Verlaufskurve, den letzten Wert, die Richtung und den Vorwert mit Abstand in Tagen. Welche Parameter erscheinen, steht in `config_base.js` (`LAB_TRENDS`).
+    *   **Verlaufswarnungen:** Klinisch relevant ist oft nicht der Absolutwert, sondern die Änderung. Das Tool meldet sie auch dann, wenn beide Werte im Normbereich liegen – Hb-Abfall ≥ 2 g/dl in 3 Tagen, Kreatinin-Anstieg ≥ 0,3 mg/dl in 48 h (AKI-Kriterium nach KDIGO), Natrium-Änderung ≥ 8 mmol/l in 24 h, Thrombozyten-Abfall ≥ 30 %, CRP-Anstieg bzw. -Verdopplung, eGFR-Abfall ≥ 25 %. Die Regeln liegen als `LAB_DELTA_RULES` in `config_base.js` und sind mit eigenen Schwellen und Zeitfenstern anpassbar. **Die Beträge gelten in den Einheiten des eigenen Labors** (hier CRP in mg/dl) – bei einem Laborwechsel prüfen.
+    *   **Antibiotika-Therapietag:** Steht ein Antiinfektivum in der aktuellen Medikation, merkt sich das Tool den ersten Tag und zählt mit („Ceftriaxon Tag 7"). Ab Tag 8 wird zur Überprüfung der Therapiedauer geraten, ab Tag 11 deutlicher (`ABX_REVIEW_DAYS`). Verschwindet das Präparat aus der Medikation, wird der Zähler zurückgesetzt.
     *   **Scores:** Automatische Berechnung/Verlinkung relevanter klinischer Scores (z.B. CHA₂DS₂-VASc, HAS-BLED, Wells) basierend auf den eingegebenen Diagnosen und dem Alter.
     *   **Status-Generator:** Ein Baukastensystem zur schnellen Generierung des Aufnahme- oder Visitenstatus.
 *   **Konsil- & Aufgaben-Management:** Checklisten für tägliche Routineaufgaben (BE, Viggo, Visite) und Konsil-Anforderungen.
@@ -36,11 +40,17 @@ Da die Anwendung rein clientbasiert ist, gibt es keinen komplizierten Setup-Proz
 
 Die Anwendung nutzt den `localStorage` des Browsers. Das bedeutet: Wenn Sie die Seite schließen und wieder öffnen, sind die Daten noch da. Wenn Sie jedoch den Browser-Cache löschen oder einen anderen Browser/PC nutzen, sind die Daten leer.
 
+Der `localStorage` ist je Browser auf wenige Megabyte begrenzt, und Laborverläufe füllen ihn am schnellsten. Deshalb:
+
+*   **Speicheranzeige:** Ab 50 % Belegung erscheint in der Kopfzeile eine Anzeige (ab 70 % orange, ab 85 % rot). Ein Klick darauf zeigt, wie viele Patienten und Laborabnahmen gespeichert sind.
+*   **Automatisches Ausdünnen:** Läuft der Speicher beim Sichern über, entfernt das Tool stufenweise die ältesten Laborabnahmen (je Patient noch 20, dann 10, 5, 2) und meldet, was entfernt wurde – statt das Speichern still fehlschlagen zu lassen. Wer den vollen Verlauf behalten will, macht vorher ein Backup.
+*   **Backup-Erinnerung:** Liegt das letzte Backup mehr als 24 Stunden zurück (oder gab es noch keines), erscheint ein Hinweisbalken mit einem Knopf zum Sichern. Er lässt sich für die laufende Sitzung ausblenden.
+
 Um Daten dauerhaft zu sichern oder auf andere Geräte zu übertragen, gibt es folgende Backup-Funktionen:
 
 *   **💾 Backup:** Exportiert alle aktuellen Patientendaten als `.json`-Datei auf Ihren Computer.
 *   **📂 Import:** Lädt eine zuvor erstellte `.json`-Datei und stellt den Zustand wieder her.
-*   **👻 Anon Backup (Neu):** Exportiert ebenfalls ein Backup, jedoch werden **alle Patientennamen durch Platzhalter (z.B. "Anonym 1") ersetzt und die Geburtsdaten auf "01.01.1900" genullt.** Dies ist ideal, um eine Kopie der Station (z.B. für Support-Zwecke oder zur Weitergabe von Medikamenten-Mustern) zu teilen, ohne gegen den Datenschutz zu verstoßen.
+*   **👻 Anon Backup:** Exportiert ebenfalls ein Backup, jedoch werden **alle Patientennamen durch Platzhalter ("Anonym 1") ersetzt und die Geburtsdaten auf "01.01.1900" genullt.** Zusätzlich werden Name und Geburtsdatum **aus allen Freitextfeldern entfernt** (Anamnese, Notizen, Verlauf, Epikrisen-Felder) – dieselbe Prüfung wie beim Epikrisen-Prompt. Befunde, Diagnosen und Medikation bleiben vollständig erhalten. Ideal, um eine Kopie der Station für Support-Zwecke oder als Medikamenten-Muster weiterzugeben.
 *   **📋 KIS-Import:** Ein Text-Parser, der Copy-Paste Daten aus dem Krankenhausinformationssystem (KIS) einlesen und Patienten automatisch anlegen kann.
 *   **⚡ Schnell-Import:** Der schnellste Weg: in Medico oder ID PHARMA CHECK kopieren, ins Tool wechseln und **Strg+V** drücken – ohne vorher ein Fenster zu öffnen. Das Tool erkennt selbst, ob eine Patientenliste, ein Laborbefund, eine BGA, ein Medikationsplan (KIS-Kurve oder ID PHARMA) oder ein BMP-Barcode eingefügt wurde, fragt nur noch den Patienten ab und öffnet die passende Vorschau. Die Erkennung lässt sich per Auswahlfeld übersteuern. In den Import-Fenstern gibt es zusätzlich **📋 Aus Zwischenablage einfügen**.
 *   **🧪 KIS-Labor-/BGA-Import:** Über die Patientenkarte (`🧪 Labor & BGA`) lassen sich kopierte KIS-Befunde einlesen. Erwartet wird der tabellarische Export mit den Spalten *Kürzel · Bezeichnung · Einheit · Referenzbereich · Wert(e)* (Tabulator-getrennt, Leerzeilen werden ignoriert). Ob es sich um Labor oder BGA handelt, erkennt das Tool automatisch, lässt sich aber manuell festlegen. Jede Messung wird mit Datum/Uhrzeit gespeichert, sodass ein Verlauf entsteht; Hb, Krea, eGFR, K+ und CRP füllen zusätzlich die Schnellfelder der Karte.
@@ -77,7 +87,7 @@ Das Tool basiert auf **Vanilla JavaScript** und Tailwind CSS. Es gibt keine Buil
 *   `medical_suite.html` - Ein Modul für Anamnese, Status und Brief-Generierung (Baukasten-System).
 *   `style.css` - Eigene, kleine CSS-Anpassungen (Scrollbars, Print-Layouts).
 *   **Konfigurations-Dateien:**
-    *   `config_base.js` - Grundlegende Konstanten (Tagesaufgaben, CVRF, Konsile).
+    *   `config_base.js` - Grundlegende Konstanten (Tagesaufgaben, CVRF, Konsile) sowie Verlaufsparameter (`LAB_TRENDS`), Verlaufswarnungen (`LAB_DELTA_RULES`) und Antibiotika-Schwellen (`ABX_REVIEW_DAYS`).
     *   `config_meds.js` - Gruppen und Listen von Medikamenten.
     *   `config_exam.js` - Textbausteine für die körperliche Untersuchung.
     *   `config_scores.js` - Logik und Keywords zur Erkennung relevanter medizinischer Scores.

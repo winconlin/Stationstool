@@ -393,6 +393,128 @@
         return order.map((key) => rows.get(key));
     }
 
+    function sameCode(a, b) {
+        return bareCode(a) === bareCode(b) && bareCode(a) !== "";
+    }
+
+    function daysBetween(from, to) {
+        const first = Date.parse(`${from}T12:00:00`);
+        const second = Date.parse(`${to}T12:00:00`);
+        if (!Number.isFinite(first) || !Number.isFinite(second)) return 0;
+        return Math.round((second - first) / 86400000);
+    }
+
+    // Verlauf eines Parameters über alle Abnahmen, älteste zuerst.
+    function series(sets, code) {
+        const points = [];
+        sortSets(sets).forEach((set) => {
+            const entry = set.entries.find((item) => sameCode(item.code, code));
+            if (!entry) return;
+            // Älter gespeicherte Abnahmen führen keine Zahl mit – dann aus dem Wert lesen.
+            const num = entry.num === null || entry.num === undefined
+                ? parseMeasurement(entry.value).num : entry.num;
+            if (num === null) return;
+            points.push({
+                date: set.date || "", time: set.time || "", label: entry.label, unit: entry.unit,
+                value: entry.value, num, status: entry.status, preliminary: Boolean(entry.preliminary)
+            });
+        });
+        return points;
+    }
+
+    // Trends für die Patientenkarte: letzter Wert plus Richtung gegenüber der Voraufnahme.
+    function buildTrends(sets, parameters) {
+        return (parameters || []).map((parameter) => {
+            const code = parameter.code || parameter;
+            const points = series(sets, code);
+            if (!points.length) return null;
+            const last = points[points.length - 1];
+            const previous = points.length > 1 ? points[points.length - 2] : null;
+            const first = points[0];
+            const delta = previous ? last.num - previous.num : null;
+            return {
+                code,
+                label: parameter.label || last.label,
+                unit: last.unit,
+                points,
+                last,
+                previous,
+                first,
+                delta,
+                direction: delta === null || delta === 0 ? "flat" : (delta > 0 ? "up" : "down"),
+                days: previous ? daysBetween(previous.date, last.date) : 0
+            };
+        }).filter(Boolean);
+    }
+
+    // Relevante Änderung im Verlauf, unabhängig davon, ob der Wert im Normbereich liegt.
+    function checkDeltas(sets, rules) {
+        const warnings = [];
+        (rules || []).forEach((rule) => {
+            const points = series(sets, rule.code);
+            if (points.length < 2) return;
+            const last = points[points.length - 1];
+            const window = points.slice(0, -1).filter((point) =>
+                !rule.withinDays || !last.date || !point.date || daysBetween(point.date, last.date) <= rule.withinDays);
+            if (!window.length) return;
+
+            const highest = window.reduce((best, point) => point.num > best.num ? point : best, window[0]);
+            const lowest = window.reduce((best, point) => point.num < best.num ? point : best, window[0]);
+            let reference = null;
+            let amount = 0;
+            let word = "";
+
+            if (rule.drop !== undefined && highest.num - last.num >= rule.drop) {
+                reference = highest; amount = highest.num - last.num; word = "Abfall";
+            } else if (rule.rise !== undefined && last.num - lowest.num >= rule.rise) {
+                reference = lowest; amount = last.num - lowest.num; word = "Anstieg";
+            } else if (rule.dropPercent !== undefined && highest.num > 0
+                && (highest.num - last.num) / highest.num * 100 >= rule.dropPercent) {
+                reference = highest; amount = highest.num - last.num; word = "Abfall";
+            } else if (rule.risePercent !== undefined && lowest.num > 0
+                && (last.num - lowest.num) / lowest.num * 100 >= rule.risePercent) {
+                reference = lowest; amount = last.num - lowest.num; word = "Anstieg";
+            } else if (rule.change !== undefined) {
+                const downwards = highest.num - last.num;
+                const upwards = last.num - lowest.num;
+                if (Math.max(downwards, upwards) >= rule.change) {
+                    reference = downwards > upwards ? highest : lowest;
+                    amount = Math.max(downwards, upwards);
+                    word = downwards > upwards ? "Abfall" : "Anstieg";
+                }
+            }
+            if (!reference) return;
+
+            const span = daysBetween(reference.date, last.date);
+            warnings.push({
+                code: rule.code,
+                label: rule.label || last.label,
+                severity: rule.severity || "medium",
+                note: rule.note || "",
+                direction: word === "Abfall" ? "down" : "up",
+                amount: Math.round(amount * 100) / 100,
+                unit: rule.unit || last.unit || "",
+                from: reference,
+                to: last,
+                days: span,
+                text: `${rule.label || last.label}: ${word} ${formatNumber(Math.round(amount * 100) / 100)}${rule.unit ? " " + rule.unit : ""}`
+                    + ` (${reference.value} → ${last.value}${span ? ` in ${span} ${span === 1 ? "Tag" : "Tagen"}` : " am selben Tag"})`
+            });
+        });
+        // Mehrere Regeln je Parameter (absolut und prozentual) dürfen nur eine Meldung ergeben.
+        const best = new Map();
+        const rank = { high: 2, medium: 1, low: 0 };
+        warnings.forEach((warning) => {
+            const key = `${bareCode(warning.code)}|${warning.direction}`;
+            const kept = best.get(key);
+            if (!kept || (rank[warning.severity] || 0) > (rank[kept.severity] || 0)
+                || ((rank[warning.severity] || 0) === (rank[kept.severity] || 0) && warning.amount > kept.amount)) {
+                best.set(key, warning);
+            }
+        });
+        return [...best.values()].sort((a, b) => (rank[b.severity] || 0) - (rank[a.severity] || 0));
+    }
+
     function buildAbnormalSummary(sets) {
         const list = sortSets(sets);
         if (!list.length) return "";
@@ -404,6 +526,7 @@
 
     return {
         parse, quickLabs, buildCourse, buildAbnormalSummary, formatEntry, formatDate, setTitle, mergeColumns, uniqueKeys,
+        series, buildTrends, checkDeltas, daysBetween,
         parseReference, normalize, toNumber, sortSets, BGA_REFERENCE
     };
 });

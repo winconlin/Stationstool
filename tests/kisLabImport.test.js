@@ -235,3 +235,92 @@ test('makes collections of the same moment distinguishable', () => {
   parser.uniqueKeys(sets);
   assert.deepEqual(sets.map((set) => set.label), ['', 'Messung 2', 'Arteriell', 'Arteriell (2)']);
 });
+
+// Verlauf und relevante Änderungen
+const course = [
+  { type: 'labor', date: '2026-09-20', time: '', label: '', entries: [
+    { code: 'V_HB', label: 'Hämoglobin', unit: 'g/dl', ref: '13,7 - 17,5', value: '13,0', num: 13.0, status: 'low' },
+    { code: 'V_KREA', label: 'Kreatinin', unit: 'mg/dl', ref: '0,7 - 1,2', value: '0,9', num: 0.9, status: 'normal' },
+    { code: 'V_NA', label: 'Natrium', unit: 'mmol/l', ref: '136 - 145', value: '140', num: 140, status: 'normal' }] },
+  { type: 'labor', date: '2026-09-21', time: '', label: '', entries: [
+    { code: 'V_HB', label: 'Hämoglobin', unit: 'g/dl', ref: '13,7 - 17,5', value: '12,2', num: 12.2, status: 'low' },
+    { code: 'V_KREA', label: 'Kreatinin', unit: 'mg/dl', ref: '0,7 - 1,2', value: '1,0', num: 1.0, status: 'normal' },
+    { code: 'V_NA', label: 'Natrium', unit: 'mmol/l', ref: '136 - 145', value: '136', num: 136, status: 'normal' }] },
+  { type: 'labor', date: '2026-09-22', time: '', label: '', entries: [
+    { code: 'V_HB', label: 'Hämoglobin', unit: 'g/dl', ref: '13,7 - 17,5', value: '10,4', num: 10.4, status: 'low' },
+    { code: 'V_KREA', label: 'Kreatinin', unit: 'mg/dl', ref: '0,7 - 1,2', value: '1,6', num: 1.6, status: 'high' },
+    { code: 'V_NA', label: 'Natrium', unit: 'mmol/l', ref: '136 - 145', value: '128', num: 128, status: 'low' }] }
+];
+
+const rules = [
+  { code: 'V_HB', label: 'Hb-Abfall', drop: 2, unit: 'g/dl', withinDays: 3, severity: 'high', note: 'Blutungsquelle?' },
+  { code: 'V_KREA', label: 'Kreatinin-Anstieg', rise: 0.3, unit: 'mg/dl', withinDays: 2, severity: 'high' },
+  { code: 'V_KREA', label: 'Kreatinin-Verdopplung', risePercent: 100, unit: 'mg/dl', withinDays: 7, severity: 'medium' },
+  { code: 'V_NA', label: 'Natrium-Änderung', change: 8, unit: 'mmol/l', withinDays: 1, severity: 'high' },
+  { code: 'V_THR', label: 'Thrombozyten-Abfall', dropPercent: 30, unit: 'G/l', withinDays: 3, severity: 'medium' }
+];
+
+test('reads the series of one parameter in chronological order', () => {
+  const points = parser.series(course, 'V_HB');
+  assert.deepEqual(points.map((point) => point.value), ['13,0', '12,2', '10,4']);
+  assert.deepEqual(points.map((point) => point.num), [13, 12.2, 10.4]);
+  assert.equal(parser.series(course, 'V_TSH').length, 0);
+});
+
+test('recovers the number from the text when an older collection stored none', () => {
+  const legacy = [{ type: 'labor', date: '2026-09-20', time: '', label: '', entries: [
+    { code: 'V_CRP', label: 'CRP', unit: 'mg/dl', ref: '<0,5', value: '5,50', status: 'high' }] }];
+  assert.deepEqual(parser.series(legacy, 'V_CRP').map((point) => point.num), [5.5]);
+});
+
+test('matches a parameter across differing code prefixes', () => {
+  const mixed = [
+    { type: 'bga', date: '2026-09-20', time: '', label: '', entries: [{ code: 'RM_K+', label: 'K+', unit: '', ref: '', value: '4,0', num: 4.0, status: 'normal' }] },
+    { type: 'bga', date: '2026-09-21', time: '', label: '', entries: [{ code: 'V_K', label: 'Kalium', unit: '', ref: '', value: '5,4', num: 5.4, status: 'high' }] }
+  ];
+  assert.equal(parser.series(mixed, 'V_K').length, 2);
+});
+
+test('gives the latest value, its direction and the gap to the previous one', () => {
+  const [hb] = parser.buildTrends(course, [{ code: 'V_HB', label: 'Hb' }]);
+  assert.equal(hb.label, 'Hb');
+  assert.equal(hb.last.value, '10,4');
+  assert.equal(hb.previous.value, '12,2');
+  assert.equal(hb.direction, 'down');
+  assert.equal(hb.days, 1);
+  assert.equal(hb.points.length, 3);
+  assert.deepEqual(parser.buildTrends(course, [{ code: 'V_TSH' }]), []);
+});
+
+test('reports a relevant change even while the value is still inside the range', () => {
+  const warnings = parser.checkDeltas(course, rules);
+  const hb = warnings.find((warning) => warning.code === 'V_HB');
+  assert.equal(hb.severity, 'high');
+  assert.equal(hb.direction, 'down');
+  assert.equal(hb.amount, 2.6);
+  assert.match(hb.text, /Abfall 2,6 g\/dl \(13,0 → 10,4 in 2 Tagen\)/);
+  // Kreatinin war bei beiden Messungen im Normbereich und wird dennoch gemeldet.
+  assert.match(warnings.find((warning) => warning.code === 'V_KREA').text, /Anstieg 0,7 mg\/dl/);
+});
+
+test('respects the time window of a rule', () => {
+  const natrium = parser.checkDeltas(course, rules).find((warning) => warning.code === 'V_NA');
+  // Innerhalb eines Tages: 136 → 128, nicht 140 → 128.
+  assert.equal(natrium.from.value, '136');
+  assert.equal(natrium.amount, 8);
+  assert.equal(natrium.days, 1);
+});
+
+test('keeps one warning per parameter and direction, the most severe first', () => {
+  const warnings = parser.checkDeltas(course, rules);
+  assert.equal(warnings.filter((warning) => warning.code === 'V_KREA').length, 1);
+  assert.equal(warnings.find((warning) => warning.code === 'V_KREA').severity, 'high');
+  assert.deepEqual([...new Set(warnings.map((warning) => warning.severity))], ['high']);
+});
+
+test('stays quiet without a second measurement or when the course improves', () => {
+  assert.deepEqual(parser.checkDeltas([course[0]], rules), []);
+  const improving = [course[2], { ...course[0], date: '2026-09-23' }];
+  assert.equal(improving.length, 2);
+  assert.equal(parser.checkDeltas(improving, rules).some((warning) => warning.code === 'V_HB'), false);
+});
