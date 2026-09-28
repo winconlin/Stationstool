@@ -177,3 +177,61 @@ test('summarises only the abnormal values of the most recent collection', () => 
   assert.equal(summary.split('\n').length, 3);
   assert.equal(parser.buildAbnormalSummary([]), '');
 });
+
+// Laborverlauf über mehrere Tage: irreguläre Spaltenabstände, ausstehende und vorläufige Werte.
+const multiDayLab = [
+  'V_PROBE\tAuftrag aktiviert\t\t\t\tAuftrag aktiviert\t\t\tAuftrag aktiviert\t\t\t\t\tAuftrag aktiviert',
+  'V_CRP\tC-reaktives Protein\tmg/dl\t\t\t5,50 +\t\t\t9,91 +\t\t\t\t\t(folgt) ',
+  'V_HB\tHämoglobin\tg/dl\t13,7 - 17,5\t\t10,9 -\t\t\t10,2 -\t\t\t\t\t(10,2) -',
+  'V_LEU\tLeukozyten\tG/l\t4,23 - 9,07\t\t10,65 +\t\t\t6,45\t\t\t\t\t(7,74) ',
+  'V_THROAG\tThrombozytenaggregate\t\t\t\tnegativ\t\t\tentfällt\t\t\t\t\tentfällt',
+  'V_KLBB\tKleines Blutbild:\t\t\t\t.\t\t\t.\t\t\t\t\t.'
+].join('\n');
+
+test('keeps irregularly spaced value columns apart', () => {
+  const result = parser.parse(multiDayLab);
+  assert.equal(result.columns.length, 3);
+  assert.deepEqual(result.columns.map((column) => column.entries.length), [4, 3, 2]);
+});
+
+test('skips results that are still pending or not applicable', () => {
+  const [, second, third] = parser.parse(multiDayLab).columns;
+  assert.equal(third.entries.some((entry) => entry.code === 'V_CRP'), false);
+  assert.equal(second.entries.some((entry) => entry.code === 'V_THROAG'), false);
+  assert.equal(third.entries.some((entry) => /Blutbild/.test(entry.label)), false);
+});
+
+test('reads a value in parentheses as a preliminary result and keeps its rating', () => {
+  const third = parser.parse(multiDayLab).columns[2];
+  const hb = third.entries.find((entry) => entry.code === 'V_HB');
+  assert.deepEqual({ value: hb.value, preliminary: hb.preliminary, status: hb.status },
+    { value: '10,2', preliminary: true, status: 'low' });
+  const leu = third.entries.find((entry) => entry.code === 'V_LEU');
+  assert.deepEqual({ value: leu.value, preliminary: leu.preliminary, status: leu.status },
+    { value: '7,74', preliminary: true, status: 'normal' });
+});
+
+test('marks preliminary values in the course table and keeps every collection as a column', () => {
+  const result = parser.parse(multiDayLab);
+  const sets = result.columns.map((column, index) => ({
+    type: 'labor', date: `2026-09-${16 + index}`, time: '', label: '', entries: column.entries
+  }));
+  const course = parser.buildCourse(sets);
+  assert.match(course.split('\n')[0], /16\.09\..*17\.09\..*18\.09\./);
+  assert.match(course.split('\n').find((line) => line.startsWith('Hämoglobin')), /\(10,2\) -/);
+});
+
+test('leaves the column label empty when the export names no sample type', () => {
+  assert.deepEqual(parser.parse(multiDayLab).columns.map((column) => column.label), ['', '', '']);
+});
+
+test('makes collections of the same moment distinguishable', () => {
+  const sets = [
+    { type: 'labor', date: '2026-09-16', time: '', label: '', entries: [1] },
+    { type: 'labor', date: '2026-09-16', time: '', label: '', entries: [1] },
+    { type: 'bga', date: '2026-09-16', time: '', label: 'Arteriell', entries: [1] },
+    { type: 'bga', date: '2026-09-16', time: '', label: 'Arteriell', entries: [1] }
+  ];
+  parser.uniqueKeys(sets);
+  assert.deepEqual(sets.map((set) => set.label), ['', 'Messung 2', 'Arteriell', 'Arteriell (2)']);
+});

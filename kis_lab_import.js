@@ -7,7 +7,8 @@
 
     // Die ersten vier Spalten beschreiben den Parameter, danach folgt je Messung eine Wertspalte.
     const HEADER_COLUMNS = 4;
-    const IGNORED_VALUES = new Set(["nb", "siehe befund", "auftrag aktiviert", "auftrag", "nein", "ja"]);
+    const IGNORED_VALUES = new Set(["nb", "siehe befund", "auftrag aktiviert", "auftrag", "nein", "ja",
+        "folgt", "entfallt", "ausstehend", "in arbeit", "nicht durchgefuhrt", "nicht bestimmbar", "s bem"]);
     const IGNORED_CODES = /^(V_PROBE|V_AUFTRAG|PROBE|RM_STORNO|STORNO)$/i;
     const SAMPLE_TYPE_KEYS = ["probentyp", "probenart", "material", "probenmaterial"];
     const TIMESTAMP_KEYS = ["datum", "zeit", "datum zeit", "zeitpunkt", "entnahme", "abnahme",
@@ -118,6 +119,13 @@
         return { value: match[1].trim(), flag: match[2] };
     }
 
+    // Noch nicht validierte Werte gibt das KIS in Klammern aus: "(7,74)".
+    function splitPreliminary(value) {
+        const match = (value || "").match(/^\((.*)\)$/);
+        if (match) return { value: match[1].trim(), preliminary: true };
+        return { value: (value || "").trim(), preliminary: false };
+    }
+
     function parseMeasurement(raw) {
         const match = (raw || "").match(/^([<>]=?)?\s*(-?[\d]+(?:[.,]\d+)?)/);
         if (!match) return { comparator: "", num: null };
@@ -224,12 +232,15 @@
 
             let used = false;
             cells.forEach((cell, position) => {
-                if (isPlaceholder(cell) || normalize(cell) === normalize(label)) return;
+                if (isPlaceholder(cell)) return;
                 const flagged = splitFlag(cell);
-                const measured = parseMeasurement(flagged.value);
+                const preliminary = splitPreliminary(flagged.value);
+                if (isPlaceholder(preliminary.value) || normalize(preliminary.value) === normalize(label)) return;
+                const measured = parseMeasurement(preliminary.value);
                 columns[position].entries.push({
                     code, label: label || code, unit, section,
-                    value: flagged.value,
+                    value: preliminary.value,
+                    preliminary: preliminary.preliminary,
                     flag: flagged.flag,
                     comparator: measured.comparator,
                     num: measured.num,
@@ -261,7 +272,6 @@
             column.date = column.date || settings.date || documentStamp.date || "";
             column.time = column.time || (columns.length === 1 ? (settings.time || documentStamp.time) : column.time) || "";
             column.abnormal = column.entries.filter((entry) => entry.abnormal);
-            if (!column.label && columns.length > 1) column.label = `Messung ${position + 1}`;
             // Gleichnamige Spalten (z. B. zweimal "Arteriell") müssen unterscheidbar bleiben.
             if (column.label) {
                 usedLabels[column.label] = (usedLabels[column.label] || 0) + 1;
@@ -309,6 +319,17 @@
         return [formatDate(set.date), set.time, set.label].filter(Boolean).join(" ");
     }
 
+    // Sorgt dafür, dass mehrere Messungen desselben Zeitpunkts unterscheidbar bleiben.
+    function uniqueKeys(sets) {
+        const used = {};
+        (sets || []).forEach((set) => {
+            const base = `${set.type}|${set.date || ""}|${set.time || ""}|${set.label || ""}`;
+            used[base] = (used[base] || 0) + 1;
+            if (used[base] > 1) set.label = set.label ? `${set.label} (${used[base]})` : `Messung ${used[base]}`;
+        });
+        return sets || [];
+    }
+
     function sortSets(sets) {
         return (sets || []).filter((set) => set && Array.isArray(set.entries) && set.entries.length)
             .slice().sort((a, b) => `${a.date || ""}${a.time || ""}`.localeCompare(`${b.date || ""}${b.time || ""}`));
@@ -317,7 +338,7 @@
     // Baut eine Verlaufstabelle (eine Spalte je Messung) für den Epikrisen-Prompt.
     function buildCourse(sets, options) {
         const settings = options || {};
-        const list = sortSets(sets).slice(-(settings.maxColumns || 8));
+        const list = sortSets(sets).slice(-(settings.maxColumns || 20));
         if (!list.length) return "";
 
         const order = [];
@@ -333,7 +354,7 @@
                 if (!row.ref && entry.ref) row.ref = entry.ref;
                 if (!row.unit && entry.unit) row.unit = entry.unit;
                 const marker = entry.status === "high" ? " +" : entry.status === "low" ? " -" : "";
-                row.values[index] = `${entry.value}${marker}`;
+                row.values[index] = `${entry.preliminary ? `(${entry.value})` : entry.value}${marker}`;
             });
         });
 
@@ -382,7 +403,7 @@
     }
 
     return {
-        parse, quickLabs, buildCourse, buildAbnormalSummary, formatEntry, formatDate, setTitle, mergeColumns,
+        parse, quickLabs, buildCourse, buildAbnormalSummary, formatEntry, formatDate, setTitle, mergeColumns, uniqueKeys,
         parseReference, normalize, toNumber, sortSets, BGA_REFERENCE
     };
 });

@@ -61,9 +61,16 @@
             "empaglifozin": "empagliflozin"
         };
         const wanted = aliases[base] || base;
+        // Teiltreffer nur am Wortanfang: sonst steckt z. B. "ASS" in "Wasser für Injektionszwecke".
+        const startsWord = (haystack, needle) => needle.length > 2
+            && new RegExp(`(^|\\s)${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(haystack);
         return candidates.find((candidate) => {
             const c = normalize(candidate);
-            return c === wanted || c.startsWith(wanted + " ") || wanted.startsWith(c + " ") || raw.includes(c);
+            // Der Klammerzusatz ist ein Handelsname, alles davor gehört zum Wirkstoff:
+            // "Furosemid (Lasix)" darf auf Furosemid passen, "Ampicillin/Sulbactam" nicht auf Ampicillin.
+            const cBase = normalize(candidate.replace(/\([^)]*\)/g, ""));
+            return c === wanted || cBase === wanted || wanted.startsWith(cBase + " ")
+                || startsWord(raw, cBase) || startsWord(wanted, cBase);
         }) || "";
     }
 
@@ -116,8 +123,10 @@
     }
 
     function formatMedication(med) {
-        return [med.knownName || med.name, med.dose, med.route ? `[${med.route}]` : ""].filter(Boolean).join(" · ");
+        // Die Medikamentenliste wird komma-separiert gespeichert: jedes Komma würde sie zerreißen.
+        const clean = (value) => (value || "").replace(/,(?!\d)/g, " /").replace(/,(\d)/g, ".$1").replace(/\s{2,}/g, " ").trim();
+        return [clean(med.knownName || med.name), clean(med.dose), med.route ? `[${med.route}]` : ""].filter(Boolean).join(" · ");
     }
 
-    return { parse, samePatient, formatMedication, normalize };
+    return { parse, samePatient, formatMedication, normalize, baseName, matchCatalog: findKnown };
 });

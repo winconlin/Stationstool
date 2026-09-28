@@ -25,6 +25,19 @@
     // Felder, die pro Patient gespeichert werden (die übrigen werden aus den Stationsdaten erzeugt).
     const FREE_TEXT_FIELDS = ["anamnese", "verlauf", "notizen", "procedere", "sonstiges", "epikrise"];
 
+    // Reihenfolge im Formular; die Reihenfolge im Prompt bleibt die von FIELDS.
+    const FORM_ORDER = ["aktuelle_diagnosen", "bekannte_diagnosen", "anamnese", "koerperliche_untersuchung",
+        "notizen", "epikrise", "untersuchungsbefunde", "laborverlauf", "bga", "medikation", "verlauf",
+        "procedere", "sonstiges"];
+
+    // Zusätzliche Arbeitsaufträge am Ende des Prompts.
+    const INSTRUCTIONS = [
+        { key: "procedere", text: "" },
+        { key: "analyse", text: "Analysiere den Verlauf anhand der vorhandenen Daten." },
+        { key: "rueckfragen", text: "Stelle bei Unklarheiten entsprechende Rückfragen." },
+        { key: "vorschlaege", text: "Mache Vorschläge zum weiteren Vorgehen in diesem Verlauf." }
+    ];
+
     function escapeRegExp(value) {
         return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     }
@@ -84,6 +97,8 @@
         const niveau = settings.niveau || "Chefarzt";
         prompt += `\nVerfasse eine kurze Epikrise auf ${niveau}niveau für die oben verfassten Befunde`;
         prompt += settings.procedere === false ? ".\n" : ", dazu stichpunktartiges Procedere.\n";
+        INSTRUCTIONS.filter((item) => item.text && settings[item.key] !== false)
+            .forEach((item) => { prompt += `${item.text}\n`; });
         if (useMuster) prompt += "Falls eine Musterepikrise angegeben ist, soll sich die Epikrise stark an der Musterepikrise orientieren.\n";
         prompt += "Die Daten sind pseudonymisiert; verwende keine Namen oder Geburtsdaten.\n";
 
@@ -91,5 +106,14 @@
         return scrub(prompt, settings.patient);
     }
 
-    return { FIELDS, FREE_TEXT_FIELDS, buildPrompt, scrub, dateVariants, basicsLine };
+    // Formularfelder in Anzeigereihenfolge – auch die leeren, damit sie ausgefüllt werden können.
+    function formFields() {
+        const byId = {};
+        FIELDS.forEach((field) => { byId[field.id] = field; });
+        const ordered = FORM_ORDER.map((id) => byId[id]).filter(Boolean);
+        FIELDS.forEach((field) => { if (!FORM_ORDER.includes(field.id)) ordered.push(field); });
+        return ordered;
+    }
+
+    return { FIELDS, FREE_TEXT_FIELDS, FORM_ORDER, INSTRUCTIONS, formFields, buildPrompt, scrub, dateVariants, basicsLine };
 });

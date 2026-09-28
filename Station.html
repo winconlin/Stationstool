@@ -9,6 +9,7 @@
     <script src="config_meds.js"></script> 
     <script src="kis_med_import.js"></script>
     <script src="kis_lab_import.js"></script>
+    <script src="id_pharma_import.js"></script>
     <script src="epikrise_export.js"></script>
     <script src="config_exam.js"></script> 
     <script src="config_scores.js"></script> 
@@ -24,6 +25,7 @@
                 <button onclick="exportData()" aria-label="Daten exportieren" title="Backup erstellen" class="bg-purple-600 hover:bg-purple-500 px-3 py-1 rounded">💾 Backup</button>
                 <button onclick="exportAnonData()" aria-label="Anonyme Daten exportieren" title="Anonymes Backup erstellen" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1 rounded">👻 Anon Backup</button>
                 <label class="bg-purple-800 hover:bg-purple-700 px-3 py-1 rounded cursor-pointer">📂 Import<input type="file" id="importFile" class="hidden" onchange="importData(this)" accept=".json"></label>
+                <button onclick="openQuickImport()" aria-label="Schnell-Import" title="Einfügen – Format wird erkannt (Strg+V)" class="bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold px-3 py-1 rounded border border-amber-300">⚡ Schnell-Import</button>
                 <button onclick="openImportModal()" aria-label="KIS Import öffnen" title="KIS Import" class="bg-teal-600 hover:bg-teal-500 px-3 py-1 rounded border border-teal-400">📋 KIS-Import</button>
                 <div class="h-4 w-px bg-indigo-700 mx-1"></div>
                 <button onclick="startNewDay()" aria-label="Neuen Tag starten" title="To-Dos zurücksetzen" class="bg-yellow-600 hover:bg-yellow-500 px-3 py-1 rounded">☀️ Tag</button>
@@ -76,10 +78,18 @@
         <div class="modal-content max-w-4xl flex flex-col max-h-[90vh]">
             <div class="flex justify-between items-center border-b pb-2 mb-2"><h2 class="text-xl font-bold text-teal-900">KIS-Medikationsimport</h2><button onclick="closeKisMedModal()" class="text-2xl px-2">&times;</button></div>
             <p class="text-xs text-slate-500 mb-2">Export vollständig einfügen. Name und Geburtsdatum werden mit dem ausgewählten Patienten verglichen; unbekannte Präparate bleiben lokal auf diesem Gerät gespeichert.</p>
-            <textarea id="kis-med-input" class="w-full h-48 border p-2 font-mono text-xs bg-slate-50 rounded" placeholder="KIS-Medikationsplan hier einfügen …" oninput="previewKisMedication()"></textarea>
+            <textarea id="kis-med-input" class="w-full h-32 border p-2 font-mono text-xs bg-slate-50 rounded" placeholder="Medikationsplan einfügen – KIS-Kurve oder ID PHARMA CHECK …" oninput="previewKisMedication()"></textarea>
+            <button onclick="pasteFromClipboard('kis-med-input', previewKisMedication)" class="text-xs bg-slate-100 hover:bg-slate-200 border px-2 py-1 rounded self-start mt-1">📋 Aus Zwischenablage einfügen</button>
             <div id="kis-med-patient-check" class="my-2"></div>
+            <div class="flex items-center justify-between gap-2 text-xs mb-1">
+                <div id="kis-med-format" class="text-slate-500"></div>
+                <div class="flex gap-1 flex-shrink-0">
+                    <button onclick="setAllKisMedications(true)" class="text-[10px] bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded border">alle</button>
+                    <button onclick="setAllKisMedications(false)" class="text-[10px] bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded border">keine</button>
+                </div>
+            </div>
             <div id="kis-med-preview" class="flex-grow min-h-24 border rounded bg-white overflow-y-auto p-2"></div>
-            <div class="flex justify-end mt-3"><button id="kis-med-import-button" onclick="executeKisMedicationImport()" disabled class="bg-teal-600 text-white font-bold px-5 py-2 rounded disabled:opacity-40">Medikamente importieren</button></div>
+            <div class="flex justify-between items-center mt-3"><label class="flex items-center gap-1 text-xs text-slate-600"><input type="checkbox" id="kis-med-replace" checked> Bestehende Medikation ersetzen</label><button id="kis-med-import-button" onclick="executeKisMedicationImport()" disabled class="bg-teal-600 text-white font-bold px-5 py-2 rounded disabled:opacity-40">Medikamente importieren</button></div>
         </div>
     </div>
 
@@ -98,6 +108,29 @@
         <div class="modal-content max-w-4xl h-[80vh] flex flex-col"><div class="flex justify-between items-center border-b pb-2 mb-2"><h2 class="text-xl font-bold text-teal-800">Import aus Medico</h2><button onclick="document.getElementById('importModal').style.display='none'" class="text-2xl px-2">&times;</button></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow overflow-hidden"><div class="flex flex-col gap-2"><textarea id="pasteArea" class="w-full flex-grow border p-2 font-mono text-xs bg-slate-50 rounded resize-none" placeholder="Format: [Zi] [FallNr] Name..." oninput="parsePasteData()"></textarea></div><div class="flex flex-col gap-2"><div class="flex justify-between items-end"><p class="text-sm font-bold">Vorschau (<span id="previewCount">0</span>)</p></div><div id="importPreview" class="flex-grow border rounded bg-white overflow-y-auto p-2 space-y-2"></div><button onclick="executeImport()" class="bg-teal-600 text-white font-bold py-2 rounded hover:bg-teal-500 disabled:opacity-50" id="btnImportAction" disabled>Importieren</button></div></div></div>
     </div>
 
+    <div id="quickImportModal" class="modal no-print" onkeydown="handleModalKey(event, 'quickImportModal')">
+        <div class="modal-content max-w-3xl flex flex-col">
+            <div class="flex justify-between items-center border-b pb-2 mb-2 flex-shrink-0"><h2 class="text-xl font-bold text-amber-700">⚡ Schnell-Import</h2><button onclick="closeQuickImport()" class="text-2xl px-2">&times;</button></div>
+            <p class="text-xs text-slate-500 mb-2">In Medico oder ID PHARMA CHECK kopieren und hier einfügen – das Format wird selbst erkannt. Patientenliste, Laborbefund, BGA, Medikationsplan und BMP-Barcode sind möglich.</p>
+            <textarea id="quick-input" oninput="detectQuickImport()" class="w-full h-32 border p-2 font-mono text-xs bg-slate-50 rounded" placeholder="Hier einfügen (Strg+V) …"></textarea>
+            <div class="flex items-center gap-2 mt-2 flex-wrap">
+                <button onclick="pasteFromClipboard('quick-input', detectQuickImport)" class="text-xs bg-slate-100 hover:bg-slate-200 border px-2 py-1 rounded">📋 Aus Zwischenablage</button>
+                <label class="text-xs flex items-center gap-1">Format: <select id="quick-kind" onchange="renderQuickImport()" class="border rounded p-1 text-xs">
+                    <option value="">– erkannt –</option>
+                    <option value="patients">Patientenliste</option>
+                    <option value="labor">Laborbefund</option>
+                    <option value="bga">BGA</option>
+                    <option value="idpharma">Medikationsplan (ID PHARMA)</option>
+                    <option value="kismeds">Medikationsplan (KIS-Kurve)</option>
+                    <option value="bmp">BMP-Barcode</option>
+                </select></label>
+            </div>
+            <div id="quick-detect" class="text-xs mt-2"></div>
+            <div id="quick-patient" class="mt-2 empty:hidden"></div>
+            <div class="flex justify-end mt-3"><button id="quick-go" onclick="runQuickImport()" disabled class="bg-amber-500 text-slate-900 font-bold px-5 py-2 rounded disabled:opacity-40">Weiter</button></div>
+        </div>
+    </div>
+
     <div id="labModal" class="modal no-print" onkeydown="handleModalKey(event, 'labModal')">
         <div class="modal-content max-w-5xl h-[88vh] flex flex-col">
             <div class="flex justify-between items-center border-b pb-2 mb-2 flex-shrink-0"><h2 class="text-xl font-bold text-blue-900">🧪 Laborwerte / BGA aus KIS importieren</h2><button onclick="closeLabModal()" class="text-2xl px-2">&times;</button></div>
@@ -110,10 +143,13 @@
                         <label class="flex flex-col text-[9px] font-bold uppercase text-slate-500">Uhrzeit<input type="time" id="lab-time" onchange="AppState.labDateTouched = true; previewLabImport()" class="border rounded p-1 text-xs font-normal"></label>
                     </div>
                     <textarea id="lab-input" oninput="previewLabImport()" class="w-full flex-grow border p-2 font-mono text-xs bg-slate-50 rounded resize-none" placeholder="KIS-Export einfügen (Spalten: Kürzel · Bezeichnung · Einheit · Referenz · Wert) …"></textarea>
+                    <button onclick="pasteFromClipboard('lab-input', previewLabImport)" class="text-xs bg-slate-100 hover:bg-slate-200 border px-2 py-1 rounded flex-shrink-0">📋 Aus Zwischenablage einfügen</button>
                 </div>
                 <div class="flex flex-col gap-2 overflow-hidden">
                     <div id="lab-summary" class="text-xs flex-shrink-0"></div>
-                    <div id="lab-preview" class="flex-grow border rounded bg-white overflow-y-auto p-2"></div>
+                    <div id="lab-assign" class="flex-shrink-0 empty:hidden"></div>
+                    <label class="flex items-center gap-1 text-[10px] text-slate-500 flex-shrink-0 empty:hidden"><input type="checkbox" id="lab-only-abnormal" onchange="previewLabImport()"> nur Werte außerhalb der Norm zeigen</label>
+                    <div id="lab-preview" class="flex-grow border rounded bg-white overflow-auto p-2"></div>
                     <button id="lab-import-button" onclick="executeLabImport()" disabled class="bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-500 disabled:opacity-40 flex-shrink-0">Werte übernehmen</button>
                 </div>
             </div>
@@ -133,6 +169,9 @@
                         <label class="flex items-center gap-1"><input type="checkbox" id="epi-chefarzt" onchange="setEpikriseLevel('chefarzt')" checked> Chefarzt</label>
                         <label class="flex items-center gap-1"><input type="checkbox" id="epi-cb-muster" checked onchange="generateEpikrisePrompt()"> Musterepikrise</label>
                         <label class="flex items-center gap-1"><input type="checkbox" id="epi-cb-procedere" checked onchange="generateEpikrisePrompt()"> Procedere generieren</label>
+                        <label class="flex items-center gap-1"><input type="checkbox" id="epi-cb-analyse" checked onchange="generateEpikrisePrompt()"> Analyse des Verlaufs</label>
+                        <label class="flex items-center gap-1"><input type="checkbox" id="epi-cb-fragen" checked onchange="generateEpikrisePrompt()"> Rückfragen stellen</label>
+                        <label class="flex items-center gap-1"><input type="checkbox" id="epi-cb-vorschlag" checked onchange="generateEpikrisePrompt()"> Vorschläge machen</label>
                         <label class="flex items-center gap-1"><input type="checkbox" id="epi-cb-basics" checked onchange="generateEpikrisePrompt()"> Alter angeben</label>
                     </div>
                     <div class="flex flex-col flex-shrink-0"><label class="text-[10px] font-bold uppercase text-slate-500">Musterepikrise <span class="font-normal normal-case text-slate-400">(gilt für alle Patienten)</span></label><textarea id="epi-muster" oninput="saveMusterepikrise(this.value)" class="border rounded p-2 text-xs font-mono h-20"></textarea></div>
@@ -147,7 +186,7 @@
     <script>
         if(typeof MED_GROUPS === 'undefined') showToast("ACHTUNG: Config Dateien fehlen!", true);
 
-        const AppState = { patients: [], currentEditingId: null, tempSelectedMeds: new Set(), tempPausedMeds: new Set(), tempBedarfMeds: new Set(), parsedPatients: [], parsedKisMedication: null, parsedLabImport: null, labDateTouched: false, labColumnSelection: [] };
+        const AppState = { patients: [], currentEditingId: null, tempSelectedMeds: new Set(), tempPausedMeds: new Set(), tempBedarfMeds: new Set(), parsedPatients: [], parsedKisMedication: null, parsedLabImport: null, labDateTouched: false, labColumnSelection: [], labColumnMeta: [], labFillStart: '', labFillStep: '1', quickImportKind: '' };
 
 
 
@@ -162,6 +201,16 @@
             setupExamBuilder();
             document.addEventListener('keydown', function(e) { if (e.ctrlKey && e.altKey && e.key === 'n') addNewPatient(); });
             document.addEventListener('keydown', activateKeyboardButton);
+            // Einfügen ohne vorher ein Fenster zu öffnen: landet direkt im Schnell-Import.
+            document.addEventListener('paste', function(e) {
+                const target = e.target;
+                if(target && (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable)) return;
+                if([...document.querySelectorAll('.modal')].some(m => m.style.display === 'block')) return;
+                const text = (e.clipboardData || window.clipboardData).getData('text');
+                if(!text || !text.trim()) return;
+                e.preventDefault();
+                openQuickImport(text);
+            });
         };
         
         function changePrintMode() {
@@ -710,44 +759,126 @@
             const text = document.getElementById('kis-med-input').value;
             const preview = document.getElementById('kis-med-preview');
             const check = document.getElementById('kis-med-patient-check');
+            const format = document.getElementById('kis-med-format');
             const button = document.getElementById('kis-med-import-button');
             if(!text.trim()) {
                 AppState.parsedKisMedication = null;
-                preview.innerHTML = '<p class="text-xs text-slate-400">Noch keine Daten eingefügt.</p>';
+                preview.innerHTML = '<p class="text-xs text-slate-400">Noch keine Daten eingefügt. Erkannt werden die KIS-Kurve und der Medikationsplan aus ID PHARMA CHECK.</p>';
                 check.innerHTML = '';
+                format.innerHTML = '';
                 button.disabled = true;
                 return;
             }
-            const result = KisMedicationImport.parse(text, MED_GROUPS);
+
+            // Welches Format eingefügt wurde, entscheidet der Inhalt.
+            const isIdPharma = typeof IdPharmaImport !== 'undefined' && IdPharmaImport.looksLikeIdPharma(text);
+            const parser = isIdPharma ? IdPharmaImport : KisMedicationImport;
+            const result = parser.parse(text, MED_GROUPS);
             const patient = AppState.patients.find(x => x.id === AppState.currentEditingId);
-            const match = KisMedicationImport.samePatient(result.patient, patient || {});
-            AppState.parsedKisMedication = { ...result, match };
-            const matches = match.nameMatches && match.dobMatches;
-            const importedIdentity = [result.patient.name || 'Name nicht erkannt', result.patient.dob || 'Geburtsdatum nicht erkannt'].join(' · ');
-            check.innerHTML = `<div class="${matches ? 'bg-green-50 text-green-800 border-green-200' : 'bg-orange-50 text-orange-900 border-orange-300'} border rounded p-2 text-sm"><strong>${matches ? '✓ Patient stimmt überein' : '⚠ Patientendaten weichen ab'}</strong><div class="text-xs">KIS: ${escapeHtml(importedIdentity)} · Stationstool: ${escapeHtml(patient?.name || '–')} · ${escapeHtml(patient?.dob || '–')}</div>${matches ? '' : '<div class="text-xs font-bold mt-1">Der Import ist trotzdem möglich und muss im nächsten Schritt ausdrücklich bestätigt werden.</div>'}</div>`;
-            preview.innerHTML = result.medications.length ? result.medications.map((med) => `<div class="flex justify-between gap-2 border-b py-1 text-xs"><span><strong>${escapeHtml(med.knownName || med.name)}</strong>${med.knownName ? '' : ' <span class="text-orange-600">(neu)</span>'}<br><span class="text-slate-500">${escapeHtml([med.dose, med.route].filter(Boolean).join(' · '))}</span></span><span class="font-bold ${med.paused ? 'text-orange-600' : 'text-green-600'}">${med.paused ? 'PAUSE' : 'AKTUELL'}</span></div>`).join('') : '<p class="text-sm text-red-600">Keine Medikamente erkannt. Bitte prüfen, ob der vollständige KIS-Export eingefügt wurde.</p>';
-            button.disabled = result.medications.length === 0;
+            const match = KisMedicationImport.samePatient(result.patient || {name:'', dob:''}, patient || {});
+            const previous = AppState.parsedKisMedication;
+            const keepSelection = previous && previous.medications.length === result.medications.length;
+            AppState.parsedKisMedication = {
+                source: isIdPharma ? 'idpharma' : 'kis',
+                parser,
+                medications: result.medications,
+                patient: result.patient,
+                sections: result.sections || [],
+                match,
+                // Trägerlösungen einer Mischung sind klinisch uninteressant und bleiben abgewählt.
+                selection: result.medications.map((med, index) => keepSelection ? previous.selection[index] : !med.carrier),
+                states: result.medications.map((med, index) => keepSelection ? previous.states[index] : (med.paused ? 'paused' : (med.status || 'current')))
+            };
+
+            format.innerHTML = `Format: <strong>${isIdPharma ? 'ID PHARMA CHECK' : 'KIS-Medikationsplan'}</strong> · ${result.medications.length} Einträge${(result.sections || []).length ? ` · ${escapeHtml(result.sections.join(', '))}` : ''}`;
+
+            if(isIdPharma) {
+                check.innerHTML = '<div class="bg-slate-50 border border-slate-200 rounded p-2 text-xs">Der ID-PHARMA-Export enthält keine Patientendaten – bitte selbst prüfen, dass der Plan zu <strong>' + escapeHtml(patient ? patient.name : '–') + '</strong> gehört.</div>';
+            } else {
+                const matches = match.nameMatches && match.dobMatches;
+                const importedIdentity = [result.patient.name || 'Name nicht erkannt', result.patient.dob || 'Geburtsdatum nicht erkannt'].join(' · ');
+                check.innerHTML = `<div class="${matches ? 'bg-green-50 text-green-800 border-green-200' : 'bg-orange-50 text-orange-900 border-orange-300'} border rounded p-2 text-sm"><strong>${matches ? '✓ Patient stimmt überein' : '⚠ Patientendaten weichen ab'}</strong><div class="text-xs">KIS: ${escapeHtml(importedIdentity)} · Stationstool: ${escapeHtml(patient?.name || '–')} · ${escapeHtml(patient?.dob || '–')}</div>${matches ? '' : '<div class="text-xs font-bold mt-1">Der Import ist trotzdem möglich und muss im nächsten Schritt ausdrücklich bestätigt werden.</div>'}</div>`;
+            }
+
+            renderKisMedicationPreview();
         }
+
+        function renderKisMedicationPreview() {
+            const state = AppState.parsedKisMedication;
+            const preview = document.getElementById('kis-med-preview');
+            const button = document.getElementById('kis-med-import-button');
+            if(!state) return;
+            if(!state.medications.length) {
+                preview.innerHTML = '<p class="text-sm text-red-600">Keine Medikamente erkannt. Bitte prüfen, ob der vollständige Plan eingefügt wurde.</p>';
+                button.disabled = true;
+                return;
+            }
+            let group = null;
+            preview.innerHTML = state.medications.map((med, index) => {
+                let heading = '';
+                if((med.group || '') !== group) {
+                    group = med.group || '';
+                    if(group) heading = `<div class="text-[10px] font-bold uppercase text-cyan-700 mt-1 border-t pt-1">💧 ${escapeHtml(group)}</div>`;
+                }
+                const tone = state.selection[index] ? '' : 'opacity-40';
+                return heading + `<div class="flex items-center gap-2 border-b py-1 text-xs ${tone}">
+                    <input type="checkbox" ${state.selection[index] ? 'checked' : ''} onchange="toggleKisMedication(${index}, this.checked)">
+                    <span class="flex-grow min-w-0"><strong>${escapeHtml(med.knownName || med.name)}</strong>${med.knownName ? '' : ' <span class="text-orange-600">(neu)</span>'}${med.carrier ? ' <span class="text-slate-400">(Trägerlösung)</span>' : ''}<br><span class="text-slate-500">${escapeHtml([med.dose, med.strength, med.route].filter(Boolean).join(' · '))}</span></span>
+                    <select onchange="setKisMedicationState(${index}, this.value)" class="border rounded text-[10px] p-0.5 bg-white flex-shrink-0">
+                        <option value="current" ${state.states[index] === 'current' ? 'selected' : ''}>Aktuell</option>
+                        <option value="paused" ${state.states[index] === 'paused' ? 'selected' : ''}>Pausiert</option>
+                        <option value="bedarf" ${state.states[index] === 'bedarf' ? 'selected' : ''}>Bedarf</option>
+                    </select>
+                </div>`;
+            }).join('');
+            const chosen = state.selection.filter(Boolean).length;
+            button.disabled = chosen === 0;
+            button.innerText = `${chosen} Medikament(e) importieren`;
+        }
+
+        function toggleKisMedication(index, checked) {
+            if(!AppState.parsedKisMedication) return;
+            AppState.parsedKisMedication.selection[index] = checked;
+            renderKisMedicationPreview();
+        }
+        function setKisMedicationState(index, value) {
+            if(!AppState.parsedKisMedication) return;
+            AppState.parsedKisMedication.states[index] = value;
+        }
+        function setAllKisMedications(checked) {
+            const state = AppState.parsedKisMedication;
+            if(!state) return;
+            state.selection = state.selection.map(() => checked);
+            renderKisMedicationPreview();
+        }
+
         function executeKisMedicationImport() {
-            const result = AppState.parsedKisMedication;
+            const state = AppState.parsedKisMedication;
             const patient = AppState.patients.find(x => x.id === AppState.currentEditingId);
-            if(!result || !patient || !result.medications.length) return;
-            if((!result.match.nameMatches || !result.match.dobMatches) && !confirm('Name oder Geburtsdatum stimmen nicht überein. Medikamente trotzdem in den ausgewählten Patienten importieren?')) return;
+            if(!state || !patient || !state.medications.length) return;
+            if((!state.match.nameMatches || !state.match.dobMatches) && !confirm('Name oder Geburtsdatum stimmen nicht überein. Medikamente trotzdem in den ausgewählten Patienten importieren?')) return;
+            if(document.getElementById('kis-med-replace').checked) {
+                AppState.tempSelectedMeds.clear();
+                AppState.tempPausedMeds.clear();
+                AppState.tempBedarfMeds.clear();
+            }
+            const buckets = { current: AppState.tempSelectedMeds, paused: AppState.tempPausedMeds, bedarf: AppState.tempBedarfMeds };
             const unknown = [];
-            result.medications.forEach((med) => {
-                const formatted = KisMedicationImport.formatMedication(med);
-                AppState.tempSelectedMeds.delete(formatted);
-                AppState.tempPausedMeds.delete(formatted);
-                (med.paused ? AppState.tempPausedMeds : AppState.tempSelectedMeds).add(formatted);
-                if(!med.knownName) unknown.push(med.name);
+            let count = 0;
+            state.medications.forEach((med, index) => {
+                if(!state.selection[index]) return;
+                const formatted = state.parser.formatMedication(med);
+                Object.values(buckets).forEach(bucket => bucket.delete(formatted));
+                (buckets[state.states[index]] || AppState.tempSelectedMeds).add(formatted);
+                if(!med.knownName && !med.carrier) unknown.push(med.name);
+                count++;
             });
             rememberCustomMedications(unknown);
             renderMedList('');
             closeKisMedModal();
             saveMeds();
-            showToast(`${result.medications.length} Medikamente übernommen (${unknown.length} neu erkannt).`);
+            showToast(`${count} Medikamente übernommen (${unknown.length} neu erkannt).`);
         }
-
 
         function openBmpModal() {
             if(!AppState.patients.length) { alert("Bitte lege zuerst einen Patienten an oder wähle einen aus."); return; }
@@ -934,6 +1065,119 @@
         function insertExamText(c, t) { document.getElementById('gen-text-output').value += `\n[${c}]: ${t}`; }
         function saveExamToPatient() { AppState.patients.find(x => x.id === AppState.currentEditingId).exam_text = document.getElementById('gen-text-output').value; saveData(); document.getElementById('examModal').style.display = 'none'; }
         
+        // --- SCHNELL-IMPORT: Format aus dem eingefügten Text erkennen ---
+        const QUICK_LABELS = { patients: 'Patientenliste', labor: 'Laborbefund', bga: 'BGA',
+            idpharma: 'Medikationsplan (ID PHARMA CHECK)', kismeds: 'Medikationsplan (KIS-Kurve)', bmp: 'BMP-Barcode' };
+
+        function detectImportKind(text) {
+            const source = String(text || '');
+            if(!source.trim()) return '';
+            if(/^\s*</.test(source) || /<MP\b/i.test(source)) return 'bmp';
+            if(typeof IdPharmaImport !== 'undefined' && IdPharmaImport.looksLikeIdPharma(source)) return 'idpharma';
+            const lines = source.split(/\r?\n/).filter(line => line.trim());
+            // Labor- und BGA-Exporte beginnen jede Zeile mit einem Parameterkürzel.
+            const codeLines = lines.filter(line => /^(V_|RM_)/i.test(line.split(/\t/)[0].trim())).length;
+            if(codeLines >= 3) {
+                const parsed = KisLabImport.parse(source);
+                if(parsed.columns.some(column => column.entries.length)) return parsed.type;
+            }
+            if(/Geburtsdatum/i.test(source) || lines.some(line => /\d{2}\.\d{2}\.\d{4}/.test(line) && /[A-ZÄÖÜ][\wäöüß.-]+,\s*[A-ZÄÖÜ]/.test(line))) return 'patients';
+            if(/^(peroral\/oral|intravenös|subcutan|bronchopulmonal|parenteral)$/im.test(source)) return 'kismeds';
+            return '';
+        }
+
+        async function pasteFromClipboard(targetId, after) {
+            try {
+                const text = await navigator.clipboard.readText();
+                if(!text) { showToast('Zwischenablage ist leer.', true); return; }
+                document.getElementById(targetId).value = text;
+                if(after) after();
+            } catch (_) {
+                showToast('Zwischenablage nicht lesbar – bitte mit Strg+V einfügen.', true);
+                document.getElementById(targetId).focus();
+            }
+        }
+
+        function openQuickImport(text) {
+            document.getElementById('quick-input').value = text || '';
+            document.getElementById('quick-kind').value = '';
+            document.getElementById('quickImportModal').style.display = 'block';
+            if(text) detectQuickImport(); else {
+                detectQuickImport();
+                pasteFromClipboard('quick-input', detectQuickImport).catch(() => {});
+            }
+            setTimeout(() => document.getElementById('quick-input').focus(), 100);
+        }
+        function closeQuickImport() { document.getElementById('quickImportModal').style.display = 'none'; }
+
+        function detectQuickImport() {
+            AppState.quickImportKind = detectImportKind(document.getElementById('quick-input').value);
+            renderQuickImport();
+        }
+
+        function renderQuickImport() {
+            const chosen = document.getElementById('quick-kind').value || AppState.quickImportKind;
+            const detect = document.getElementById('quick-detect');
+            const picker = document.getElementById('quick-patient');
+            const go = document.getElementById('quick-go');
+            const text = document.getElementById('quick-input').value;
+            if(!text.trim()) {
+                detect.innerHTML = '<span class="text-slate-400">Noch nichts eingefügt.</span>';
+                picker.innerHTML = '';
+                go.disabled = true;
+                return;
+            }
+            detect.innerHTML = chosen
+                ? `<div class="bg-green-50 border border-green-200 text-green-800 rounded p-2">Erkannt: <strong>${escapeHtml(QUICK_LABELS[chosen] || chosen)}</strong></div>`
+                : '<div class="bg-orange-50 border border-orange-200 text-orange-900 rounded p-2">Format nicht erkannt – bitte oben auswählen.</div>';
+
+            // Labor, BGA und Medikation gehören zu einem Patienten und brauchen eine bewusste Auswahl.
+            const needsPatient = ['labor', 'bga', 'idpharma', 'kismeds', 'bmp'].includes(chosen);
+            if(needsPatient && AppState.patients.length) {
+                if(!AppState.currentEditingId || !AppState.patients.some(p => p.id === AppState.currentEditingId)) {
+                    AppState.currentEditingId = AppState.patients[0].id;
+                }
+                picker.innerHTML = `<div class="border rounded p-2 bg-slate-50"><div class="text-[10px] font-bold uppercase text-slate-500 mb-1">Für welchen Patienten?</div><div class="flex flex-wrap gap-1">` +
+                    AppState.patients.map(p => `<button onclick="AppState.currentEditingId='${p.id}'; renderQuickImport()" class="text-[11px] px-2 py-1 rounded border ${p.id === AppState.currentEditingId ? 'bg-blue-600 text-white border-blue-600 font-bold' : 'bg-white hover:bg-blue-50'}">${escapeHtml(p.room || 'Gang')} · ${escapeHtml(p.name || 'ohne Namen')}</button>`).join('') +
+                    `</div></div>`;
+            } else if(needsPatient) {
+                picker.innerHTML = '<div class="bg-red-50 border border-red-200 text-red-800 rounded p-2 text-xs">Es ist noch kein Patient angelegt.</div>';
+            } else {
+                picker.innerHTML = '';
+            }
+            go.disabled = !chosen || (needsPatient && !AppState.patients.length);
+        }
+
+        function runQuickImport() {
+            const kind = document.getElementById('quick-kind').value || AppState.quickImportKind;
+            const text = document.getElementById('quick-input').value;
+            const pid = AppState.currentEditingId;
+            closeQuickImport();
+            if(kind === 'patients') {
+                openImportModal();
+                document.getElementById('pasteArea').value = text;
+                parsePasteData();
+                return;
+            }
+            if(kind === 'labor' || kind === 'bga') {
+                openLabModal(pid, kind);
+                document.getElementById('lab-input').value = text;
+                previewLabImport();
+                return;
+            }
+            if(kind === 'idpharma' || kind === 'kismeds') {
+                openMedModal(pid);
+                openKisMedModal();
+                document.getElementById('kis-med-input').value = text;
+                previewKisMedication();
+                return;
+            }
+            if(kind === 'bmp') {
+                openBmpModal();
+                document.getElementById('bmp-input').value = text;
+            }
+        }
+
         // --- LABOR / BGA IMPORT ---
         function labSetStamp(set) { return KisLabImport.setTitle(set); }
         function sortedLabSets(p, type) {
@@ -946,6 +1190,10 @@
             AppState.currentEditingId = id;
             AppState.parsedLabImport = null;
             AppState.labDateTouched = false;
+            AppState.labColumnSelection = [];
+            AppState.labColumnMeta = [];
+            const onlyAbnormal = document.getElementById('lab-only-abnormal');
+            if(onlyAbnormal) onlyAbnormal.checked = false;
             const p = AppState.patients.find(x => x.id === id);
             document.getElementById('lab-input').value = '';
             document.getElementById('lab-type').value = type || 'auto';
@@ -963,11 +1211,13 @@
             const text = document.getElementById('lab-input').value;
             const preview = document.getElementById('lab-preview');
             const summary = document.getElementById('lab-summary');
+            const assign = document.getElementById('lab-assign');
             const button = document.getElementById('lab-import-button');
             if(!text.trim()) {
                 AppState.parsedLabImport = null;
                 preview.innerHTML = '<p class="text-xs text-slate-400">Noch keine Daten eingefügt.</p>';
                 summary.innerHTML = '';
+                assign.innerHTML = '';
                 button.disabled = true;
                 return;
             }
@@ -978,31 +1228,80 @@
                 dateField.value = result.date;
                 if(result.time) timeField.value = result.time;
             }
-            // Spalten ohne eigenen Zeitstempel im Export bekommen Datum/Uhrzeit aus dem Formular.
-            result.columns.forEach(column => {
-                if(column.hasOwnStamp) return;
-                column.date = dateField.value || column.date;
-                if(result.columns.length === 1) column.time = timeField.value || column.time;
+            // Bei jedem neuen Text die Zuordnung neu aufsetzen, sonst die bestehende behalten.
+            const previous = AppState.parsedLabImport;
+            const keep = previous && previous.columns.length === result.columns.length;
+            AppState.labColumnSelection = result.columns.map((column, index) => keep ? AppState.labColumnSelection[index] : true);
+            AppState.labColumnMeta = result.columns.map((column, index) => keep ? AppState.labColumnMeta[index] : {
+                date: column.hasOwnStamp ? column.date : (result.columns.length > 1 ? '' : (dateField.value || column.date)),
+                time: column.hasOwnStamp ? column.time : (result.columns.length > 1 ? '' : (timeField.value || column.time))
             });
-            if(!AppState.parsedLabImport || AppState.parsedLabImport.columns.length !== result.columns.length) {
-                AppState.labColumnSelection = result.columns.map(() => true);
-            }
             AppState.parsedLabImport = result;
+            renderLabAssignment();
+        }
 
-            const selection = AppState.labColumnSelection || [];
-            const selectedCount = result.columns.filter((column, index) => selection[index] !== false).length;
-            const abnormalCount = result.columns.reduce((sum, column, index) => selection[index] === false ? sum : sum + column.abnormal.length, 0);
-            const valueCount = result.columns.reduce((sum, column, index) => selection[index] === false ? sum : sum + column.entries.length, 0);
+        // Zuordnung: jede erkannte Messung bekommt ihr eigenes Abnahmedatum.
+        function renderLabAssignment() {
+            const result = AppState.parsedLabImport;
+            const assign = document.getElementById('lab-assign');
+            const summary = document.getElementById('lab-summary');
+            const button = document.getElementById('lab-import-button');
+            if(!result) return;
+            const selection = AppState.labColumnSelection;
+            const meta = AppState.labColumnMeta;
+
+            const chosen = result.columns.filter((column, index) => selection[index] !== false);
+            const valueCount = chosen.reduce((sum, column) => sum + column.entries.length, 0);
+            const abnormalCount = chosen.reduce((sum, column) => sum + column.abnormal.length, 0);
+            const undated = result.columns.filter((column, index) => selection[index] !== false && !meta[index].date).length;
             const usesFallback = result.columns.some(column => column.entries.some(entry => entry.refSource === 'fallback'));
-            summary.innerHTML = `<div class="border rounded p-2 ${abnormalCount ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-green-50 border-green-200 text-green-800'}"><strong>${result.type === 'bga' ? 'BGA' : 'Labor'}</strong> · ${result.columns.length} Messung(en) erkannt · ${valueCount} Werte · <strong>${abnormalCount} außerhalb der Norm</strong>${result.skipped ? ` · ${result.skipped} Zeile(n) ignoriert` : ''}${usesFallback ? '<div class="text-[10px] mt-1">* Referenzbereich aus hinterlegter Standardtabelle ergänzt (im Export nicht enthalten).</div>' : ''}</div>`;
+            summary.innerHTML = `<div class="border rounded p-2 ${abnormalCount ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-green-50 border-green-200 text-green-800'}"><strong>${result.type === 'bga' ? 'BGA' : 'Labor'}</strong> · ${result.columns.length} Messung(en) erkannt · ${valueCount} Werte · <strong>${abnormalCount} außerhalb der Norm</strong>${result.skipped ? ` · ${result.skipped} Zeile(n) ignoriert` : ''}${usesFallback ? '<div class="text-[10px] mt-1">* Referenzbereich aus hinterlegter Standardtabelle ergänzt.</div>' : ''}${undated ? `<div class="text-[10px] mt-1 font-bold">${undated} Messung(en) noch ohne Datum – bitte unten zuordnen.</div>` : ''}</div>`;
 
-            const rows = KisLabImport.mergeColumns(result.columns);
+            if(result.columns.length > 1) {
+                const rows = result.columns.map((column, index) => {
+                    const signature = column.entries.slice(0, 3).map(entry => `${entry.label} ${entry.value}`).join(' · ');
+                    return `<div class="flex items-center gap-1 text-[10px] border-b py-0.5 ${selection[index] === false ? 'opacity-40' : ''}">
+                        <input type="checkbox" ${selection[index] === false ? '' : 'checked'} onchange="toggleLabColumn(${index}, this.checked)">
+                        <span class="w-10 flex-shrink-0 font-bold">${index + 1}.${column.label ? ' ' + escapeHtml(column.label) : ''}</span>
+                        <input type="date" value="${escapeHtml(meta[index].date || '')}" onchange="setLabColumnDate(${index}, 'date', this.value)" class="border rounded px-1 text-[10px] flex-shrink-0">
+                        <input type="time" value="${escapeHtml(meta[index].time || '')}" onchange="setLabColumnDate(${index}, 'time', this.value)" class="border rounded px-1 text-[10px] w-16 flex-shrink-0">
+                        <span class="text-slate-400 truncate flex-grow min-w-0" title="${escapeHtml(signature)}">${column.entries.length} Werte · ${escapeHtml(signature)}</span>
+                    </div>`;
+                }).join('');
+                assign.innerHTML = `<div class="border rounded bg-slate-50 p-2">
+                    <div class="flex flex-wrap items-end gap-2 mb-1">
+                        <label class="flex flex-col text-[9px] font-bold uppercase text-slate-500">Erste Messung am<input type="date" id="lab-fill-start" value="${escapeHtml(AppState.labFillStart || '')}" onchange="AppState.labFillStart = this.value" class="border rounded px-1 text-[10px] font-normal"></label>
+                        <label class="flex flex-col text-[9px] font-bold uppercase text-slate-500">Abstand<select id="lab-fill-step" onchange="AppState.labFillStep = this.value" class="border rounded px-1 text-[10px] font-normal"><option value="1" ${(AppState.labFillStep || '1') === '1' ? 'selected' : ''}>täglich</option><option value="0" ${AppState.labFillStep === '0' ? 'selected' : ''}>alle gleich</option><option value="2" ${AppState.labFillStep === '2' ? 'selected' : ''}>jeden 2. Tag</option></select></label>
+                        <button onclick="fillLabDates()" class="text-[10px] bg-blue-600 text-white px-2 py-1 rounded font-bold hover:bg-blue-500">Daten füllen</button>
+                        <button onclick="reverseLabDates()" class="text-[10px] bg-slate-200 px-2 py-1 rounded hover:bg-slate-300" title="Wenn die neueste Messung links steht">⇄ Reihenfolge</button>
+                    </div>
+                    <div class="max-h-40 overflow-y-auto">${rows}</div>
+                </div>`;
+            } else {
+                assign.innerHTML = '';
+            }
+            renderLabPreviewTable();
+            button.disabled = chosen.length === 0;
+            button.innerText = result.columns.length > 1 ? `${chosen.length} Messung(en) übernehmen` : 'Werte übernehmen';
+        }
+
+        function renderLabPreviewTable() {
+            const result = AppState.parsedLabImport;
+            const preview = document.getElementById('lab-preview');
+            if(!result) return;
+            const selection = AppState.labColumnSelection;
+            const meta = AppState.labColumnMeta;
+            const onlyAbnormal = document.getElementById('lab-only-abnormal').checked;
+            let rows = KisLabImport.mergeColumns(result.columns);
+            if(onlyAbnormal) rows = rows.filter(row => row.cells.some(entry => entry && (entry.status === 'high' || entry.status === 'low')));
             if(!rows.length) {
-                preview.innerHTML = '<p class="text-sm text-red-600">Keine Werte erkannt. Bitte die Spalten des KIS-Exports (mit Tabulatoren) vollständig einfügen.</p>';
-                button.disabled = true;
+                preview.innerHTML = `<p class="text-sm ${onlyAbnormal ? 'text-slate-400' : 'text-red-600'}">${onlyAbnormal ? 'Keine Werte außerhalb der Norm.' : 'Keine Werte erkannt. Bitte die Spalten des KIS-Exports (mit Tabulatoren) vollständig einfügen.'}</p>`;
                 return;
             }
-            const head = result.columns.map((column, index) => `<th class="text-right px-1 font-bold whitespace-nowrap"><label class="flex items-center justify-end gap-1 cursor-pointer">${result.columns.length > 1 ? `<input type="checkbox" ${selection[index] === false ? '' : 'checked'} onchange="toggleLabColumn(${index}, this.checked)">` : ''}${escapeHtml(column.label || KisLabImport.formatDate(column.date) || 'Wert')}</label><div class="font-normal text-[9px] text-slate-400">${escapeHtml([KisLabImport.formatDate(column.date), column.time].filter(Boolean).join(' '))}</div></th>`).join('');
+            const head = result.columns.map((column, index) => {
+                const stamp = [KisLabImport.formatDate(meta[index].date), meta[index].time].filter(Boolean).join(' ');
+                return `<th class="text-right px-1 font-bold whitespace-nowrap ${selection[index] === false ? 'opacity-40' : ''}">${escapeHtml(column.label || String(index + 1) + '.')}<div class="font-normal text-[9px] ${stamp ? 'text-slate-400' : 'text-orange-500'}">${escapeHtml(stamp || 'kein Datum')}</div></th>`;
+            }).join('');
             const body = rows.map(row => {
                 const cells = result.columns.map((column, index) => {
                     const entry = row.cells[index];
@@ -1010,19 +1309,44 @@
                     const tone = entry.status === 'high' ? 'text-red-700 font-bold' : entry.status === 'low' ? 'text-sky-700 font-bold' : 'text-slate-700';
                     const arrow = entry.status === 'high' ? ' ↑' : entry.status === 'low' ? ' ↓' : '';
                     const faded = selection[index] === false ? 'opacity-40' : '';
-                    return `<td class="text-right px-1 whitespace-nowrap ${tone} ${faded}">${escapeHtml(entry.value)}${arrow}</td>`;
+                    const value = entry.preliminary ? `(${entry.value})` : entry.value;
+                    return `<td class="text-right px-1 whitespace-nowrap ${tone} ${faded}" ${entry.preliminary ? 'title="vorläufiges Ergebnis"' : ''}>${escapeHtml(value)}${arrow}</td>`;
                 }).join('');
-                return `<tr class="border-b"><td class="py-0.5">${escapeHtml(row.label)}${row.unit ? ` <span class="text-slate-400">${escapeHtml(row.unit)}</span>` : ''}</td><td class="px-1 text-slate-400 whitespace-nowrap">${row.ref ? escapeHtml(row.ref) + (row.refSource === 'fallback' ? ' *' : '') : '–'}</td>${cells}</tr>`;
+                return `<tr class="border-b"><td class="py-0.5 whitespace-nowrap">${escapeHtml(row.label)}${row.unit ? ` <span class="text-slate-400">${escapeHtml(row.unit)}</span>` : ''}</td><td class="px-1 text-slate-400 whitespace-nowrap">${row.ref ? escapeHtml(row.ref) + (row.refSource === 'fallback' ? ' *' : '') : '–'}</td>${cells}</tr>`;
             }).join('');
             preview.innerHTML = `<table class="w-full text-[11px]"><thead><tr class="border-b-2 text-slate-500"><th class="text-left py-0.5">Parameter</th><th class="text-left px-1">Norm</th>${head}</tr></thead><tbody>${body}</tbody></table>`;
-            button.disabled = selectedCount === 0;
-            button.innerText = result.columns.length > 1 ? `${selectedCount} Messung(en) übernehmen` : 'Werte übernehmen';
+        }
+
+        function setLabColumnDate(index, field, value) {
+            if(!AppState.labColumnMeta[index]) return;
+            AppState.labColumnMeta[index][field] = value;
+            renderLabAssignment();
+        }
+
+        // Fortlaufende Abnahmedaten setzen – anschließend lassen sich einzelne Spalten korrigieren.
+        function fillLabDates() {
+            const start = document.getElementById('lab-fill-start').value;
+            const step = parseInt(document.getElementById('lab-fill-step').value, 10);
+            AppState.labFillStart = start;
+            AppState.labFillStep = String(step);
+            if(!start) { showToast('Bitte ein Startdatum wählen.', true); return; }
+            AppState.labColumnMeta.forEach((entry, index) => {
+                const date = new Date(start + 'T12:00:00');
+                date.setDate(date.getDate() + index * step);
+                entry.date = date.toISOString().slice(0, 10);
+            });
+            renderLabAssignment();
+        }
+        function reverseLabDates() {
+            const dates = AppState.labColumnMeta.map(entry => ({ date: entry.date, time: entry.time })).reverse();
+            AppState.labColumnMeta.forEach((entry, index) => { entry.date = dates[index].date; entry.time = dates[index].time; });
+            renderLabAssignment();
         }
 
         function toggleLabColumn(index, checked) {
             if(!AppState.labColumnSelection) return;
             AppState.labColumnSelection[index] = checked;
-            previewLabImport();
+            renderLabAssignment();
         }
 
         function applyQuickLabs(p, entries) {
@@ -1040,21 +1364,31 @@
             const p = AppState.patients.find(x => x.id === AppState.currentEditingId);
             if(!result || !p) return;
             const selection = AppState.labColumnSelection || [];
-            const chosen = result.columns.filter((column, index) => selection[index] !== false && column.entries.length);
-            if(!chosen.length) return;
+            const meta = AppState.labColumnMeta || [];
+            const chosenIndexes = result.columns.map((column, index) => index)
+                .filter(index => selection[index] !== false && result.columns[index].entries.length);
+            if(!chosenIndexes.length) return;
+            const undated = chosenIndexes.filter(index => !meta[index].date);
+            if(undated.length && !confirm(`${undated.length} Messung(en) haben kein Abnahmedatum. Ohne Datum lässt sich kein Verlauf bilden. Trotzdem übernehmen?`)) return;
             if(!p.labSets) p.labSets = [];
 
+            const today = new Date().toISOString().slice(0, 10);
+            const sets = chosenIndexes.map(index => {
+                const column = result.columns[index];
+                return {
+                    id: Date.now().toString() + Math.random().toString().slice(2, 5),
+                    type: result.type,
+                    date: meta[index].date || column.date || today,
+                    time: meta[index].time || column.time || '',
+                    label: column.label || '',
+                    entries: column.entries.map(entry => ({ code: entry.code, label: entry.label, unit: entry.unit,
+                        ref: entry.ref, section: entry.section, value: entry.value, status: entry.status,
+                        flag: entry.flag, refSource: entry.refSource, preliminary: entry.preliminary }))
+                };
+            });
+            KisLabImport.uniqueKeys(sets);
+
             const stamp = (item) => `${item.type}|${item.date}|${item.time}|${item.label || ''}`;
-            const sets = chosen.map(column => ({
-                id: Date.now().toString() + Math.random().toString().slice(2, 5),
-                type: result.type,
-                date: column.date || new Date().toISOString().slice(0, 10),
-                time: column.time || '',
-                label: column.label || '',
-                entries: column.entries.map(entry => ({ code: entry.code, label: entry.label, unit: entry.unit,
-                    ref: entry.ref, section: entry.section, value: entry.value, status: entry.status,
-                    flag: entry.flag, refSource: entry.refSource }))
-            }));
             const duplicates = sets.filter(set => p.labSets.some(item => stamp(item) === stamp(set)));
             if(duplicates.length && !confirm(`${duplicates.length} dieser Messungen ist/sind bereits gespeichert (${duplicates.map(labSetStamp).join(', ')}). Überschreiben?`)) return;
 
@@ -1063,7 +1397,7 @@
                 if(existing >= 0) { set.id = p.labSets[existing].id; p.labSets[existing] = set; }
                 else p.labSets.push(set);
             });
-            p.labSets = KisLabImport.sortSets(p.labSets).slice(-60);
+            p.labSets = KisLabImport.sortSets(p.labSets).slice(-80);
             const lastLab = sets.filter(set => set.type === 'labor').pop();
             if(lastLab) applyQuickLabs(p, lastLab.entries);
             saveData();
@@ -1079,12 +1413,29 @@
         function renderLabHistory() {
             const box = document.getElementById('lab-history');
             const p = AppState.patients.find(x => x.id === AppState.currentEditingId);
-            const sets = sortedLabSets(p).reverse();
+            const sets = ((p && p.labSets) || []).slice()
+                .sort((a, b) => `${b.date || ''}${b.time || ''}`.localeCompare(`${a.date || ''}${a.time || ''}`));
             box.innerHTML = sets.length ? sets.map(set => {
                 const abnormal = set.entries.filter(entry => entry.status === 'high' || entry.status === 'low').length;
                 const tone = set.type === 'bga' ? 'bg-cyan-50 border-cyan-200 text-cyan-800' : 'bg-blue-50 border-blue-200 text-blue-800';
-                return `<span class="flex items-center gap-1 text-[10px] border rounded px-1 py-0.5 ${tone}"><strong>${set.type === 'bga' ? 'BGA' : 'Labor'}</strong> ${escapeHtml(labSetStamp(set))} · ${set.entries.length} Werte / ${abnormal} auffällig<button onclick="deleteLabSet('${set.id}')" title="Abnahme löschen" class="text-red-500 hover:bg-red-100 rounded px-1">&times;</button></span>`;
+                // Das Abnahmedatum lässt sich auch nachträglich noch korrigieren.
+                return `<span class="flex items-center gap-1 text-[10px] border rounded px-1 py-0.5 ${tone}"><strong>${set.type === 'bga' ? 'BGA' : 'Labor'}</strong>
+                    <input type="date" value="${escapeHtml(set.date || '')}" onchange="updateLabSetStamp('${set.id}', 'date', this.value)" class="border rounded px-0.5 text-[10px] bg-white">
+                    <input type="time" value="${escapeHtml(set.time || '')}" onchange="updateLabSetStamp('${set.id}', 'time', this.value)" class="border rounded px-0.5 text-[10px] w-14 bg-white">
+                    ${set.label ? escapeHtml(set.label) + ' · ' : ''}${set.entries.length}/${abnormal} auffällig
+                    <button onclick="deleteLabSet('${set.id}')" title="Abnahme löschen" class="text-red-500 hover:bg-red-100 rounded px-1">&times;</button></span>`;
             }).join('') : '<span class="text-[10px] text-slate-400">Noch keine Abnahme gespeichert.</span>';
+        }
+
+        function updateLabSetStamp(setId, field, value) {
+            const p = AppState.patients.find(x => x.id === AppState.currentEditingId);
+            const set = ((p && p.labSets) || []).find(item => item.id === setId);
+            if(!set) return;
+            set[field] = value;
+            p.labSets = KisLabImport.sortSets(p.labSets);
+            saveData();
+            render();
+            renderLabHistory();
         }
 
         function deleteLabSet(setId) {
@@ -1149,11 +1500,13 @@
         function renderEpikriseFields(p) {
             const defaults = buildEpikriseDefaults(p);
             AppState.epikriseDefaults = defaults;
-            document.getElementById('epi-fields').innerHTML = EpikriseExport.FIELDS.map(field => {
+            document.getElementById('epi-fields').innerHTML = EpikriseExport.formFields().map(field => {
                 const stored = (p.epi || {})[field.id];
                 const value = (stored === undefined || stored === null || stored === '') ? (defaults[field.id] || '') : stored;
                 const fromStation = defaults[field.id] ? `<button type="button" onclick="resetEpikriseField('${field.id}')" class="ml-auto text-[9px] text-blue-600 hover:underline font-normal normal-case">↺ aus Stationsdaten</button>` : '';
-                return `<div class="flex flex-col"><label class="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1">${field.label}${fromStation}</label><textarea id="epi-${field.id}" oninput="updateEpikriseField('${field.id}', this.value)" class="border rounded p-2 text-xs font-mono h-24 focus:border-indigo-500 outline-none">${escapeHtml(value)}</textarea></div>`;
+                // Leere Felder bleiben sichtbar und werden markiert, damit sie ergänzt werden können.
+                const empty = value.trim() ? '' : '<span class="text-[9px] text-orange-500 font-normal normal-case">leer</span>';
+                return `<div class="flex flex-col"><label class="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1">${field.label}${empty}${fromStation}</label><textarea id="epi-${field.id}" oninput="updateEpikriseField('${field.id}', this.value); markEpikriseField('${field.id}')" class="border rounded p-2 text-xs font-mono h-24 focus:border-indigo-500 outline-none ${value.trim() ? '' : 'bg-orange-50/40'}">${escapeHtml(value)}</textarea></div>`;
             }).join('');
         }
 
@@ -1168,6 +1521,9 @@
             document.getElementById('epi-chefarzt').checked = settings.niveau !== 'Oberarzt';
             document.getElementById('epi-cb-muster').checked = settings.muster !== false;
             document.getElementById('epi-cb-procedere').checked = settings.procedere !== false;
+            document.getElementById('epi-cb-analyse').checked = settings.analyse !== false;
+            document.getElementById('epi-cb-fragen').checked = settings.rueckfragen !== false;
+            document.getElementById('epi-cb-vorschlag').checked = settings.vorschlaege !== false;
             document.getElementById('epi-cb-basics').checked = settings.basics !== false;
             document.getElementById('epi-muster').value = localStorage.getItem('station_v17_musterepikrise') || '';
             generateEpikrisePrompt();
@@ -1181,6 +1537,10 @@
             if(!p.epi) p.epi = {};
             p.epi[fieldId] = value;
             saveData();
+        }
+        function markEpikriseField(fieldId) {
+            const element = document.getElementById(`epi-${fieldId}`);
+            if(element) element.classList.toggle('bg-orange-50/40', !element.value.trim());
         }
         function resetEpikriseField(fieldId) {
             const p = AppState.patients.find(x => x.id === AppState.currentEditingId);
@@ -1210,13 +1570,17 @@
                 const element = document.getElementById(`epi-${field.id}`);
                 values[field.id] = element ? element.value : '';
             });
+            const flag = (id) => { const el = document.getElementById(id); return !el || el.checked; };
             values.musterepikrise = document.getElementById('epi-muster').value;
             const age = getAgeNum(p.dob);
             const settings = {
                 niveau: document.getElementById('epi-oberarzt').checked ? 'Oberarzt' : 'Chefarzt',
-                muster: document.getElementById('epi-cb-muster').checked,
-                procedere: document.getElementById('epi-cb-procedere').checked,
-                basics: document.getElementById('epi-cb-basics').checked
+                muster: flag('epi-cb-muster'),
+                procedere: flag('epi-cb-procedere'),
+                analyse: flag('epi-cb-analyse'),
+                rueckfragen: flag('epi-cb-fragen'),
+                vorschlaege: flag('epi-cb-vorschlag'),
+                basics: flag('epi-cb-basics')
             };
             saveEpikriseSettings(settings);
             document.getElementById('epi-output').value = EpikriseExport.buildPrompt(values, {
@@ -1224,6 +1588,9 @@
                 niveau: settings.niveau,
                 musterepikrise: settings.muster,
                 procedere: settings.procedere,
+                analyse: settings.analyse,
+                rueckfragen: settings.rueckfragen,
+                vorschlaege: settings.vorschlaege,
                 includeBasics: settings.basics
             });
         }
