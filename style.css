@@ -39,7 +39,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 .badge-nüchtern { background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
 .badge-kost { background-color: #dcfce7; color: #166534; border: 1px solid #4ade80; }
 
-#print-table-container { display: none; }
+#print-table-container, #print-detail-container, #print-lab-container, .print-only { display: none; }
 
 /* --- DRUCK LAYOUT --- */
 @media print {
@@ -48,9 +48,21 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     
     .no-print, .modal, #patient-list, .navbar { display: none !important; }
     #print-table-container { display: block !important; width: 100%; }
-    
+    .print-only { display: block !important; }
+
+    /* Kopf- und Fußzeile auf jeder Seite */
+    #print-head { display: flex !important; justify-content: space-between; align-items: baseline;
+        border-bottom: 2px solid #000; margin-bottom: 4px; padding-bottom: 2px; }
+    #print-head-title { font-weight: bold; font-size: 11pt; }
+    #print-head-meta { font-size: 8pt; }
+    #print-foot { margin-top: 4px; border-top: 1px solid #999; padding-top: 2px; font-size: 7pt; color: #444; }
+
     table { width: 100%; border-collapse: collapse; table-layout: fixed; }
     th, td { border: 1px solid #000; padding: 4px; vertical-align: top; word-wrap: break-word; }
+    /* Kopfzeile auf Folgeseiten wiederholen, Patientenzeilen nicht zerreißen */
+    thead { display: table-header-group; }
+    tfoot { display: table-footer-group; }
+    tr { break-inside: avoid; page-break-inside: avoid; }
     
     .col-room { width: 5%; text-align: center; font-weight: bold; font-size: 14pt; vertical-align: middle; }
     .col-name { width: 18%; }
@@ -88,6 +100,46 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body.print-mode-pocket .print-diag-rest, body.print-mode-pocket .col-todo-content {
         display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     }
+
+    /* PROFIL: Patientenblatt – eine Seite je Patient, Hochformat */
+    body.print-mode-detail #print-table-container { display: none !important; }
+    body.print-mode-detail #print-detail-container { display: block !important; }
+    .patient-sheet { break-after: page; page-break-after: always; break-inside: avoid; display: flex; flex-direction: column; height: 100%; }
+    .patient-sheet:last-child { break-after: auto; page-break-after: auto; }
+    .sheet-head { display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #000; padding-bottom: 3px; margin-bottom: 4px; }
+    .sheet-room { font-size: 20pt; font-weight: 900; min-width: 2.2cm; text-align: center; border: 2px solid #000; padding: 2px 4px; }
+    .sheet-ident { flex: 1 1 auto; min-width: 0; }
+    .sheet-name { font-size: 14pt; font-weight: bold; line-height: 1.1; }
+    .sheet-sub { font-size: 8.5pt; color: #333; }
+    .sheet-alerts { display: flex; flex-wrap: wrap; gap: 3px; max-width: 7cm; justify-content: flex-end; }
+    .sheet-alerts span { border: 2px solid #000; font-weight: bold; font-size: 8pt; padding: 0 3px; }
+    .sheet-maindiag { font-size: 11pt; font-weight: bold; border-left: 4px solid #000; padding: 2px 6px; margin-bottom: 4px; background: #f0f0f0; }
+    .sheet-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; align-content: start; }
+    .sheet-block { border: 1px solid #666; padding: 2px 4px; break-inside: avoid; }
+    .sheet-block.sheet-wide { grid-column: 1 / -1; }
+    .sheet-block-title { font-size: 7pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.04em;
+        color: #000; border-bottom: 1px dotted #999; margin-bottom: 2px; }
+    .sheet-block-body { font-size: 8.5pt; line-height: 1.25; }
+    .sheet-mono { font-family: 'Courier New', monospace; font-size: 7.5pt; white-space: pre; }
+    .sheet-trend { display: inline-block; margin-right: 10px; white-space: nowrap; font-size: 8pt; }
+    .sheet-notes { margin-top: auto; border: 1px solid #666; padding: 2px 4px; }
+    .sheet-ruled { height: 2.6cm; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 0.64cm, #bbb 0.64cm, #bbb 0.66cm); }
+    body.print-mode-detail #print-foot { break-before: avoid; }
+
+    /* PROFIL: Laborverlauf */
+    body.print-mode-lab #print-table-container { display: none !important; }
+    body.print-mode-lab #print-lab-container { display: block !important; }
+    .lab-sheet { break-after: page; page-break-after: always; break-inside: avoid; }
+    .lab-sheet:last-child { break-after: auto; page-break-after: auto; }
+    .lab-table { table-layout: auto; margin-bottom: 6px; }
+    .lab-table caption { text-align: left; font-weight: bold; font-size: 9pt; margin: 4px 0 2px; }
+    .lab-table th, .lab-table td { border: 1px solid #999; padding: 1px 3px; font-size: 7.5pt; text-align: right; white-space: nowrap; }
+    .lab-table th.lab-param { text-align: left; font-weight: normal; width: 5.5cm; }
+    .lab-table th.lab-param span { color: #555; font-size: 6.5pt; }
+    .lab-table thead th { background: #eee; font-weight: bold; text-align: center; }
+    .lab-table .lab-ref { text-align: left; color: #555; width: 2.4cm; }
+    .lab-table .lab-abn { font-weight: bold; background: #f0f0f0; }
+    .lab-table .lab-empty { color: #bbb; }
 }
 /* Kompaktes Redesign: selten benötigte Stationsdetails bleiben per Tastatur erreichbar. */
 .compact-details { border: 1px solid #e2e8f0; border-radius: 0.375rem; background: #f8fafc; }

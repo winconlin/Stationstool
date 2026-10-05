@@ -126,6 +126,13 @@
         return { value: (value || "").trim(), preliminary: false };
     }
 
+    // Das KIS hängt Hinweise direkt an den Wert: "3,85CAVE! hämolytisch".
+    function splitComment(value) {
+        const match = (value || "").match(/^([<>]?=?\s*-?[\d.,]+)\s*([A-Za-zÄÖÜäöüß!].*)$/);
+        if (!match) return { value: (value || "").trim(), comment: "" };
+        return { value: match[1].trim(), comment: match[2].trim() };
+    }
+
     function parseMeasurement(raw) {
         const match = (raw || "").match(/^([<>]=?)?\s*(-?[\d]+(?:[.,]\d+)?)/);
         if (!match) return { comparator: "", num: null };
@@ -236,10 +243,14 @@
                 const flagged = splitFlag(cell);
                 const preliminary = splitPreliminary(flagged.value);
                 if (isPlaceholder(preliminary.value) || normalize(preliminary.value) === normalize(label)) return;
-                const measured = parseMeasurement(preliminary.value);
+                const commented = splitComment(preliminary.value);
+                const measured = parseMeasurement(commented.value);
                 columns[position].entries.push({
                     code, label: label || code, unit, section,
-                    value: preliminary.value,
+                    value: commented.value,
+                    comment: commented.comment,
+                    // "CAVE! hämolytisch" heißt: der Wert ist nicht verlässlich.
+                    unreliable: /cave|hamoly|lipam|ikter|verdunn|probe/.test(normalize(commented.comment)),
                     preliminary: preliminary.preliminary,
                     flag: flagged.flag,
                     comparator: measured.comparator,
@@ -257,6 +268,8 @@
             ? settings.type
             : (looksLikeBga(allEntries) ? "bga" : "labor");
 
+        // Markiert der Export abweichende Werte mit +/-/N, dann heißt "kein Zeichen" normal.
+        const usesFlags = allEntries.some((entry) => entry.flag);
         allEntries.forEach((entry) => {
             if (type === "bga" && entry.reference.kind === "none") {
                 const fallback = fallbackReference(entry);
@@ -264,6 +277,10 @@
             }
             entry.ref = formatReference(entry.reference);
             entry.status = evaluate(entry);
+            if (entry.status === "unknown" && usesFlags && !entry.flag && entry.num !== null) {
+                entry.status = "normal";
+                entry.statusSource = "unflagged";
+            }
             entry.abnormal = entry.status === "low" || entry.status === "high";
         });
 
@@ -306,7 +323,17 @@
     function formatEntry(entry) {
         const arrow = entry.status === "high" ? "↑" : entry.status === "low" ? "↓" : "";
         return [entry.label, [entry.value, entry.unit].filter(Boolean).join(" "), arrow,
-            entry.ref ? `(Norm ${entry.ref})` : ""].filter(Boolean).join(" ");
+            entry.ref ? `(Norm ${entry.ref})` : "", entry.comment ? `[${entry.comment}]` : ""].filter(Boolean).join(" ");
+    }
+
+    // Abschnitt, der eine Abnahme am besten beschreibt (z. B. "Urinstatus") – als Ersatz für "Messung 2".
+    function dominantSection(entries) {
+        const counts = {};
+        (entries || []).forEach((entry) => {
+            if (entry.section) counts[entry.section] = (counts[entry.section] || 0) + 1;
+        });
+        const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+        return best && best[1] >= (entries || []).length / 2 ? best[0] : "";
     }
 
     function formatDate(value) {
@@ -354,7 +381,7 @@
                 if (!row.ref && entry.ref) row.ref = entry.ref;
                 if (!row.unit && entry.unit) row.unit = entry.unit;
                 const marker = entry.status === "high" ? " +" : entry.status === "low" ? " -" : "";
-                row.values[index] = `${entry.preliminary ? `(${entry.value})` : entry.value}${marker}`;
+                row.values[index] = `${entry.preliminary ? `(${entry.value})` : entry.value}${marker}${entry.unreliable ? " (!)" : ""}`;
             });
         });
 
@@ -397,6 +424,17 @@
         return bareCode(a) === bareCode(b) && bareCode(a) !== "";
     }
 
+    // Ein Parameter kann je Labor unter mehreren Kürzeln laufen – die eGFR etwa je Geschlecht
+    // als V_EGFRM2 oder V_EGFRW2. Ein Selektor nennt daher Kürzel und/oder Bezeichnung.
+    function matchesParameter(entry, selector) {
+        if (!entry) return false;
+        const rule = typeof selector === "string" ? { code: selector } : (selector || {});
+        const codes = rule.codes || (rule.code ? [rule.code] : []);
+        if (codes.some((code) => sameCode(entry.code, code))) return true;
+        if (rule.labelIncludes && normalize(entry.label).includes(normalize(rule.labelIncludes))) return true;
+        return false;
+    }
+
     function daysBetween(from, to) {
         const first = Date.parse(`${from}T12:00:00`);
         const second = Date.parse(`${to}T12:00:00`);
@@ -405,10 +443,10 @@
     }
 
     // Verlauf eines Parameters über alle Abnahmen, älteste zuerst.
-    function series(sets, code) {
+    function series(sets, selector) {
         const points = [];
         sortSets(sets).forEach((set) => {
-            const entry = set.entries.find((item) => sameCode(item.code, code));
+            const entry = set.entries.find((item) => matchesParameter(item, selector));
             if (!entry) return;
             // Älter gespeicherte Abnahmen führen keine Zahl mit – dann aus dem Wert lesen.
             const num = entry.num === null || entry.num === undefined
@@ -426,7 +464,7 @@
     function buildTrends(sets, parameters) {
         return (parameters || []).map((parameter) => {
             const code = parameter.code || parameter;
-            const points = series(sets, code);
+            const points = series(sets, parameter);
             if (!points.length) return null;
             const last = points[points.length - 1];
             const previous = points.length > 1 ? points[points.length - 2] : null;
@@ -451,7 +489,7 @@
     function checkDeltas(sets, rules) {
         const warnings = [];
         (rules || []).forEach((rule) => {
-            const points = series(sets, rule.code);
+            const points = series(sets, rule);
             if (points.length < 2) return;
             const last = points[points.length - 1];
             const window = points.slice(0, -1).filter((point) =>
@@ -469,10 +507,12 @@
             } else if (rule.rise !== undefined && last.num - lowest.num >= rule.rise) {
                 reference = lowest; amount = last.num - lowest.num; word = "Anstieg";
             } else if (rule.dropPercent !== undefined && highest.num > 0
-                && (highest.num - last.num) / highest.num * 100 >= rule.dropPercent) {
+                && (highest.num - last.num) / highest.num * 100 >= rule.dropPercent
+                && highest.num - last.num >= (rule.minAbsolute || 0)) {
                 reference = highest; amount = highest.num - last.num; word = "Abfall";
             } else if (rule.risePercent !== undefined && lowest.num > 0
-                && (last.num - lowest.num) / lowest.num * 100 >= rule.risePercent) {
+                && (last.num - lowest.num) / lowest.num * 100 >= rule.risePercent
+                && last.num - lowest.num >= (rule.minAbsolute || 0)) {
                 reference = lowest; amount = last.num - lowest.num; word = "Anstieg";
             } else if (rule.change !== undefined) {
                 const downwards = highest.num - last.num;
@@ -526,7 +566,7 @@
 
     return {
         parse, quickLabs, buildCourse, buildAbnormalSummary, formatEntry, formatDate, setTitle, mergeColumns, uniqueKeys,
-        series, buildTrends, checkDeltas, daysBetween,
+        series, buildTrends, checkDeltas, daysBetween, matchesParameter, dominantSection, splitComment,
         parseReference, normalize, toNumber, sortSets, BGA_REFERENCE
     };
 });

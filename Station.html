@@ -14,6 +14,11 @@
     <script src="config_exam.js"></script> 
     <script src="config_scores.js"></script> 
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Das Patientenblatt braucht Hochformat, die Listen das Querformat. */
+        @media print { @page { size: A4 landscape; } }
+    </style>
+    <style id="print-orientation"></style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen pb-24" id="main-body">
 
@@ -34,6 +39,8 @@
                     <option value="full">🖨️ Übergabe (Voll)</option>
                     <option value="visite">🖨️ Visite (Kompakt)</option>
                     <option value="pocket">🖨️ Pocket (Max)</option>
+                    <option value="detail">🖨️ Patientenblatt (1 Seite/Pat.)</option>
+                    <option value="lab">🖨️ Laborverlauf</option>
                 </select>
                 <button onclick="window.print()" class="bg-slate-600 hover:bg-slate-500 px-3 py-1 rounded font-bold">Drucken</button>
                 <button onclick="addNewPatient()" aria-label="Neuen Patienten hinzufügen" title="Neuer Patient" class="bg-green-600 hover:bg-green-500 px-3 py-1 rounded font-bold">+ Patient</button>
@@ -51,6 +58,11 @@
         <div id="empty-state" class="hidden text-center mt-20 text-slate-400"><p class="text-xl">Keine Patienten vorhanden.</p></div>
     </div>
 
+    <div id="print-head" class="print-only">
+        <span id="print-head-title"></span>
+        <span id="print-head-meta"></span>
+    </div>
+
     <div id="print-table-container">
         <table>
             <thead>
@@ -59,6 +71,11 @@
             <tbody id="print-table-body"></tbody>
         </table>
     </div>
+
+    <div id="print-detail-container"></div>
+    <div id="print-lab-container"></div>
+
+    <div id="print-foot" class="print-only">Enthält Patientendaten – vertraulich behandeln und nicht unbeaufsichtigt liegen lassen.</div>
 
 
     <div id="bmpModal" class="modal no-print" onkeydown="handleModalKey(event, 'bmpModal')">
@@ -178,6 +195,9 @@
                         <label class="flex items-center gap-1"><input type="checkbox" id="epi-cb-analyse" checked onchange="generateEpikrisePrompt()"> Analyse des Verlaufs</label>
                         <label class="flex items-center gap-1"><input type="checkbox" id="epi-cb-fragen" checked onchange="generateEpikrisePrompt()"> Rückfragen stellen</label>
                         <label class="flex items-center gap-1"><input type="checkbox" id="epi-cb-vorschlag" checked onchange="generateEpikrisePrompt()"> Vorschläge machen</label>
+                        <label class="flex items-center gap-1" title="Priorisierte Liste der noch sinnvollen Untersuchungen"><input type="checkbox" id="epi-cb-diagnostik" onchange="generateEpikrisePrompt()"> Diagnostik priorisieren</label>
+                        <label class="flex items-center gap-1" title="Medikation auf Lücken, Doppelungen und Dosierung prüfen"><input type="checkbox" id="epi-cb-therapie" onchange="generateEpikrisePrompt()"> Medikation prüfen</label>
+                        <label class="flex items-center gap-1" title="Platzhaltersätze &quot;Die [Untersuchung] ergab ...&quot; für ausstehende Befunde"><input type="checkbox" id="epi-cb-ausstehend" onchange="generateEpikrisePrompt()"> Ausstehende Befunde als Platzhalter</label>
                         <label class="flex items-center gap-1"><input type="checkbox" id="epi-cb-basics" checked onchange="generateEpikrisePrompt()"> Alter angeben</label>
                     </div>
                     <div class="flex flex-col flex-shrink-0"><label class="text-[10px] font-bold uppercase text-slate-500">Musterepikrise <span class="font-normal normal-case text-slate-400">(gilt für alle Patienten)</span></label><textarea id="epi-muster" oninput="saveMusterepikrise(this.value)" class="border rounded p-2 text-xs font-mono h-20"></textarea></div>
@@ -221,12 +241,27 @@
             });
         };
         
+        const PRINT_MODES = {
+            full: 'Übergabe', visite: 'Visite', pocket: 'Pocket',
+            detail: 'Patientenblatt', lab: 'Laborverlauf'
+        };
         function changePrintMode() {
             const mode = document.getElementById('printProfile').value;
             const body = document.getElementById('main-body');
-            body.classList.remove('print-mode-visite', 'print-mode-pocket');
-            if(mode === 'visite') body.classList.add('print-mode-visite');
-            if(mode === 'pocket') body.classList.add('print-mode-pocket');
+            Object.keys(PRINT_MODES).forEach(key => body.classList.remove('print-mode-' + key));
+            body.classList.add('print-mode-' + mode);
+            // @page lässt sich nicht per Klasse umschalten, daher eine eigene Regel je Profil.
+            const orientation = document.getElementById('print-orientation');
+            if(orientation) orientation.textContent = `@media print { @page { size: A4 ${mode === 'detail' ? 'portrait' : 'landscape'}; margin: 0.6cm; } }`;
+            buildPrintHeader(mode);
+        }
+        function buildPrintHeader(mode) {
+            const title = document.getElementById('print-head-title');
+            const meta = document.getElementById('print-head-meta');
+            if(!title) return;
+            const stamp = new Date().toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            title.innerText = `Stationsliste – ${PRINT_MODES[mode] || 'Übergabe'}`;
+            meta.innerText = `${AppState.patients.length} Patienten · Stand ${stamp}`;
         }
 
         function resizeTx(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; }
@@ -383,28 +418,128 @@
             return MED_GROUPS['Antiinfektiva'];
         }
 
-        function getCurrentAntibiotics(p) {
-            const currentText = p.meds_current || '';
-            return getAntiInfectiveCatalog().filter(name => medTextIncludes(currentText, name));
+        // Erkennt Antiinfektiva am Wirkstoff oder Handelsnamen, unabhängig vom Medikamentenkatalog.
+        function detectAntiInfectives(text) {
+            const list = (typeof ANTIINFECTIVES !== 'undefined') ? ANTIINFECTIVES : [];
+            const found = list.filter(item => [item.name, ...(item.aliases || [])]
+                .some(term => medTextStartsWith(text, term))).map(item => item.name);
+            // Zusätzlich alles, was im eigenen Antiinfektiva-Katalog steht.
+            getAntiInfectiveCatalog().forEach(name => {
+                if(medTextIncludes(text, name) && !found.some(hit => medTextStartsWith(name, hit))) found.push(name);
+            });
+            return [...new Set(found)];
+        }
+        function medTextStartsWith(text, term) {
+            if(!text || !term) return false;
+            const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}`, 'iu').test(text);
+        }
+        function getCurrentAntibiotics(p) { return detectAntiInfectives(p.meds_current || ''); }
+
+        function todayIso() { return new Date().toISOString().slice(0, 10); }
+
+        // Altbestände (p.abx ohne Felder, p.abx_start) auf das Kurs-Modell heben.
+        function migrateAbx(p) {
+            let changed = false;
+            if(!Array.isArray(p.abx)) { p.abx = []; changed = true; }
+            p.abx.forEach(course => {
+                if(!course.id) { course.id = 'abx' + Math.random().toString().slice(2, 9); changed = true; }
+                if(course.days === undefined) { course.days = ''; changed = true; }
+                if(course.indication === undefined) { course.indication = ''; changed = true; }
+                if(course.auto === undefined) { course.auto = false; changed = true; }
+                if(course.ended === undefined) { course.ended = ''; changed = true; }
+            });
+            Object.entries(p.abx_start || {}).forEach(([name, start]) => {
+                if(!p.abx.some(course => course.name === name && !course.ended)) {
+                    p.abx.push({ id: 'abx' + Math.random().toString().slice(2, 9), name, start, days: '', indication: '', auto: true, ended: '' });
+                }
+                changed = true;
+            });
+            if(p.abx_start) { delete p.abx_start; changed = true; }
+            return changed;
         }
 
-        // Merkt sich, seit wann ein Antiinfektivum in der aktuellen Medikation steht.
+        // Öffnet einen Kurs, sobald ein Antiinfektivum in der Medikation steht, und schließt ihn,
+        // wenn es verschwindet. Start, Dauer und Indikation bleiben von Hand überschreibbar.
         function trackAntibiotics(p) {
+            let changed = migrateAbx(p);
             const active = getCurrentAntibiotics(p);
-            if(!p.abx_start) p.abx_start = {};
-            const today = new Date().toISOString().slice(0, 10);
-            let changed = false;
-            active.forEach(name => { if(!p.abx_start[name]) { p.abx_start[name] = today; changed = true; } });
-            Object.keys(p.abx_start).forEach(name => {
-                if(!active.includes(name)) { delete p.abx_start[name]; changed = true; }
+            const today = todayIso();
+            active.forEach(name => {
+                if(!p.abx.some(course => course.name === name && !course.ended)) {
+                    p.abx.push({ id: 'abx' + Math.random().toString().slice(2, 9), name, start: today, days: '', indication: '', auto: true, ended: '' });
+                    changed = true;
+                }
+            });
+            p.abx.forEach(course => {
+                if(course.auto && !course.ended && !active.includes(course.name)) { course.ended = today; changed = true; }
             });
             return changed;
         }
-        function abxReviewHint(days) {
-            const limits = (typeof ABX_REVIEW_DAYS !== 'undefined') ? ABX_REVIEW_DAYS : { hint: 8, warn: 11 };
+
+        function abxCourseDays(course) {
+            if(!course.start) return 0;
+            if(!course.ended) return getDaysSince(course.start);
+            const span = KisLabImport.daysBetween(course.start, course.ended);
+            return span >= 0 ? span + 1 : 0;
+        }
+        function abxReviewHint(course) {
+            if(course.ended) return null;
+            const limits = (typeof ABX_REVIEW_DAYS !== 'undefined') ? ABX_REVIEW_DAYS : { reevaluate: 3, hint: 8, warn: 11 };
+            const days = abxCourseDays(course);
+            const planned = parseInt(course.days, 10);
+            if(!isNaN(planned) && planned > 0 && days > planned)
+                return { tone: 'bg-red-100 text-red-800 border-red-300', text: `über Plan (${planned} Tage)` };
             if(days >= limits.warn) return { tone: 'bg-red-100 text-red-800 border-red-300', text: 'Dauer prüfen!' };
             if(days >= limits.hint) return { tone: 'bg-orange-100 text-orange-800 border-orange-300', text: 'Dauer prüfen' };
+            if(days === limits.reevaluate) return { tone: 'bg-blue-100 text-blue-800 border-blue-300', text: 'Reevaluation: deeskalieren / oralisieren?' };
             return null;
+        }
+        function formatAbxCourse(course) {
+            const days = abxCourseDays(course);
+            const range = course.ended
+                ? `${KisLabImport.formatDate(course.start)}–${KisLabImport.formatDate(course.ended)}`
+                : `seit ${KisLabImport.formatDate(course.start)}`;
+            return [course.name, `${range} (${days} ${days === 1 ? 'Tag' : 'Tage'})`,
+                course.indication ? `– ${course.indication}` : ''].filter(Boolean).join(' ');
+        }
+
+        function updateAbxField(pid, courseId, field, value) {
+            const patient = AppState.patients.find(x => x.id === pid);
+            const course = ((patient && patient.abx) || []).find(item => item.id === courseId);
+            if(!course) return;
+            course[field] = value;
+            // Von Hand gesetzte Daten dürfen nicht wieder überschrieben werden.
+            if(field === 'start' || field === 'days' || field === 'ended') course.auto = false;
+            saveData();
+            render();
+        }
+        function endAbxCourse(pid, courseId) {
+            const patient = AppState.patients.find(x => x.id === pid);
+            const course = ((patient && patient.abx) || []).find(item => item.id === courseId);
+            if(!course) return;
+            course.ended = course.ended ? '' : todayIso();
+            course.auto = false;
+            saveData();
+            render();
+        }
+        function addAbx(id) {
+            const name = prompt('Antiinfektivum (Wirkstoff):');
+            if(!name) return;
+            const patient = AppState.patients.find(x => x.id === id);
+            if(!patient) return;
+            if(!Array.isArray(patient.abx)) patient.abx = [];
+            patient.abx.push({ id: 'abx' + Math.random().toString().slice(2, 9), name: name.trim(),
+                start: todayIso(), days: '', indication: '', auto: false, ended: '' });
+            saveData();
+            render();
+        }
+        function removeAbx(id, courseId) {
+            const patient = AppState.patients.find(x => x.id === id);
+            if(!patient || !confirm('Antibiose-Eintrag löschen?')) return;
+            patient.abx = (patient.abx || []).filter(course => course.id !== courseId);
+            saveData();
+            render();
         }
 
         // Kleine Verlaufskurve für die Patientenkarte.
@@ -444,8 +579,6 @@
         // Arrays/Complex
         function addIso(id, val) { if(!val) return; const p = AppState.patients.find(x => x.id === id); if(!p.iso) p.iso = []; if(!p.iso.includes(val)) p.iso.push(val); saveData(); render(); }
         function removeIso(id, val) { const p = AppState.patients.find(x => x.id === id); p.iso = p.iso.filter(x => x !== val); saveData(); render(); }
-        function addAbx(id) { const name = prompt("Antibiotikum Name:"); if(name) { const p = AppState.patients.find(x => x.id===id); if(!p.abx) p.abx = []; p.abx.push({name: name, start: new Date().toISOString().split('T')[0]}); saveData(); render(); } }
-        function removeAbx(id, idx) { const p = AppState.patients.find(x => x.id===id); p.abx.splice(idx, 1); saveData(); render(); }
         function addAmio(id) { let val = parseFloat(prompt("Dosis in g hinzufügen (z.B. 0.9):", "0.9")); if(!isNaN(val)) { let p = AppState.patients.find(x => x.id === id); p.amio = (p.amio || 0) + val; saveData(); render(); } }
         function toggleTodoLine(id, idx) { const p = AppState.patients.find(x => x.id === id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines[idx].startsWith('[x] ')) { lines[idx] = lines[idx].replace('[x] ', '[ ] '); } else if(lines[idx].startsWith('[ ] ')) { lines[idx] = lines[idx].replace('[ ] ', '[x] '); } else { lines[idx] = '[x] ' + lines[idx]; } p.todo_text = lines.join('\n'); saveData(); render(); }
         function deleteTodoLine(id, idx) { const p = AppState.patients.find(x => x.id === id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.splice(idx, 1); p.todo_text = lines.join('\n'); saveData(); render(); }
@@ -475,7 +608,6 @@
                 const vol = p.vol || {ziel:'', aktuell:''};
                 const social = p.social || {reha:'', physio:'', pflegegrad:''};
                 const isos = p.iso || [];
-                const abx = p.abx || [];
 
                 let displayRoom = p.room ? p.room : "Gang";
                 if(displayRoom !== currentRoom) {
@@ -625,7 +757,7 @@
                 let labChips = abnormalLabs.map(entry => {
                     const tone = entry.status === 'high' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-sky-50 border-sky-200 text-sky-800';
                     const arrow = entry.status === 'high' ? '↑' : '↓';
-                    return `<span class="text-[9px] leading-tight px-1 py-0.5 rounded border ${tone}" title="Norm ${escapeHtml(entry.ref || 'unbekannt')}">${escapeHtml(entry.label)} <strong>${escapeHtml(entry.value)}</strong>${entry.unit ? ' ' + escapeHtml(entry.unit) : ''} ${arrow}</span>`;
+                    return `<span class="text-[9px] leading-tight px-1 py-0.5 rounded border ${tone}" title="Norm ${escapeHtml(entry.ref || 'unbekannt')}${entry.comment ? ' · ' + escapeHtml(entry.comment) : ''}">${escapeHtml(entry.label)} <strong>${escapeHtml(entry.value)}</strong>${entry.unit ? ' ' + escapeHtml(entry.unit) : ''} ${arrow}${entry.unreliable ? ' <span title="' + escapeHtml(entry.comment) + '">(!)</span>' : ''}</span>`;
                 }).join('');
                 const labSummaryBits = [
                     labDeltas.length ? `<span class="ml-1 text-red-600">${labDeltas.length} Verlaufswarnung${labDeltas.length === 1 ? '' : 'en'}</span>` : '',
@@ -656,27 +788,41 @@
                 let histTextClass = p.expHist ? "text-expanded" : (p.history && p.history.length > 100 ? "text-truncated" : "");
                 let histToggleBtn = (p.history && p.history.length > 100) ? `<button onclick="updateFieldRender('${p.id}', 'expHist', ${!p.expHist})" class="text-[8px] text-blue-500 hover:underline w-full text-right bg-slate-50 pr-1 pb-1">${p.expHist ? 'Weniger' : 'Mehr...'}</button>` : '';
 
-                // ANTIBIOSE MANAGER
-                const autoAbx = getCurrentAntibiotics(p);
-                const abxOpen = autoAbx.length || abx.length;
-                const abxDaysLabel = autoAbx.map(name => {
-                    const started = (p.abx_start || {})[name];
-                    return started ? `${name} (T${getDaysSince(started)})` : name;
+                // ANTIBIOSE MANAGER: Kurse mit Therapietag, geplanter Dauer und Indikation
+                const abxCourses = (p.abx || []).slice().sort((a, b) =>
+                    (a.ended ? 1 : 0) - (b.ended ? 1 : 0) || String(a.start).localeCompare(String(b.start)));
+                const abxOpenCourses = abxCourses.filter(course => !course.ended);
+                const abxHints = abxOpenCourses.map(abxReviewHint).filter(Boolean);
+                const abxSummary = abxOpenCourses.map(course => {
+                    const planned = parseInt(course.days, 10);
+                    return `${course.name} (T${abxCourseDays(course)}${!isNaN(planned) && planned > 0 ? '/' + planned : ''})`;
                 });
-                const abxNeedsReview = autoAbx.some(name => {
-                    const started = (p.abx_start || {})[name];
-                    return started && abxReviewHint(getDaysSince(started));
+                let abxHtml = `<details class="mt-1 no-print compact-details" ${abxOpenCourses.length || abxHints.length ? 'open' : ''}><summary class="compact-summary text-purple-800">🦠 Antibiose ${abxOpenCourses.length ? `<span class="ml-1 ${abxHints.length ? 'text-orange-700 font-bold' : ''}">${escapeHtml(abxSummary.join(', '))}${abxHints.length ? ' · ' + escapeHtml(abxHints[0].text) : ''}</span>` : '<span class="font-normal text-slate-400">(keine laufende Antibiose)</span>'}</summary><div class="mt-1 flex flex-col gap-0.5">`;
+                abxHtml += `<div class="flex justify-between items-center"><span class="text-[9px] font-bold text-purple-700 uppercase">Therapiekurse</span><button onclick="addAbx('${p.id}')" class="text-[8px] bg-purple-100 text-purple-700 px-1 rounded hover:bg-purple-200">+ manuell</button></div>`;
+                if(!abxCourses.length) abxHtml += `<div class="text-[9px] text-slate-400 italic">Keine Antibiose erfasst. Erkannt wird sie automatisch aus der aktuellen Medikation.</div>`;
+                abxCourses.forEach(course => {
+                    const days = abxCourseDays(course);
+                    const hint = abxReviewHint(course);
+                    const planned = parseInt(course.days, 10);
+                    const tone = course.ended ? 'bg-slate-50 border-slate-200 text-slate-500' : 'bg-purple-50 border-purple-100';
+                    abxHtml += `<div class="border rounded p-0.5 ${tone}">
+                        <div class="flex items-center gap-1 text-[9px]">
+                            <span class="font-semibold truncate flex-grow ${course.ended ? 'line-through' : ''}">${escapeHtml(course.name)}</span>
+                            <span class="font-bold ${course.ended ? '' : 'text-purple-700'} flex-shrink-0">Tag ${days}${!isNaN(planned) && planned > 0 ? ` / ${planned}` : ''}</span>
+                            ${course.auto ? '<span class="text-[7px] text-purple-400 flex-shrink-0" title="aus der Medikation erkannt">auto</span>' : ''}
+                            <button onclick="endAbxCourse('${p.id}', '${course.id}')" class="text-[8px] px-1 rounded border ${course.ended ? 'bg-white hover:bg-green-50' : 'bg-white hover:bg-slate-100'} flex-shrink-0" title="${course.ended ? 'Kurs wieder öffnen' : 'Kurs beenden'}">${course.ended ? '↻' : '✓'}</button>
+                            <button onclick="removeAbx('${p.id}', '${course.id}')" class="text-[8px] text-red-500 hover:bg-red-100 px-1 rounded flex-shrink-0">✕</button>
+                        </div>
+                        <div class="flex items-center gap-1 mt-0.5">
+                            <input type="date" value="${escapeHtml(course.start || '')}" onchange="updateAbxField('${p.id}', '${course.id}', 'start', this.value)" class="text-[9px] border rounded px-0.5 bg-white" title="Therapiebeginn">
+                            <span class="text-[8px] text-slate-400">bis</span>
+                            <input type="date" value="${escapeHtml(course.ended || '')}" onchange="updateAbxField('${p.id}', '${course.id}', 'ended', this.value)" class="text-[9px] border rounded px-0.5 bg-white" title="Therapieende (leer = läuft)">
+                            <input type="number" min="1" max="60" value="${escapeHtml(course.days || '')}" onchange="updateAbxField('${p.id}', '${course.id}', 'days', this.value)" class="text-[9px] border rounded px-0.5 w-12 bg-white" placeholder="Tage" title="geplante Therapiedauer in Tagen">
+                            <input type="text" value="${escapeHtml(course.indication || '')}" onchange="updateAbxField('${p.id}', '${course.id}', 'indication', this.value)" class="text-[9px] border rounded px-1 flex-grow min-w-0 bg-white" placeholder="Indikation / Fokus">
+                        </div>
+                        ${hint ? `<div class="text-[8px] font-bold border rounded px-1 mt-0.5 ${hint.tone}">⚠ ${hint.text}</div>` : ''}
+                    </div>`;
                 });
-                let abxHtml = `<details class="mt-1 no-print compact-details" ${abxOpen ? 'open' : ''}><summary class="compact-summary text-purple-800">🦠 Antibiose ${autoAbx.length ? `<span class="ml-1 ${abxNeedsReview ? 'text-orange-700 font-bold' : ''}">${escapeHtml(abxDaysLabel.join(', '))}${abxNeedsReview ? ' · Dauer prüfen' : ''}</span>` : '<span class="font-normal text-slate-400">(keine aktive ABx in Medikation)</span>'}</summary><div class="mt-1 flex flex-col gap-0.5">`;
-                abxHtml += `<div class="flex justify-between items-center"><span class="text-[9px] font-bold text-purple-700 uppercase">Aktuell aus Medikation (Therapietag)</span><button onclick="addAbx('${p.id}')" class="text-[8px] bg-purple-100 text-purple-700 px-1 rounded hover:bg-purple-200">+ manuell</button></div>`;
-                autoAbx.forEach(name => {
-                    const started = (p.abx_start || {})[name];
-                    const days = started ? getDaysSince(started) : 0;
-                    const hint = days ? abxReviewHint(days) : null;
-                    abxHtml += `<div class="flex items-center justify-between gap-1 text-[9px] bg-purple-50 p-0.5 rounded border border-purple-100"><span class="font-semibold truncate">${escapeHtml(name)}${days ? ` <span class="text-purple-600 font-bold">Tag ${days}</span>` : ''}</span>${hint ? `<span class="border rounded px-1 font-bold flex-shrink-0 ${hint.tone}">${hint.text}</span>` : `<span class="text-purple-400 flex-shrink-0">${started ? 'seit ' + KisLabImport.formatDate(started) : 'aus Medikation'}</span>`}</div>`;
-                });
-                abx.forEach((ab, idx) => { let days = getDaysSince(ab.start); abxHtml += `<div class="flex justify-between text-[9px] bg-purple-50 p-0.5 rounded border border-purple-100"><span class="font-semibold">${ab.name} <span class="text-purple-600">(Tag ${days})</span></span> <button onclick="removeAbx('${p.id}', ${idx})" class="text-red-500 hover:bg-red-100 px-1 rounded">❌</button></div>`; });
-                if(!autoAbx.length && !abx.length) abxHtml += `<div class="text-[9px] text-slate-400 italic">Keine Antibiose erfasst.</div>`;
                 abxHtml += `</div></details>`;
 
                 // MEDS (Current, Paused, DAPT) + AMIO
@@ -755,7 +901,10 @@
                 let todoPrint = ''; let printLines = (p.todo_text || "").split('\n').filter(l => l.trim() !== '');
                 printLines.forEach(line => { let isDone = line.startsWith('[x] '); let cleanLine = line.replace(/^(\[x\] |\[ \] )/i, '').trim(); if(isDone) { todoPrint += `<div style="text-decoration: line-through; color: #888; font-size: 8pt;">☑ ${cleanLine}</div>`; } else { todoPrint += `<div style="font-size: 8pt; font-weight: 500;">☐ ${cleanLine}</div>`; } });
 
-                let abxPrint = abx.length > 0 ? `<div style="color:#6b21a8; font-size:7.5pt; font-weight:bold; margin-top:2px;">🦠 ABx: ` + abx.map(a => `${a.name} (T${getDaysSince(a.start)})`).join(', ') + `</div>` : '';
+                let abxPrint = abxOpenCourses.length > 0 ? `<div style="color:#6b21a8; font-size:7.5pt; font-weight:bold; margin-top:2px;">🦠 ABx: ` + abxOpenCourses.map(course => {
+                    const planned = parseInt(course.days, 10);
+                    return `${course.name} T${abxCourseDays(course)}${!isNaN(planned) && planned > 0 ? '/' + planned : ''}${course.indication ? ' (' + course.indication + ')' : ''}`;
+                }).join(', ') + `</div>` : '';
                 let labPrint = `<div style="font-size:7.5pt; color:#475569; margin-top:2px; border-top:1px dashed #cbd5e1; padding-top:2px;">Hb:${labs.hb||'-'} | Kr:${labs.krea||'-'} | K:${labs.k||'-'} | CRP/BNP:${labs.crp||'-'}</div>`;
                 let eGFRPrint = (labs.egfr && labs.egfr < 30) ? `<div style="color:#c2410c; font-weight:bold; font-size:8pt;">⚠️ eGFR < 30 (${labs.egfr})</div>` : '';
                 let labDeltaPrint = labDeltas.length ? `<div style="font-size:7.5pt; color:#b91c1c; font-weight:bold;">` + labDeltas.map(warning => `${warning.direction === 'down' ? '↓' : '↑'} ${warning.text}`).join('<br>') + `</div>` : '';
@@ -792,7 +941,149 @@
             });
             container.appendChild(containerFrag);
             printBody.appendChild(printBodyFrag);
+            buildDetailPrint();
+            buildLabPrint();
+            buildPrintHeader(document.getElementById('printProfile').value);
             setTimeout(() => { document.querySelectorAll('.auto-expand').forEach(tx => resizeTx(tx)); }, 0);
+        }
+
+        // --- DRUCK: PATIENTENBLATT (eine Seite je Patient) ---
+        function printBlock(title, body, options) {
+            if(!body) return '';
+            const settings = options || {};
+            return `<div class="sheet-block${settings.wide ? ' sheet-wide' : ''}"><div class="sheet-block-title">${escapeHtml(title)}</div><div class="sheet-block-body${settings.mono ? ' sheet-mono' : ''}">${body}</div></div>`;
+        }
+        function printLines(text) {
+            const lines = String(text || '').split('\n').map(line => line.trim()).filter(Boolean);
+            return lines.length ? lines.map(line => escapeHtml(line)).join('<br>') : '';
+        }
+        function printList(items) {
+            const list = (items || []).filter(Boolean);
+            return list.length ? list.map(item => `• ${escapeHtml(item)}`).join('<br>') : '';
+        }
+
+        function buildDetailPrint() {
+            const host = document.getElementById('print-detail-container');
+            if(!host) return;
+            host.innerHTML = AppState.patients.map(p => {
+                const social = p.social || {};
+                const labSets = p.labSets || [];
+                const deltas = (typeof LAB_DELTA_RULES !== 'undefined') ? KisLabImport.checkDeltas(labSets, LAB_DELTA_RULES) : [];
+                const trends = (typeof LAB_TRENDS !== 'undefined') ? KisLabImport.buildTrends(labSets, LAB_TRENDS) : [];
+                const latestLab = latestLabSet(p, 'labor');
+                const latestBga = latestLabSet(p, 'bga');
+                const abnormal = [latestLab, latestBga].filter(Boolean)
+                    .flatMap(set => set.entries.filter(entry => entry.status === 'high' || entry.status === 'low'));
+                const courses = (p.abx || []).slice().sort((a, b) => (a.ended ? 1 : 0) - (b.ended ? 1 : 0));
+                const dob = p.dob ? new Date(p.dob).toLocaleDateString('de-DE') : '';
+                const age = getAgeNum(p.dob);
+                const alerts = [
+                    p.warnings ? `CAVE: ${p.warnings}` : '',
+                    (p.iso || []).length ? `Isolation: ${(p.iso || []).join(', ')}` : '',
+                    p.fasting ? 'NÜCHTERN' : '',
+                    p.dnr ? 'DNR' : '', p.dni ? 'DNI' : ''
+                ].filter(Boolean);
+                const cvrf = (typeof CVRF_CONFIG !== 'undefined')
+                    ? CVRF_CONFIG.filter(item => (p.cvrf || []).includes(item.key)).map(item => item.label) : [];
+                const diagnostics = (typeof DIAGNOSTICS !== 'undefined') ? DIAGNOSTICS.map(name => {
+                    const state = (p.diag_status || {})[name] || 0;
+                    const result = (p.diag_results || {})[name] || '';
+                    if(state === 2) return `${name}: ${result || 'erledigt'}`;
+                    if(state === 1) return `${name}: angefordert`;
+                    return '';
+                }).filter(Boolean) : [];
+                const consults = (typeof CONSULTS !== 'undefined') ? CONSULTS.map(name => {
+                    const state = (p.consults || {})[name] || 0;
+                    if(!state) return '';
+                    const note = (p.consult_notes || {})[name] || '';
+                    return `${name}: ${state === 2 ? 'erfolgt' : 'angefordert'}${note ? ' – ' + note : ''}`;
+                }).filter(Boolean) : [];
+                const todos = (p.todo_text || '').split('\n').map(line => line.trim()).filter(Boolean)
+                    .map(line => line.startsWith('[x] ') ? `☒ ${line.slice(4)}` : `☐ ${line.replace(/^\[ \] /, '')}`);
+
+                return `<section class="patient-sheet">
+                    <header class="sheet-head">
+                        <div class="sheet-room">${escapeHtml(p.room || 'Gang')}</div>
+                        <div class="sheet-ident">
+                            <div class="sheet-name">${escapeHtml(p.name || 'ohne Namen')}</div>
+                            <div class="sheet-sub">* ${escapeHtml(dob)}${isNaN(age) ? '' : ` (${age} J.)`} · Rhythmus ${escapeHtml(p.rhythm || '–')}${p.lvef ? ` · LVEF ${escapeHtml(p.lvef)} %` : ''}${p.valves ? ` · ${escapeHtml(p.valves)}` : ''}</div>
+                        </div>
+                        ${alerts.length ? `<div class="sheet-alerts">${alerts.map(a => `<span>${escapeHtml(a)}</span>`).join('')}</div>` : ''}
+                    </header>
+                    ${p.main_diagnosis ? `<div class="sheet-maindiag">${escapeHtml(p.main_diagnosis)}</div>` : ''}
+                    <div class="sheet-grid">
+                        ${printBlock('Aktuelle Diagnosen', printLines(p.diagnosis))}
+                        ${printBlock('Vordiagnosen' + (cvrf.length ? ' & Risikofaktoren' : ''), [printLines(p.history), cvrf.length ? `<br><em>CVRF: ${escapeHtml(cvrf.join(', '))}</em>` : ''].filter(Boolean).join(''))}
+                        ${printBlock('Anamnese bei Aufnahme', printLines(p.anamnesis), { wide: true })}
+                        ${printBlock('Medikation aktuell', printList(formatMedList(p.meds_current)), { wide: true })}
+                        ${printBlock('Pausiert', printList(formatMedList(p.meds_paused)))}
+                        ${printBlock('Bei Bedarf', printList(formatMedList(p.meds_bedarf)))}
+                        ${printBlock('Antiinfektive Therapie', printList(courses.map(formatAbxCourse)))}
+                        ${printBlock('Gerinnung', [getAnticoagulationStatus(p).status, p.dapt_oak].filter(Boolean).map(escapeHtml).join('<br>'))}
+                        ${printBlock('Laborverlauf', trends.length ? trends.map(trend =>
+                            `<span class="sheet-trend"><b>${escapeHtml(trend.label)}</b> ${trend.points.slice(-5).map(point => escapeHtml(point.value)).join(' → ')}</span>`).join('') : '', { wide: true })}
+                        ${printBlock('Auffällige Werte' + (latestLab ? ` (${labSetStamp(latestLab)})` : ''), printList(abnormal.map(entry =>
+                            `${entry.label} ${entry.value}${entry.unit ? ' ' + entry.unit : ''} ${entry.status === 'high' ? '↑' : '↓'}${entry.ref ? ` (Norm ${entry.ref})` : ''}`)), { wide: true })}
+                        ${printBlock('Relevante Veränderungen', printList(deltas.map(warning => warning.text + (warning.note ? ` – ${warning.note}` : ''))), { wide: true })}
+                        ${printBlock('Diagnostik', printList(diagnostics))}
+                        ${printBlock('Konsile', printList(consults))}
+                        ${printBlock('Untersuchungsbefund / Notizen', printLines(p.exam_text), { wide: true })}
+                        ${printBlock('To-Do', printList(todos), { wide: true })}
+                        ${printBlock('Entlassung & Soziales', printList([
+                            p.discharge_date ? `Geplant: ${new Date(p.discharge_date).toLocaleDateString('de-DE')}` : '',
+                            social.reha ? `Reha: ${social.reha}` : '',
+                            social.pflegegrad ? `Pflegegrad: ${social.pflegegrad}` : '',
+                            social.physio ? `Physio: ${social.physio}` : ''
+                        ]))}
+                        ${printBlock('Bilanz & Gewicht', printList([
+                            p.weight ? `Gewicht ${p.weight} kg` : '',
+                            (p.vol || {}).ziel ? `Einfuhr ${p.vol.ziel} ml` : '',
+                            (p.vol || {}).aktuell ? `Ausfuhr ${p.vol.aktuell} ml` : '',
+                            p.drainage ? `Drainagen: ${p.drainage}` : '',
+                            p.amio ? `Amiodaron kumulativ ${p.amio} g` : ''
+                        ]))}
+                    </div>
+                    <div class="sheet-notes"><div class="sheet-block-title">Notizen / Visite</div><div class="sheet-ruled"></div></div>
+                </section>`;
+            }).join('');
+        }
+        function formatMedList(text) {
+            return String(text || '').split(',').map(item => item.trim()).filter(Boolean);
+        }
+
+        // --- DRUCK: LABORVERLAUF (eine Tabelle je Patient) ---
+        function buildLabPrint() {
+            const host = document.getElementById('print-lab-container');
+            if(!host) return;
+            host.innerHTML = AppState.patients.map(p => {
+                const labor = sortedLabSets(p, 'labor');
+                const bga = sortedLabSets(p, 'bga');
+                if(!labor.length && !bga.length) return '';
+                const table = (sets, caption) => {
+                    if(!sets.length) return '';
+                    const shown = sets.slice(-10);
+                    const rows = KisLabImport.mergeColumns(shown.map(set => ({ entries: set.entries })));
+                    const head = shown.map(set => `<th>${escapeHtml(labSetStamp(set) || '?')}</th>`).join('');
+                    const body = rows.map(row => {
+                        const cells = shown.map((set, index) => {
+                            const entry = row.cells[index];
+                            if(!entry) return '<td class="lab-empty">–</td>';
+                            const mark = entry.status === 'high' ? ' ↑' : entry.status === 'low' ? ' ↓' : '';
+                            const tone = entry.status === 'high' || entry.status === 'low' ? ' class="lab-abn"' : '';
+                            return `<td${tone}>${escapeHtml(entry.preliminary ? `(${entry.value})` : entry.value)}${mark}</td>`;
+                        }).join('');
+                        return `<tr><th class="lab-param">${escapeHtml(row.label)}${row.unit ? ` <span>${escapeHtml(row.unit)}</span>` : ''}</th><td class="lab-ref">${escapeHtml(row.ref || '')}</td>${cells}</tr>`;
+                    }).join('');
+                    return `<table class="lab-table"><caption>${escapeHtml(caption)}</caption><thead><tr><th class="lab-param">Parameter</th><th class="lab-ref">Norm</th>${head}</tr></thead><tbody>${body}</tbody></table>`;
+                };
+                return `<section class="lab-sheet">
+                    <header class="sheet-head"><div class="sheet-room">${escapeHtml(p.room || 'Gang')}</div>
+                    <div class="sheet-ident"><div class="sheet-name">${escapeHtml(p.name || 'ohne Namen')}</div>
+                    <div class="sheet-sub">${p.main_diagnosis ? escapeHtml(p.main_diagnosis) : ''}</div></div></header>
+                    ${table(labor, 'Laborverlauf')}
+                    ${table(bga, 'Blutgasanalysen')}
+                </section>`;
+            }).filter(Boolean).join('');
         }
 
         // --- IMPORT LOGIC (ROSENHEIM) ---
@@ -859,7 +1150,7 @@
             document.getElementById('previewCount').innerText = AppState.parsedPatients.length;
             document.getElementById('btnImportAction').disabled = AppState.parsedPatients.length === 0;
         }
-        function executeImport() { if(AppState.parsedPatients.length===0) return; let count=0; AppState.parsedPatients.forEach(imp => { const exists = AppState.patients.some(p => p.name === imp.name); if(!exists) { const id = Date.now().toString() + Math.random().toString().slice(2,5); AppState.patients.push({id, room: imp.room, name: imp.name, dob: imp.dob, diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", meds_bedarf: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''}, labSets: [], epi: {}, anamnesis: "", abx_start: {} }); count++; } }); saveData(); render(); document.getElementById('importModal').style.display='none'; alert(`${count} Patienten importiert.`); }
+        function executeImport() { if(AppState.parsedPatients.length===0) return; let count=0; AppState.parsedPatients.forEach(imp => { const exists = AppState.patients.some(p => p.name === imp.name); if(!exists) { const id = Date.now().toString() + Math.random().toString().slice(2,5); AppState.patients.push({id, room: imp.room, name: imp.name, dob: imp.dob, diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", meds_bedarf: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''}, labSets: [], epi: {}, anamnesis: "" }); count++; } }); saveData(); render(); document.getElementById('importModal').style.display='none'; alert(`${count} Patienten importiert.`); }
 
         function downloadJson(data, filename) {
             const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
@@ -898,7 +1189,7 @@
             showToast(`${anon.length} Patienten anonymisiert exportiert.`);
         }
         function importData(i) { const f = i.files[0]; if(!f)return; const r = new FileReader(); r.onload=function(e){try{const d=JSON.parse(e.target.result);if(Array.isArray(d)){if(confirm(`Backup mit ${d.length} Patienten laden?`)){AppState.patients=d;saveData();render();alert("Geladen!");}}}catch(err){alert("Fehler!");}};r.readAsText(f);i.value=''; }
-        function addNewPatient() { const id = Date.now().toString(); AppState.patients.push({id, room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", meds_bedarf: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''}, labSets: [], epi: {}, anamnesis: "", abx_start: {} }); saveData(); render(); setTimeout(()=>{const i=document.querySelector(`input[data-pid="${id}"]`);if(i)i.focus();},100); }
+        function addNewPatient() { const id = Date.now().toString(); AppState.patients.push({id, room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", meds_bedarf: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''}, labSets: [], epi: {}, anamnesis: "" }); saveData(); render(); setTimeout(()=>{const i=document.querySelector(`input[data-pid="${id}"]`);if(i)i.focus();},100); }
         function updateField(id, f, v) { const p = AppState.patients.find(x => x.id === id); if(p){p[f]=v;saveData();} }
         function updateFieldRender(id, f, v) { const p = AppState.patients.find(x => x.id === id); if(p){p[f]=v;saveData();render();} }
         function getAge(d) { if(!d) return ""; const a=getAgeNum(d); return isNaN(a)?"":`(${a}J)`; }
@@ -1501,7 +1792,8 @@
                     const arrow = entry.status === 'high' ? ' ↑' : entry.status === 'low' ? ' ↓' : '';
                     const faded = selection[index] === false ? 'opacity-40' : '';
                     const value = entry.preliminary ? `(${entry.value})` : entry.value;
-                    return `<td class="text-right px-1 whitespace-nowrap ${tone} ${faded}" ${entry.preliminary ? 'title="vorläufiges Ergebnis"' : ''}>${escapeHtml(value)}${arrow}</td>`;
+                    const note = [entry.preliminary ? 'vorläufiges Ergebnis' : '', entry.comment].filter(Boolean).join(' · ');
+                    return `<td class="text-right px-1 whitespace-nowrap ${tone} ${faded}" ${note ? `title="${escapeHtml(note)}"` : ''}>${escapeHtml(value)}${arrow}${entry.unreliable ? ' (!)' : ''}</td>`;
                 }).join('');
                 return `<tr class="border-b"><td class="py-0.5 whitespace-nowrap">${escapeHtml(row.label)}${row.unit ? ` <span class="text-slate-400">${escapeHtml(row.unit)}</span>` : ''}</td><td class="px-1 text-slate-400 whitespace-nowrap">${row.ref ? escapeHtml(row.ref) + (row.refSource === 'fallback' ? ' *' : '') : '–'}</td>${cells}</tr>`;
             }).join('');
@@ -1571,10 +1863,12 @@
                     type: result.type,
                     date: meta[index].date || column.date || today,
                     time: meta[index].time || column.time || '',
-                    label: column.label || '',
+                    // Ohne eigene Bezeichnung benennt der vorherrschende Abschnitt die Abnahme ("Urinstatus").
+                    label: column.label || KisLabImport.dominantSection(column.entries),
                     entries: column.entries.map(entry => ({ code: entry.code, label: entry.label, unit: entry.unit,
                         ref: entry.ref, section: entry.section, value: entry.value, num: entry.num, status: entry.status,
-                        flag: entry.flag, refSource: entry.refSource, preliminary: entry.preliminary }))
+                        flag: entry.flag, refSource: entry.refSource, preliminary: entry.preliminary,
+                        comment: entry.comment, unreliable: entry.unreliable }))
                 };
             });
             KisLabImport.uniqueKeys(sets);
@@ -1659,8 +1953,7 @@
             const sonstiges = [
                 p.warnings ? `CAVE / Allergien: ${p.warnings}` : '',
                 deltas.length ? `Relevante Laborveränderungen:\n${deltas.map(warning => `- ${warning.text}`).join('\n')}` : '',
-                (p.abx || []).length ? `Antibiose (manuell): ${(p.abx || []).map(a => `${a.name} seit ${a.start} (Tag ${getDaysSince(a.start)})`).join(', ')}` : '',
-                Object.keys(p.abx_start || {}).length ? `Antibiose: ${Object.entries(p.abx_start).map(([name, start]) => `${name} seit ${start} (Tag ${getDaysSince(start)})`).join(', ')}` : '',
+                (p.abx || []).length ? `Antiinfektive Therapie:\n${(p.abx || []).map(course => `- ${formatAbxCourse(course)}`).join('\n')}` : '',
                 (p.iso || []).length ? `Isolation: ${(p.iso || []).join(', ')}` : '',
                 p.amio ? `Amiodaron kumulativ: ${p.amio} g` : '',
                 ...consults
@@ -1674,8 +1967,16 @@
                 social.physio ? `Physiotherapie: ${social.physio}` : ''
             ].filter(Boolean).join('\n');
 
+            // Angeforderte Diagnostik ohne Ergebnis und offene Konsile sind die ausstehenden Befunde.
+            const pending = [
+                ...((typeof DIAGNOSTICS !== 'undefined' ? DIAGNOSTICS : []).filter(name =>
+                    ((p.diag_status || {})[name] || 0) === 1 && !((p.diag_results || {})[name] || '').trim())),
+                ...((typeof CONSULTS !== 'undefined' ? CONSULTS : []).filter(name => ((p.consults || {})[name] || 0) === 1)
+                    .map(name => `Konsil ${name}${(p.consult_notes || {})[name] ? ` (${p.consult_notes[name]})` : ''}`))
+            ];
             return {
                 aktuelle_diagnosen: [p.main_diagnosis, p.diagnosis].filter(Boolean).join('\n'),
+                ausstehend: pending.join('\n'),
                 bekannte_diagnosen: [p.history, (p.cvrf || []).length ? `CVRF: ${(p.cvrf || []).join(', ')}` : ''].filter(Boolean).join('\n'),
                 anamnese: p.anamnesis || '',
                 koerperliche_untersuchung: p.exam_text || '',
@@ -1718,6 +2019,9 @@
             document.getElementById('epi-cb-analyse').checked = settings.analyse !== false;
             document.getElementById('epi-cb-fragen').checked = settings.rueckfragen !== false;
             document.getElementById('epi-cb-vorschlag').checked = settings.vorschlaege !== false;
+            document.getElementById('epi-cb-diagnostik').checked = settings.diagnostik === true;
+            document.getElementById('epi-cb-therapie').checked = settings.therapie === true;
+            document.getElementById('epi-cb-ausstehend').checked = settings.ausstehend !== false;
             document.getElementById('epi-cb-basics').checked = settings.basics !== false;
             document.getElementById('epi-muster').value = localStorage.getItem('station_v17_musterepikrise') || '';
             generateEpikrisePrompt();
@@ -1774,6 +2078,9 @@
                 analyse: flag('epi-cb-analyse'),
                 rueckfragen: flag('epi-cb-fragen'),
                 vorschlaege: flag('epi-cb-vorschlag'),
+                diagnostik: document.getElementById('epi-cb-diagnostik').checked,
+                therapie: document.getElementById('epi-cb-therapie').checked,
+                ausstehend: document.getElementById('epi-cb-ausstehend').checked,
                 basics: flag('epi-cb-basics')
             };
             saveEpikriseSettings(settings);
@@ -1785,6 +2092,9 @@
                 analyse: settings.analyse,
                 rueckfragen: settings.rueckfragen,
                 vorschlaege: settings.vorschlaege,
+                diagnostik: settings.diagnostik,
+                therapie: settings.therapie,
+                ausstehend: settings.ausstehend,
                 includeBasics: settings.basics
             });
         }

@@ -57,3 +57,30 @@ test('appends the sample epicrisis only when it is present and enabled', () => {
   assert.match(exporter.buildPrompt(values, {}), /stark an der Musterepikrise orientieren/);
   assert.equal(exporter.buildPrompt(values, { musterepikrise: false }).includes('Beispieltext'), false);
 });
+
+test('adds the extra instructions only when they are switched on', () => {
+  const standard = exporter.buildPrompt({}, { includeBasics: false });
+  assert.equal(standard.includes('priorisiert nach klinischer Dringlichkeit'), false);
+  assert.equal(standard.includes('Prüfe die Medikation'), false);
+  const extended = exporter.buildPrompt({}, { includeBasics: false, diagnostik: true, therapie: true });
+  assert.match(extended, /Liste anschließend die aus den Befunden sinnvolle und noch fehlende Diagnostik auf, priorisiert nach klinischer Dringlichkeit/);
+  assert.match(extended, /Prüfe die Medikation auf Lücken, Doppelungen, Wechselwirkungen/);
+});
+
+test('asks for placeholder sentences only when pending findings are listed', () => {
+  const withPending = exporter.buildPrompt({ ausstehend: 'Echokardiographie\nCT-Thorax' },
+    { includeBasics: false, ausstehend: true });
+  assert.match(withPending, /Noch ausstehende Befunde und Untersuchungen:\nEchokardiographie\nCT-Thorax/);
+  assert.match(withPending, /Platzhaltersatz im Format "Die \[Untersuchung\] ergab \.\.\."/);
+  assert.match(withPending, /Erfinde keine Ergebnisse/);
+  // Ohne Inhalt im Feld bleibt die Anweisung weg, auch wenn der Schalter an ist.
+  assert.equal(exporter.buildPrompt({}, { includeBasics: false, ausstehend: true }).includes('Platzhaltersatz'), false);
+  // Und bei ausgeschaltetem Schalter ebenfalls.
+  assert.equal(exporter.buildPrompt({ ausstehend: 'Echo' }, { includeBasics: false }).includes('Platzhaltersatz'), false);
+});
+
+test('keeps the pending findings field in the form and in the prompt order', () => {
+  assert.equal(exporter.formFields().some((field) => field.id === 'ausstehend'), true);
+  const ids = exporter.FIELDS.map((field) => field.id);
+  assert.equal(ids.indexOf('ausstehend') > ids.indexOf('epikrise'), true);
+});

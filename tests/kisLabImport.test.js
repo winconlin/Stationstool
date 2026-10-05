@@ -71,8 +71,58 @@ test('flags values outside the reference range in both directions', () => {
 test('keeps values below the detection limit and missing references out of the abnormal list', () => {
   const result = parser.parse(labExport);
   assert.equal(result.entries.find((entry) => entry.code === 'V_CRP').status, 'normal');
-  assert.equal(result.entries.find((entry) => entry.code === 'V_EGFRM1').status, 'unknown');
   assert.equal(result.entries.find((entry) => entry.code === 'V_IKT').abnormal, false);
+});
+
+test('treats an unmarked value as normal when the export marks the abnormal ones', () => {
+  // eGFR kommt ohne Referenzbereich; der Export kennzeichnet Abweichungen aber mit + und -,
+  // also ist ein Wert ohne Kennzeichen normal und nicht "unbewertet".
+  const egfr = parser.parse(labExport).entries.find((entry) => entry.code === 'V_EGFRM1');
+  assert.equal(egfr.status, 'normal');
+  assert.equal(egfr.statusSource, 'unflagged');
+});
+
+test('leaves a value unrated when the export marks nothing at all', () => {
+  const unflagged = 'V_EGFRM1\teGFR (CKD-EPI-Formel)\tml/min\t\t\t89\nV_KREA\tKreatinin\tmg/dl\t\t\t0,9';
+  const result = parser.parse(unflagged);
+  assert.deepEqual(result.entries.map((entry) => entry.status), ['unknown', 'unknown']);
+});
+
+test('separates a remark appended to the value and marks it as unreliable', () => {
+  const withComment = [
+    'V_K\tKalium\tmmol/l\t3,5 - 5,1\t\t3,85CAVE! hämolytisch',
+    'V_LDH\tLDH\tU/l\t135 - 215\t\t403CAVE! hämolytisch +',
+    'V_NA\tNatrium\tmmol/l\t136 - 145\t\t140'
+  ].join('\n');
+  const result = parser.parse(withComment);
+  const kalium = result.entries.find((entry) => entry.code === 'V_K');
+  assert.deepEqual({ value: kalium.value, comment: kalium.comment, unreliable: kalium.unreliable, status: kalium.status },
+    { value: '3,85', comment: 'CAVE! hämolytisch', unreliable: true, status: 'normal' });
+  const ldh = result.entries.find((entry) => entry.code === 'V_LDH');
+  assert.equal(ldh.value, '403');
+  assert.equal(ldh.status, 'high');
+  assert.equal(result.entries.find((entry) => entry.code === 'V_NA').comment, '');
+});
+
+test('finds a parameter that runs under several codes', () => {
+  const sets = [
+    { type: 'labor', date: '2026-09-25', time: '', label: '', entries: [
+      { code: 'V_EGFRW2', label: 'eGFR (CKD-EPI-Formel)', unit: 'ml/min', ref: '', value: '51', num: 51, status: 'normal' }] },
+    { type: 'labor', date: '2026-09-29', time: '', label: '', entries: [
+      { code: 'V_EGFRM2', label: 'eGFR (CKD-EPI-Formel)', unit: 'ml/min', ref: '', value: '36', num: 36, status: 'normal' }] }
+  ];
+  const selector = { code: 'V_EGFR', codes: ['V_EGFRM2', 'V_EGFRW2'], labelIncludes: 'egfr' };
+  assert.deepEqual(parser.series(sets, selector).map((point) => point.num), [51, 36]);
+  // Auch allein über die Bezeichnung, falls das Kürzel unbekannt ist.
+  assert.equal(parser.series(sets, { code: 'V_XX', labelIncludes: 'egfr' }).length, 2);
+  const warning = parser.checkDeltas(sets, [{ ...selector, label: 'eGFR-Abfall', dropPercent: 25, withinDays: 7, severity: 'medium' }]);
+  assert.match(warning[0].text, /eGFR-Abfall/);
+});
+
+test('names a collection after its dominant section', () => {
+  assert.equal(parser.dominantSection([{ section: 'Urinstatus' }, { section: 'Urinstatus' }, { section: '' }]), 'Urinstatus');
+  assert.equal(parser.dominantSection([{ section: 'A' }, { section: 'B' }, { section: 'C' }, { section: '' }]), '');
+  assert.equal(parser.dominantSection([]), '');
 });
 
 test('detects a BGA and completes missing reference ranges from the built-in table', () => {
@@ -323,4 +373,25 @@ test('stays quiet without a second measurement or when the course improves', () 
   const improving = [course[2], { ...course[0], date: '2026-09-23' }];
   assert.equal(improving.length, 2);
   assert.equal(parser.checkDeltas(improving, rules).some((warning) => warning.code === 'V_HB'), false);
+});
+
+test('ignores a percentage change that stays below the absolute floor', () => {
+  const sets = [
+    { type: 'labor', date: '2026-09-20', time: '', label: '', entries: [
+      { code: 'V_EGFR', label: 'eGFR', unit: 'ml/min', ref: '', value: '16', num: 16, status: 'normal' }] },
+    { type: 'labor', date: '2026-09-22', time: '', label: '', entries: [
+      { code: 'V_EGFR', label: 'eGFR', unit: 'ml/min', ref: '', value: '12', num: 12, status: 'normal' }] }
+  ];
+  const rule = { code: 'V_EGFR', label: 'eGFR-Abfall', dropPercent: 25, withinDays: 7, severity: 'medium' };
+  // 16 → 12 sind 25 %, aber nur 4 ml/min.
+  assert.equal(parser.checkDeltas(sets, [rule]).length, 1);
+  assert.equal(parser.checkDeltas(sets, [{ ...rule, minAbsolute: 10 }]).length, 0);
+  // 16 → 4 sind zwar auch nur 12 ml/min, liegen damit aber über der Schwelle.
+  const steep = [sets[0], { ...sets[1], entries: [{ ...sets[1].entries[0], value: '4', num: 4 }] }];
+  assert.equal(parser.checkDeltas(steep, [{ ...rule, minAbsolute: 10 }]).length, 1);
+  const fromHigh = [
+    { ...sets[0], entries: [{ ...sets[0].entries[0], value: '80', num: 80 }] },
+    { ...sets[1], entries: [{ ...sets[1].entries[0], value: '44', num: 44 }] }
+  ];
+  assert.equal(parser.checkDeltas(fromHigh, [{ ...rule, minAbsolute: 10 }]).length, 1);
 });
