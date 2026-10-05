@@ -555,6 +555,77 @@
         return [...best.values()].sort((a, b) => (rank[b.severity] || 0) - (rank[a.severity] || 0));
     }
 
+    // --- MIKROBIOLOGIE -----------------------------------------------------
+    // Erreger- und Kulturbefunde stehen im Laborexport zwischen den Zahlen und gehen dort unter.
+    const MICRO_PATTERNS = [
+        { match: /blutkultur/, material: "Blutkultur" },
+        { match: /urinkultur|urikult/, material: "Urinkultur" },
+        { match: /sputum|trachealsekret|bronchiallavage|bal\b/, material: "Atemwegsmaterial" },
+        { match: /abstrich|wundabstrich|rachenabstrich|nasenabstrich/, material: "Abstrich" },
+        { match: /stuhl|clostrid|c diff/, material: "Stuhl" },
+        { match: /liquor/, material: "Liquor" },
+        { match: /punktat|aszites|pleura/, material: "Punktat" },
+        { match: /katheterspitze|port|zvk/, material: "Katheter" },
+        { match: /mrsa|mrgn|vre|esbl|screening/, material: "Screening" },
+        { match: /erreger|keim|kultur|resistenz|antibiogramm|empfindlich/, material: "Mikrobiologie" },
+        { match: /pcr|antigen|serologie|sars|influenza|rsv|legionell|mykoplasm/, material: "Erregernachweis" },
+        { match: /bakterien|nitrit|hefezellen|zylinder im sed|kristalle im sed|plattenepithel|tripelphosphat|calciumoxalat/, material: "Urinsediment" },
+        { match: /im sed\b/, material: "Urinsediment" },
+        { match: /\bi u\b|urinstatus/, material: "Urinstatus" }
+    ];
+    // Bei Urinstatus und Sediment sind nur auffällige Zahlenwerte interessant (pH 6,5 ist keiner).
+    const MICRO_NUMERIC_ONLY_IF_ABNORMAL = ["Urinstatus", "Urinsediment"];
+    // Begleitangaben, die allein keinen Befund darstellen.
+    const MICRO_META = /bebrutungszeitraum|time of positivity|lokalisation|material|entnahme|spezifisches gewicht|ph wert/;
+    const MICRO_NEGATIVE = /^(negativ|kein wachstum|steril|nicht nachweisbar|entfallt|o b )/;
+
+    function microMaterial(entry) {
+        const haystack = `${normalize(entry.label)} ${bareCode(entry.code)}`;
+        const hit = MICRO_PATTERNS.find((pattern) => pattern.match.test(haystack));
+        return hit ? hit.material : "";
+    }
+
+    function isMicrobiology(entry) {
+        if (!entry || !entry.label) return false;
+        if (MICRO_META.test(normalize(entry.label))) return false;
+        const material = microMaterial(entry);
+        if (!material) return false;
+        // Älter gespeicherte Abnahmen führen keine Zahl mit – dann aus dem Wert lesen.
+        const num = entry.num === null || entry.num === undefined
+            ? parseMeasurement(entry.value).num : entry.num;
+        const numeric = num !== null && num !== undefined;
+        if (numeric && MICRO_NUMERIC_ONLY_IF_ABNORMAL.includes(material)
+            && entry.status !== "high" && entry.status !== "low") return false;
+        return true;
+    }
+
+    // Fasst die mikrobiologischen Befunde aller Abnahmen zusammen, neueste zuerst.
+    function extractMicrobiology(sets) {
+        const found = [];
+        const seen = new Set();
+        sortSets(sets).forEach((set) => {
+            set.entries.filter(isMicrobiology).forEach((entry) => {
+                // Mehrere Abnahmen desselben Tages liefern denselben Befund doppelt.
+                const key = `${set.date}|${entry.code}|${entry.label}|${entry.value}`;
+                if (seen.has(key)) return;
+                seen.add(key);
+                const negative = MICRO_NEGATIVE.test(normalize(entry.value));
+                found.push({
+                    date: set.date || "",
+                    time: set.time || "",
+                    material: microMaterial(entry),
+                    label: entry.label,
+                    code: entry.code,
+                    result: entry.value,
+                    negative,
+                    pending: /folgt|ausstehend|in arbeit/.test(normalize(entry.value)),
+                    comment: entry.comment || ""
+                });
+            });
+        });
+        return found.reverse();
+    }
+
     function buildAbnormalSummary(sets) {
         const list = sortSets(sets);
         if (!list.length) return "";
@@ -567,6 +638,7 @@
     return {
         parse, quickLabs, buildCourse, buildAbnormalSummary, formatEntry, formatDate, setTitle, mergeColumns, uniqueKeys,
         series, buildTrends, checkDeltas, daysBetween, matchesParameter, dominantSection, splitComment,
+        extractMicrobiology, isMicrobiology, microMaterial,
         parseReference, normalize, toNumber, sortSets, BGA_REFERENCE
     };
 });
