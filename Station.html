@@ -381,12 +381,6 @@
 
         // --- MODEL UPDATES (Deep properties) ---
 
-        function parseEgfr(egfrStr) {
-            if (!egfrStr) return null;
-            let m = egfrStr.match(/\d+/);
-            if (m) return parseInt(m[0], 10);
-            return null;
-        }
 
         function medTextIncludes(text, alias) {
             if(!text || !alias) return false;
@@ -426,11 +420,6 @@
                 summary = parts.join(' · ');
             }
             return { status: summary, active: active };
-        }
-
-        function getMedicationCatalog() {
-            if(typeof MED_GROUPS === 'undefined') return [];
-            return Object.values(MED_GROUPS).flat();
         }
 
         function getAntiInfectiveCatalog() {
@@ -711,7 +700,7 @@
                 </div>`;
                 
                 // QUICK LABS & VOLUMEN
-                let eGFRValue = parseEgfr(labs.egfr);
+                let eGFRValue = MedSafety.parseEgfr(labs.egfr);
                 let eGFRWarn = eGFRValue !== null && eGFRValue < 30 ? 'bg-red-500 text-white animate-pulse font-bold' : 'bg-white text-blue-900';
                 let labsVolHtml = `
                 <details class="mt-1 no-print compact-details" ${p.expMonitoring ? 'open' : ''} ontoggle="updateField('${p.id}', 'expMonitoring', this.open)">
@@ -872,7 +861,13 @@
                     <textarea oninput="resizeTx(this); updateField('${p.id}', 'contingency', this.value)" class="auto-expand w-full text-[10px] bg-transparent leading-tight outline-none ${p.contingency ? 'text-sky-900 font-medium' : ''}" rows="1" placeholder="z. B. Bei RR syst. < 90 → Arzt rufen · Bei Fieber > 38,5 → BK abnehmen">${escapeHtml(p.contingency || "")}</textarea>
                 </div>`;
 
-                let todoHtml = `<div class="bg-yellow-50 border border-yellow-200 rounded p-1 relative group flex flex-col">`;
+                const todoCount = openTodoCount(p);
+                let todoHtml = `<div class="bg-yellow-50 border border-yellow-200 rounded p-1 relative group flex flex-col">
+                    <div class="flex items-center gap-1 text-[8px] font-bold uppercase text-yellow-700 mb-0.5">
+                        <span>To-Do</span>
+                        ${todoCount.open ? `<span class="bg-yellow-200 text-yellow-900 rounded px-1">${todoCount.open} offen</span>` : '<span class="font-normal text-slate-400">alles erledigt</span>'}
+                        ${todoCount.overdue ? `<span class="bg-red-200 text-red-900 rounded px-1">${todoCount.overdue} überfällig</span>` : ''}
+                    </div>`;
                 if(p.showRawTodo) { todoHtml += `<textarea onchange="updateFieldRender('${p.id}', 'todo_text', this.value); updateFieldRender('${p.id}', 'showRawTodo', false)" class="auto-expand w-full text-xs bg-white border border-yellow-300 rounded p-1 leading-tight focus:ring-2 focus:ring-yellow-500" placeholder="Freitext To-Dos...">${p.todo_text || ""}</textarea><button onclick="updateFieldRender('${p.id}', 'showRawTodo', false)" class="text-[9px] text-yellow-700 bg-yellow-200 hover:bg-yellow-300 rounded px-1 mt-1 self-end">Fertig</button>`;
                 } else {
                     const tasks = todoList(p);
@@ -1341,7 +1336,7 @@
         if (p.warnings) {
             wDiv.innerHTML += `<div class="bg-red-600 text-white font-bold p-3 rounded mb-2 shadow animate-pulse">🛑 CAVE / ALLERGIE: ${p.warnings}</div>`;
         }
-        const egfr = parseEgfr(p.labs?.egfr);
+        const egfr = MedSafety.parseEgfr(p.labs?.egfr);
         if (egfr !== null && egfr < 30) {
             wDiv.innerHTML += `<div class="bg-orange-500 text-white font-bold p-3 rounded mb-2 shadow">⚠️ eGFR < 30 (${egfr} ml/min)! Dosis von NOAKs und Antibiotika prüfen!</div>`;
         }

@@ -61,16 +61,20 @@ const MED_GROUPS = {
         "Baclofen", "Buprenorphin", "Celecoxib", "Codein", "Diclofenac", "Etoricoxib",
         "Fentanyl", "Hydromorphon", "Ibuprofen", "Metamizol (Novalgin)",
         "Morphin", "Naproxen", "Oxycodon", "Paracetamol", "Piritramid (Dipidolor)",
-        "Tapentadol", "Targin", "Tilidin", "Tizanidin", "Tramadol"
+        "Tapentadol", "Targin", "Tilidin", "Midazolam",
+        "Propofol",
+        "Tizanidin", "Tramadol"
     ],
     "Antiinfektiva": [
         "Aciclovir", "Amoxicillin", "Amoxicillin/Clavulansäure",
         "Ampicillin/Sulbactam (Unacid)", "Azithromycin", "Caspofungin",
         "Cefazolin", "Cefepim", "Cefotaxim", "Ceftazidim", "Ceftriaxon",
         "Cefuroxim", "Ciprofloxacin", "Clarithromycin", "Clindamycin",
-        "Cotrimoxazol", "Daptomycin", "Doxycyclin", "Ertapenem", "Fluconazol",
+        "Cotrimoxazol", "Daptomycin", "Doxycyclin", "Ertapenem",
+        "Imipenem", "Fluconazol",
         "Fosfomycin", "Gentamicin", "Levofloxacin", "Linezolid", "Meropenem",
-        "Metronidazol", "Micafungin", "Moxifloxacin", "Piperacillin/Tazobactam (Tazobac)",
+        "Metronidazol", "Micafungin",
+        "Amphotericin B", "Moxifloxacin", "Piperacillin/Tazobactam (Tazobac)",
         "Rifampicin", "Tigecyclin", "Tobramycin", "Vancomycin"
     ],
     "Gastroenterologie & Hepatologie": [
@@ -101,7 +105,8 @@ const MED_GROUPS = {
         "Beclometason/Formoterol (Foster)", "Budesonid/Formoterol",
         "Fluticason", "Ipratropium/Fenoterol (Berodual)", "Macitentan",
         "Prednisolon", "Riociguat", "Salbutamol", "Selexipag",
-        "Sildenafil", "Tadalafil", "Tiotropium", "Trimbow",
+        "Sildenafil", "Tadalafil", "Theophyllin",
+        "Tiotropium", "Trimbow",
         "ACC",
         "Cetirizin",
         "Viani"
