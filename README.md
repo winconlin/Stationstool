@@ -18,8 +18,16 @@ Da die Anwendung rein clientbasiert ist, gibt es keinen komplizierten Setup-Proz
 
 ## 📋 Kernfunktionen
 
+*   **🤝 Übergabe-Modus:** Ein Patient pro Bildschirm, Navigation mit ← → oder Leertaste, Esc schließt (`Strg+Alt+U` öffnet). Die Reihenfolge folgt **I-PASS**: Zustand, Zusammenfassung, offene Aufgaben, Wenn-dann. Strukturierte Übergaben sind der am besten belegte Hebel gegen Übergabefehler – mit I-PASS sanken registrierte Fehler um 23 % und vermeidbare Komplikationen um 30 %.
+*   **💊 Medikationscheck:** Prüft die aktuelle Medikation auf Dosisanpassung nach Nierenfunktion, Doppelungen, riskante Kombinationen und auf Laborwerte, die erst zusammen mit der Medikation einen Hinweis ergeben (siehe unten).
+*   **🧫 Mikrobiologie:** Kulturen, Erregernachweise und auffällige Urinbefunde als eigener Abschnitt, aus dem Laborimport erkannt und von Hand ergänzbar.
+
 *   **Patientenverwaltung:** Anlage von Patienten mit Raumnummer, Name, Geburtsdatum und Rhythmus-Status.
 *   **Diagnosen & Verlauf:** Dokumentation von Hauptdiagnosen, Vordiagnosen und täglichen To-Dos.
+*   **Zustand & Wenn-dann:** Jeder Patient trägt eine Einschätzung *stabil / Beobachtung / instabil* (Klick schaltet durch, farbiger Randbalken auf der Karte, Markierung im Ausdruck) sowie ein Feld **Wenn–dann** für die Anweisung an den Dienst („Bei RR syst. < 90 → Arzt rufen").
+*   **Aufnahmedatum & Liegetag:** Aus dem Aufnahmedatum zählt das Tool den Aufenthaltstag und zeigt ihn auf Karte, Liste und Patientenblatt.
+*   **Aufgaben mit Zuständigkeit und Frist:** To-Dos nehmen `@Person` und `!2026-10-07` auf – direkt in der Zeile tippbar oder über die beiden Felder je Aufgabe. Überfällige Fristen werden rot, heute fällige gelb hervorgehoben; der Ausdruck trägt beides mit.
+*   **Tagesprofil:** Aus den Uhrzeiten in den Dosierangaben (wie ID PHARMA sie liefert) entsteht ein Zeitstrahl des Tages, inklusive Nüchternzeit.
 *   **Anamnese bei Aufnahme:** Eigenes Feld je Patient (unter *Aufnahme: Anamnese, Medikation, Vordiagnosen*), das automatisch in den Epikrisen-Prompt einfließt.
 *   **Medikamenten-Manager:** Zuweisung von aktuellen und pausierten Medikamenten inkl. einer Suchfunktion (basierend auf vorkonfigurierten Listen).
 *   **Klinische Werkzeuge:**
@@ -107,7 +115,29 @@ Das Tool basiert auf **Vanilla JavaScript** und Tailwind CSS. Es gibt keine Buil
     *   `kis_lab_import.js` - Parser für KIS-Labor-/BGA-Befunde inkl. Referenzbereichs-Bewertung und Verlaufstabelle.
     *   `id_pharma_import.js` - Parser für Medikationspläne aus ID PHARMA CHECK.
     *   `epikrise_export.js` - Aufbau des Epikrisen-Prompts inkl. Entfernung von Name und Geburtsdatum.
+    *   `med_safety.js` - Wirkstoffklassen sowie Regeln für Nierendosis, Doppelungen, Kombinationen und Laborkontext.
     *   *(Anmerkung: In neueren Versionen wurde die Konfiguration teilweise in `data_config.js` zusammengefasst.)*
+
+---
+
+## 💊 Medikationscheck
+
+Die Prüfung läuft über die **aktuelle** Medikation (pausierte Präparate nur für die Nierendosis, dann leiser gemeldet) und besteht aus vier Teilen. Alle Regeln stehen in `med_safety.js` und sind dort erweiterbar.
+
+*   **Nierenfunktion:** 43 Substanzregeln gegen die aktuelle eGFR (aus dem Laborverlauf, sonst aus dem Schnellfeld). Die strengste erfüllte Schwelle gewinnt – Metformin meldet bei eGFR 42 „Dosis reduzieren", bei 22 „kontraindiziert". Ohne bekannte eGFR wird dieser Teil ausdrücklich nicht geprüft.
+*   **Doppelungen:** 40 Wirkstoffklassen; eine Doppelung innerhalb einer Klasse wird gemeldet, wo sie ungewöhnlich ist. **Nicht** gemeldet werden übliche Kombinationen: ASS plus Clopidogrel (DAPT nach Stent), ein Basis- und ein Bedarfsopioid, Metamizol plus Paracetamol, mehrere Laxanzien oder Vitamin-D-Präparate.
+*   **Kombinationen:** 17 Regeln für die Fälle, die auffallen sollen – duale RAS-Blockade, ARNI plus ACE-Hemmer, Triple Whammy (NSAR + Diuretikum + RAS-Blocker), doppelte Antikoagulation, Triple-Therapie, Betablocker plus Verapamil, Digitalis plus Amiodaron, QT-verlängernde, serotonerge und sedierende Kombinationen, sequenzielle Nephronblockade.
+*   **Laborkontext:** Ein Laborwert allein ist kein Hinweis – erst zusammen mit der passenden Medikation. Hyperkaliämie unter MRA/RAS-Blocker, Hypokaliämie unter Diuretikum, Hyponatriämie unter Thiazid oder SSRI, Anämie unter Antikoagulation, Thrombopenie unter Heparin (HIT), Hypoglykämie unter Antidiabetika, CK- und Transaminasenanstieg unter Statin, Hyperkalzämie unter Vitamin D.
+
+**Zur Kalibrierung:** Die Schwellen sind an echten Stationsdaten eingestellt, damit die Hinweise nicht im Rauschen untergehen. Anämie meldet sich erst unter 10 g/dl, Thrombopenie unter 150 G/l, Transaminasen über dem Dreifachen der Norm. Der Hinweis auf nephroaktive Medikation verlangt ein **tatsächlich steigendes** Kreatinin, nicht bloß einen erhöhten Wert. Über 16 Beispielpatienten bleiben so 11 Hinweise statt 30.
+
+Die Hinweise sind regelbasiert, bewusst knapp gehalten und **ersetzen keine Prüfung im Einzelfall** – keine Interaktionsdatenbank, keine Dosierungsempfehlung.
+
+---
+
+## 🧫 Mikrobiologie
+
+Kulturen und Erregernachweise stehen im Laborexport zwischen Dutzenden Zahlen und gehen dort unter. Das Tool zieht sie heraus und führt sie als eigenen Abschnitt: Blutkultur, Urinkultur, Atemwegsmaterial, Abstrich, Stuhl, Liquor, Punktat, Katheter, Screening (MRSA/MRGN/VRE/ESBL) und PCR-/Antigennachweise. Urinstatus und Sediment erscheinen nur, wenn sie auffällig sind. Mehrfach gelieferte Befunde desselben Tages werden zusammengefasst, negative Befunde nur gezählt statt aufgelistet, damit das Auffällige hervortritt. Eigene Befunde mit Material, Erreger und Resistenzen lassen sich ergänzen.
 
 ---
 
@@ -120,7 +150,7 @@ Die Auswahl in der Kopfzeile bestimmt, was der Browser druckt. Alle Profile trag
 | **Übergabe (Voll)** | Querformat, eine Zeile je Patient | Vollständige Liste mit Diagnosen, Medikation, Labor, To-Dos – der Handzettel für die Übergabe. |
 | **Visite (Kompakt)** | Querformat | Wie oben, ohne Vordiagnosen, Medikation und Risikofaktoren – mehr Platz für To-Dos. |
 | **Pocket (Max)** | Querformat, kleinste Schrift | Maximal verdichtet für die Kitteltasche; Diagnosen und To-Dos auf zwei Zeilen gekürzt. |
-| **Patientenblatt** | **Hochformat, eine Seite je Patient** | Alles Wichtige eines Patienten auf einem Blatt: Zimmer, Identität und Warnhinweise im Kopf, dann Diagnosen, Anamnese, Medikation nach Status, antiinfektive Kurse, Gerinnung, Laborverlauf, auffällige Werte, Verlaufswarnungen, Diagnostik, Konsile, To-Dos, Entlassplanung und Bilanz – darunter ein liniertes Feld für Notizen in der Visite. Leere Blöcke werden weggelassen. |
+| **Patientenblatt** | **Hochformat, eine Seite je Patient** | Alles Wichtige eines Patienten auf einem Blatt: Zimmer, Identität und Warnhinweise im Kopf, darunter Zustand und Wenn-dann, dann Diagnosen, Anamnese, Medikation nach Status, antiinfektive Kurse, Gerinnung, Laborverlauf, auffällige Werte, Verlaufswarnungen, Medikationscheck, Mikrobiologie, Diagnostik, Konsile, To-Dos mit Zuständigkeit und Frist, Tagesprofil, Entlassplanung und Bilanz – darunter ein liniertes Feld für Notizen in der Visite. Leere Blöcke werden weggelassen. |
 | **Laborverlauf** | Querformat, eine Seite je Patient | Labor und BGA als Tabelle Parameter × Abnahme (die letzten zehn), mit Normbereich und hervorgehobenen Abweichungen. |
 
 ---

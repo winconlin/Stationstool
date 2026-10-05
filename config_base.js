@@ -137,3 +137,11 @@ const ANTIINFECTIVES = [
     { name: 'Remdesivir', aliases: ['Veklury'] },
     { name: 'Nirmatrelvir/Ritonavir', aliases: ['Paxlovid'] }
 ];
+
+// --- ÜBERGABE (nach I-PASS) ----------------------------------------------
+// Einschätzung der Stabilität – der erste Satz jeder Übergabe.
+const SEVERITY_LEVELS = [
+    { key: 'stabil',      label: 'stabil',      short: 'S', tone: 'bg-green-100 text-green-800 border-green-300',   bar: '#16a34a' },
+    { key: 'beobachtung', label: 'Beobachtung', short: 'B', tone: 'bg-amber-100 text-amber-900 border-amber-400',   bar: '#f59e0b' },
+    { key: 'instabil',    label: 'instabil',    short: 'I', tone: 'bg-red-100 text-red-800 border-red-400',          bar: '#dc2626' }
+];

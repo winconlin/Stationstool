@@ -35,6 +35,7 @@
                 <button onclick="openQuickImport()" aria-label="Schnell-Import" title="Einfügen – Format wird erkannt (Strg+V)" class="bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold px-3 py-1 rounded border border-amber-300">⚡ Schnell-Import</button>
                 <button onclick="openImportModal()" aria-label="KIS Import öffnen" title="KIS Import" class="bg-teal-600 hover:bg-teal-500 px-3 py-1 rounded border border-teal-400">📋 KIS-Import</button>
                 <div class="h-4 w-px bg-indigo-700 mx-1"></div>
+                <button onclick="openHandover()" aria-label="Übergabe-Modus" title="Übergabe: ein Patient pro Bildschirm (Pfeiltasten)" class="bg-sky-600 hover:bg-sky-500 px-3 py-1 rounded font-bold">🤝 Übergabe</button>
                 <button onclick="startNewDay()" aria-label="Neuen Tag starten" title="To-Dos zurücksetzen" class="bg-yellow-600 hover:bg-yellow-500 px-3 py-1 rounded">☀️ Tag</button>
                 <select id="printProfile" onchange="changePrintMode()" class="bg-slate-700 text-white px-2 py-1 rounded outline-none cursor-pointer">
                     <option value="full">🖨️ Übergabe (Voll)</option>
@@ -132,6 +133,21 @@
         <div class="modal-content max-w-4xl h-[80vh] flex flex-col"><div class="flex justify-between items-center border-b pb-2 mb-2"><h2 class="text-xl font-bold text-teal-800">Import aus Medico</h2><button onclick="document.getElementById('importModal').style.display='none'" class="text-2xl px-2">&times;</button></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow overflow-hidden"><div class="flex flex-col gap-2"><textarea id="pasteArea" class="w-full flex-grow border p-2 font-mono text-xs bg-slate-50 rounded resize-none" placeholder="Format: [Zi] [FallNr] Name..." oninput="parsePasteData()"></textarea></div><div class="flex flex-col gap-2"><div class="flex justify-between items-end"><p class="text-sm font-bold">Vorschau (<span id="previewCount">0</span>)</p></div><div id="importPreview" class="flex-grow border rounded bg-white overflow-y-auto p-2 space-y-2"></div><button onclick="executeImport()" class="bg-teal-600 text-white font-bold py-2 rounded hover:bg-teal-500 disabled:opacity-50" id="btnImportAction" disabled>Importieren</button></div></div></div>
     </div>
 
+    <div id="handoverModal" class="modal no-print" tabindex="-1">
+        <div class="modal-content max-w-5xl h-[92vh] flex flex-col">
+            <div class="flex justify-between items-center border-b pb-2 mb-2 flex-shrink-0">
+                <h2 class="text-xl font-bold text-sky-800">🤝 Übergabe <span id="handover-position" class="text-sm font-normal text-slate-500"></span></h2>
+                <div class="flex items-center gap-2">
+                    <button onclick="stepHandover(-1)" class="bg-slate-100 hover:bg-slate-200 border px-3 py-1 rounded font-bold" title="Zurück (←)">←</button>
+                    <button onclick="stepHandover(1)" class="bg-sky-600 text-white hover:bg-sky-500 px-3 py-1 rounded font-bold" title="Weiter (→ oder Leertaste)">→</button>
+                    <button onclick="closeHandover()" class="text-2xl px-2">&times;</button>
+                </div>
+            </div>
+            <div id="handover-body" class="flex-grow overflow-y-auto"></div>
+            <div class="flex-shrink-0 border-t pt-2 mt-2 text-[11px] text-slate-400">Reihenfolge nach I-PASS: Zustand → Zusammenfassung → offene Aufgaben → Wenn-dann. Navigation mit ← → oder Leertaste, Esc schließt.</div>
+        </div>
+    </div>
+
     <div id="quickImportModal" class="modal no-print" onkeydown="handleModalKey(event, 'quickImportModal')">
         <div class="modal-content max-w-3xl flex flex-col">
             <div class="flex justify-between items-center border-b pb-2 mb-2 flex-shrink-0"><h2 class="text-xl font-bold text-amber-700">⚡ Schnell-Import</h2><button onclick="closeQuickImport()" class="text-2xl px-2">&times;</button></div>
@@ -213,7 +229,7 @@
     <script>
         if(typeof MED_GROUPS === 'undefined') showToast("ACHTUNG: Config Dateien fehlen!", true);
 
-        const AppState = { patients: [], currentEditingId: null, tempSelectedMeds: new Set(), tempPausedMeds: new Set(), tempBedarfMeds: new Set(), parsedPatients: [], parsedKisMedication: null, parsedLabImport: null, labDateTouched: false, labColumnSelection: [], labColumnMeta: [], labFillStart: '', labFillStep: '1', quickImportKind: '' };
+        const AppState = { patients: [], currentEditingId: null, tempSelectedMeds: new Set(), tempPausedMeds: new Set(), tempBedarfMeds: new Set(), parsedPatients: [], parsedKisMedication: null, parsedLabImport: null, labDateTouched: false, labColumnSelection: [], labColumnMeta: [], labFillStart: '', labFillStep: '1', quickImportKind: '', handoverIndex: 0 };
 
 
 
@@ -229,6 +245,8 @@
             document.getElementById('med-search').addEventListener('input', (e) => { renderMedList(e.target.value); });
             setupExamBuilder();
             document.addEventListener('keydown', function(e) { if (e.ctrlKey && e.altKey && e.key === 'n') addNewPatient(); });
+            document.addEventListener('keydown', function(e) { if (e.ctrlKey && e.altKey && e.key === 'u') openHandover(); });
+            document.addEventListener('keydown', handleHandoverKey);
             document.addEventListener('keydown', activateKeyboardButton);
             // Einfügen ohne vorher ein Fenster zu öffnen: landet direkt im Schnell-Import.
             document.addEventListener('paste', function(e) {
@@ -621,9 +639,11 @@
 
                 const age = getAge(p.dob);
                 const dnrClass = p.dnr ? 'resus-active' : ''; const dniClass = p.dni ? 'resus-active' : '';
+                const severity = severityLevel(p);
 
                 let card = document.createElement('div');
-                card.className = "bg-white rounded border border-slate-300 p-2 patient-card flex flex-col gap-1 shadow-sm hover:shadow-md transition relative";
+                card.className = "bg-white rounded border border-slate-300 p-2 patient-card flex flex-col gap-1 shadow-sm hover:shadow-md transition relative overflow-hidden";
+                if(severity) card.style.borderLeft = `5px solid ${severity.bar}`;
                 
                 // HEADER (Zi, Name, Rhythmus, Nüchtern)
                 let rhythmSel = `
@@ -644,10 +664,11 @@
                             <input type="text" value="${p.valves || ''}" onchange="updateField('${p.id}', 'valves', this.value)" class="text-[9px] w-16 sm:w-20 bg-white border border-slate-200 rounded px-1 text-slate-700 outline-none flex-grow min-w-0" placeholder="z.B. MI II°">
                         </div>
                     </div>`;
+                let severityBtn = `<button onclick="cycleSeverity('${p.id}')" title="Stabilität (Klick wechselt): stabil → Beobachtung → instabil" class="text-[8px] px-1 py-0.5 rounded font-bold border ${severity ? severity.tone : 'bg-white text-slate-400 border-slate-200'}">${severity ? severity.label : 'Stabilität?'}</button>`;
                 let fastBtn = p.fasting ? `<button onclick="updateFieldRender('${p.id}', 'fasting', false)" class="text-[8px] px-1 py-0.5 rounded font-bold transition-colors badge-nüchtern">⛔ Nüchtern</button>` : `<button onclick="updateFieldRender('${p.id}', 'fasting', true)" class="text-[8px] px-1 py-0.5 rounded font-bold transition-colors text-slate-400 border border-slate-200 bg-white" title="Selten benötigt: nur aktivieren, wenn relevant">Nüchtern?</button>`;
                 
                 let isoBanner = isos.length > 0 ? `<div class="bg-red-600 text-white font-bold text-[9px] px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse shadow-md whitespace-nowrap"><span class="text-xs">☣️</span> ${isos.join(', ')}</div>` : '';
-                let header = `<div class="flex justify-between items-start pb-1 border-b border-slate-100"><div class="flex items-start gap-2 flex-grow min-w-0"><input type="text" data-pid="${p.id}" value="${p.room}" onchange="updateFieldRender('${p.id}', 'room', this.value)" class="font-bold text-xl w-12 text-center text-blue-900 bg-blue-50 rounded p-room flex-shrink-0" placeholder="#"><div class="flex-grow min-w-0"><div class="flex items-center gap-1">${isoBanner}<input type="text" value="${p.name}" onchange="updateFieldRender('${p.id}', 'name', this.value)" class="font-bold text-sm text-slate-900 p-name flex-grow min-w-0" placeholder="Name"></div><div class="flex items-center gap-1 no-print"><input type="date" value="${p.dob}" onchange="updateFieldRender('${p.id}', 'dob', this.value)" class="text-[10px] text-slate-400 w-24 bg-transparent"><span class="text-xs font-bold">${age}</span></div></div></div><div class="flex flex-col gap-1 items-end flex-shrink-0 ml-2"><div class="flex gap-1 items-center">${fastBtn}</div><button onclick="deletePatient('${p.id}')" aria-label="Patient löschen" title="Patient löschen" tabindex="-1" class="text-slate-300 hover:text-red-500 text-lg leading-none no-print">&times;</button></div></div>`;
+                let header = `<div class="flex justify-between items-start pb-1 border-b border-slate-100"><div class="flex items-start gap-2 flex-grow min-w-0"><input type="text" data-pid="${p.id}" value="${p.room}" onchange="updateFieldRender('${p.id}', 'room', this.value)" class="font-bold text-xl w-12 text-center text-blue-900 bg-blue-50 rounded p-room flex-shrink-0" placeholder="#"><div class="flex-grow min-w-0"><div class="flex items-center gap-1">${isoBanner}<input type="text" value="${p.name}" onchange="updateFieldRender('${p.id}', 'name', this.value)" class="font-bold text-sm text-slate-900 p-name flex-grow min-w-0" placeholder="Name"></div><div class="flex items-center gap-1 no-print"><input type="date" value="${p.dob}" onchange="updateFieldRender('${p.id}', 'dob', this.value)" class="text-[10px] text-slate-400 w-24 bg-transparent"><span class="text-xs font-bold">${age}</span><span class="text-[8px] text-slate-400">Aufn.</span><input type="date" value="${escapeHtml(p.admission_date || '')}" onchange="updateFieldRender('${p.id}', 'admission_date', this.value)" class="text-[10px] text-slate-400 w-24 bg-transparent" title="Aufnahmedatum"><span class="text-[9px] font-bold text-slate-500">${stayDay(p) ? `Tag ${stayDay(p)}` : ''}</span></div></div></div><div class="flex flex-col gap-1 items-end flex-shrink-0 ml-2"><div class="flex gap-1 items-center">${severityBtn}${fastBtn}</div><button onclick="deletePatient('${p.id}')" aria-label="Patient löschen" title="Patient löschen" tabindex="-1" class="text-slate-300 hover:text-red-500 text-lg leading-none no-print">&times;</button></div></div>`;
                 
                 // ISOLATION & WARNUNGEN
                 let warnColor = p.warnings ? 'bg-red-100 border-red-300 text-red-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-400 italic';
@@ -830,12 +851,50 @@
                     </div>
                 </details>`;
 
+                // TAGESPROFIL
+                const schedule = dayScheduleEntries(p);
+                let scheduleHtml = schedule.length ? `
+                <details class="mt-1 no-print compact-details">
+                    <summary class="compact-summary text-violet-800">🕐 Tagesprofil <span class="font-normal text-slate-400">(${schedule.length} Zeitpunkte)</span></summary>
+                    <div class="mt-1 flex flex-col gap-0.5">
+                        ${schedule.map(slot => `<div class="flex gap-1 text-[9px] leading-tight"><span class="font-bold text-violet-700 w-9 flex-shrink-0">${escapeHtml(slot.time)}</span><span class="text-slate-700">${escapeHtml(slot.items.join(', '))}</span></div>`).join('')}
+                    </div>
+                </details>` : '';
+
                 let activeTasks = (typeof DAILY_TASKS !== 'undefined') ? DAILY_TASKS.filter(t => p.daily && p.daily[t.key]).map(t => t.label) : [];
                 let tasksHtml = `<details class="mb-1 no-print compact-details" ${activeTasks.length ? 'open' : ''}><summary class="compact-summary">✅ Tageschecks ${activeTasks.length ? `<span class="ml-1 text-blue-700">${activeTasks.join(', ')}</span>` : '<span class="font-normal text-slate-400">(bei Bedarf)</span>'}</summary><div class="grid grid-cols-6 gap-0.5 mt-1 daily-grid">`; if(typeof DAILY_TASKS !== 'undefined') DAILY_TASKS.forEach(t => { const cls = (p.daily && p.daily[t.key]) ? 'task-true' : 'task-false'; tasksHtml += `<button type="button" onclick="toggleDaily('${p.id}', '${t.key}')" class="task-btn ${cls} text-[9px] text-center py-0.5 rounded">${t.label}</button>`; }); tasksHtml += `</div></details>`;
                 
+                // WENN-DANN: die Anweisung für Nacht- und Wochenenddienst
+                let contingencyHtml = `
+                <div class="mt-1 border rounded p-1 ${p.contingency ? 'bg-sky-50 border-sky-300' : 'bg-white border-slate-200'}">
+                    <label class="text-[8px] font-bold uppercase ${p.contingency ? 'text-sky-800' : 'text-slate-400'} flex items-center gap-1">↪️ Wenn–dann (Dienstanweisung)</label>
+                    <textarea oninput="resizeTx(this); updateField('${p.id}', 'contingency', this.value)" class="auto-expand w-full text-[10px] bg-transparent leading-tight outline-none ${p.contingency ? 'text-sky-900 font-medium' : ''}" rows="1" placeholder="z. B. Bei RR syst. < 90 → Arzt rufen · Bei Fieber > 38,5 → BK abnehmen">${escapeHtml(p.contingency || "")}</textarea>
+                </div>`;
+
                 let todoHtml = `<div class="bg-yellow-50 border border-yellow-200 rounded p-1 relative group flex flex-col">`;
                 if(p.showRawTodo) { todoHtml += `<textarea onchange="updateFieldRender('${p.id}', 'todo_text', this.value); updateFieldRender('${p.id}', 'showRawTodo', false)" class="auto-expand w-full text-xs bg-white border border-yellow-300 rounded p-1 leading-tight focus:ring-2 focus:ring-yellow-500" placeholder="Freitext To-Dos...">${p.todo_text || ""}</textarea><button onclick="updateFieldRender('${p.id}', 'showRawTodo', false)" class="text-[9px] text-yellow-700 bg-yellow-200 hover:bg-yellow-300 rounded px-1 mt-1 self-end">Fertig</button>`;
-                } else { let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines.length > 0) { todoHtml += `<div class="flex flex-col gap-0.5 mb-1">`; lines.forEach((line, idx) => { let isDone = line.startsWith('[x] '); let cleanLine = line.replace(/^(\[x\] |\[ \] )/i, '').trim(); let icon = isDone ? '✅' : '🔲'; let strike = isDone ? 'line-through text-slate-400' : 'text-slate-800 font-medium'; todoHtml += `<div class="flex items-start justify-between gap-1 hover:bg-yellow-200 p-0.5 rounded transition"><div class="flex items-start gap-1 cursor-pointer flex-grow" onclick="toggleTodoLine('${p.id}', ${idx})"><span class="mt-0.5 text-[10px]">${icon}</span><span class="text-xs ${strike} leading-tight">${cleanLine}</span></div>`; if(isDone) { todoHtml += `<button onclick="deleteTodoLine('${p.id}', ${idx})" class="text-[9px] bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded px-1 ml-1">❌</button>`; } todoHtml += `</div>`; }); todoHtml += `</div>`; } else { todoHtml += `<span class="text-[10px] text-slate-400 italic px-1 mb-1">Keine To-Dos...</span>`; } todoHtml += `<input type="text" placeholder="+ Neues To-Do (Enter)" class="w-full text-xs bg-white border border-yellow-300 rounded p-1 outline-none focus:ring-1 focus:ring-yellow-500" onkeydown="if(event.key==='Enter'){ addTodoLine('${p.id}', this.value); this.value=''; }"><button onclick="updateFieldRender('${p.id}', 'showRawTodo', true)" class="absolute top-1 right-1 text-[10px] text-yellow-600 opacity-0 group-hover:opacity-100 transition bg-yellow-100 px-1 rounded shadow-sm">✏️ Edit</button>`; } todoHtml += `</div>`;
+                } else {
+                    const tasks = todoList(p);
+                    if(tasks.length) {
+                        todoHtml += `<div class="flex flex-col gap-0.5 mb-1">`;
+                        tasks.forEach((task, idx) => {
+                            const icon = task.done ? '✅' : '🔲';
+                            const strike = task.done ? 'line-through text-slate-400' : 'text-slate-800 font-medium';
+                            const dueState = todoDueState(task);
+                            const dueTone = dueState === 'overdue' ? 'bg-red-200 text-red-900 font-bold'
+                                : dueState === 'today' ? 'bg-amber-200 text-amber-900 font-bold' : 'bg-white text-slate-500';
+                            todoHtml += `<div class="flex items-start gap-1 hover:bg-yellow-200 p-0.5 rounded transition">
+                                <span class="mt-0.5 text-[10px] cursor-pointer" onclick="toggleTodoLine('${p.id}', ${idx})">${icon}</span>
+                                <span class="text-xs ${strike} leading-tight flex-grow cursor-pointer min-w-0" onclick="toggleTodoLine('${p.id}', ${idx})">${escapeHtml(task.text)}</span>
+                                <input type="text" value="${escapeHtml(task.owner)}" onchange="updateTodoField('${p.id}', ${idx}, 'owner', this.value)" class="text-[9px] border border-yellow-300 rounded px-0.5 w-12 bg-white flex-shrink-0" placeholder="wer" title="Zuständig">
+                                <input type="date" value="${escapeHtml(task.due)}" onchange="updateTodoField('${p.id}', ${idx}, 'due', this.value)" class="text-[9px] border border-yellow-300 rounded px-0.5 flex-shrink-0 ${dueTone}" title="Frist">
+                                ${task.done ? `<button onclick="deleteTodoLine('${p.id}', ${idx})" class="text-[9px] bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded px-1 flex-shrink-0">❌</button>` : ''}
+                            </div>`;
+                        });
+                        todoHtml += `</div>`;
+                    } else { todoHtml += `<span class="text-[10px] text-slate-400 italic px-1 mb-1">Keine To-Dos...</span>`; }
+                    todoHtml += `<input type="text" placeholder="+ Neues To-Do (Enter) – @Person und !2026-10-07 möglich" class="w-full text-xs bg-white border border-yellow-300 rounded p-1 outline-none focus:ring-1 focus:ring-yellow-500" onkeydown="if(event.key==='Enter'){ addTodoLine('${p.id}', this.value); this.value=''; }"><button onclick="updateFieldRender('${p.id}', 'showRawTodo', true)" class="absolute top-1 right-1 text-[10px] text-yellow-600 opacity-0 group-hover:opacity-100 transition bg-yellow-100 px-1 rounded shadow-sm">✏️ Edit</button>`;
+                } todoHtml += `</div>`;
 
                 let histTextClass = p.expHist ? "text-expanded" : (p.history && p.history.length > 100 ? "text-truncated" : "");
                 let histToggleBtn = (p.history && p.history.length > 100) ? `<button onclick="updateFieldRender('${p.id}', 'expHist', ${!p.expHist})" class="text-[8px] text-blue-500 hover:underline w-full text-right bg-slate-50 pr-1 pb-1">${p.expHist ? 'Weniger' : 'Mehr...'}</button>` : '';
@@ -936,7 +995,7 @@
                 let footer = `<div class="flex justify-between items-center mt-1 pt-1 no-print gap-1"><button onclick="openExamModal('${p.id}')" class="text-[9px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded flex-1 border border-slate-200">📝 Notizen</button><button onclick="openScoreModal('${p.id}')" class="text-[9px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-1 rounded border border-indigo-100">🧮 Scores</button><button onclick="openEpikriseModal('${p.id}')" class="text-[9px] bg-indigo-800 hover:bg-indigo-700 text-white px-2 py-1 rounded font-bold">📄 Epikrise</button></div>`;
 
                 let extendedHtml = `<details class="mt-1 no-print compact-details"><summary class="compact-summary">🧩 Diagnostik, Konsile & Entlassung <span class="font-normal text-slate-400">(Details)</span></summary><div class="mt-1">${diagGrid}${consultHtml}${planHtml}${footer}</div></details>`;
-                card.innerHTML = header + warnHtml + diag + cvrfHtml + todoHtml + meds + safetyHtml + abxHtml + microHtml + labImportHtml + labsVolHtml + tasksHtml + extendedHtml;
+                card.innerHTML = header + warnHtml + diag + cvrfHtml + contingencyHtml + todoHtml + meds + safetyHtml + abxHtml + microHtml + labImportHtml + scheduleHtml + labsVolHtml + tasksHtml + extendedHtml;
                 containerFrag.appendChild(card);
 
                 // --- PRINT VIEW ---
@@ -950,8 +1009,14 @@
                 let medsBedarfPrint = p.meds_bedarf ? `<div style="color:#7e22ce; font-size:7.5pt; font-style:italic; margin-top:2px;">💊 Bedarf: ${p.meds_bedarf}</div>` : '';
                 let medsPrint = (p.meds_current ? `<div class="print-meds">💊 ${p.meds_current}</div>` : '') + medsBedarfPrint + medsPausedPrint + daptPrint + amioPrint;
                 
-                let todoPrint = ''; let printLines = (p.todo_text || "").split('\n').filter(l => l.trim() !== '');
-                printLines.forEach(line => { let isDone = line.startsWith('[x] '); let cleanLine = line.replace(/^(\[x\] |\[ \] )/i, '').trim(); if(isDone) { todoPrint += `<div style="text-decoration: line-through; color: #888; font-size: 8pt;">☑ ${cleanLine}</div>`; } else { todoPrint += `<div style="font-size: 8pt; font-weight: 500;">☐ ${cleanLine}</div>`; } });
+                let todoPrint = '';
+                todoList(p).forEach(task => {
+                    const meta = [task.owner ? `@${task.owner}` : '', task.due ? KisLabImport.formatDate(task.due) : ''].filter(Boolean).join(' ');
+                    const overdue = todoDueState(task) === 'overdue';
+                    if(task.done) todoPrint += `<div style="text-decoration: line-through; color: #888; font-size: 8pt;">☑ ${escapeHtml(task.text)}</div>`;
+                    else todoPrint += `<div style="font-size: 8pt; font-weight: 500;">☐ ${escapeHtml(task.text)}${meta ? ` <span style="font-weight:bold; ${overdue ? 'color:#b91c1c;' : 'color:#555;'}">[${escapeHtml(meta)}]</span>` : ''}</div>`;
+                });
+                let contingencyPrint = p.contingency ? `<div style="font-size:8pt; font-weight:bold; color:#075985; border:1px solid #075985; padding:1px 3px; margin-top:2px;">↪ ${escapeHtml(p.contingency)}</div>` : '';
 
                 let abxPrint = abxOpenCourses.length > 0 ? `<div style="color:#6b21a8; font-size:7.5pt; font-weight:bold; margin-top:2px;">🦠 ABx: ` + abxOpenCourses.map(course => {
                     const planned = parseInt(course.days, 10);
@@ -980,15 +1045,16 @@
                 let fastPrint = p.fasting ? `<span class="print-alert" style="color:#991b1b; border-color:#f87171;">⛔ NÜCHTERN</span> ` : '';
                 let rhythmPrint = p.rhythm && p.rhythm !== 'SR' ? `<span style="color:#dc2626; font-weight:900;">[${p.rhythm}]</span> ` : '';
 
-                let alertStr = warnPrint + isoPrint + fastPrint + (p.dnr?'<span class="print-alert">DNR</span> ':'') + (p.dni?'<span class="print-alert">DNI</span> ':'');
+                let severityPrint = severity ? `<span class="print-severity print-severity-${p.severity}">${severity.label.toUpperCase()}</span> ` : '';
+                let alertStr = severityPrint + warnPrint + isoPrint + fastPrint + (p.dnr?'<span class="print-alert">DNR</span> ':'') + (p.dni?'<span class="print-alert">DNI</span> ':'');
                 let dobD = p.dob ? new Date(p.dob).toLocaleDateString('de-DE') : "";
                 
-                let fullTodoPrint = `<div class="col-todo-content">${todoPrint}${abxPrint}${volPrint}${dailyStr}${diagPrintStr}${consultPrintStr}${disPrint}</div>`;
+                let fullTodoPrint = `<div class="col-todo-content">${contingencyPrint}${todoPrint}${abxPrint}${volPrint}${dailyStr}${diagPrintStr}${consultPrintStr}${disPrint}</div>`;
 
                 let tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td class="col-room">${p.room}</td>
-                    <td class="col-name"><span class="print-name">${p.name} ${rhythmPrint}</span><span class="print-dob"><b>* ${dobD}</b></span><span class="print-age">${age}</span><div class="mt-1">${alertStr}</div>${cvrfStr}</td>
+                    <td class="col-name"><span class="print-name">${p.name} ${rhythmPrint}</span><span class="print-dob"><b>* ${dobD}</b></span><span class="print-age">${age}${stayDay(p) ? ` · Tag ${stayDay(p)}` : ''}</span><div class="mt-1">${alertStr}</div>${cvrfStr}</td>
                     <td class="col-diag"><span class="print-diag-curr">${diagPrint}${eGFRPrint}</span>${historyPrint}${medsPrint}</td>
                     <td class="col-todo">${labPrint}${labDeltaPrint}${abnormalLabPrint}${safetyPrint}${microPrint}${fullTodoPrint}</td>`;
                 printBodyFrag.appendChild(tr);
@@ -1031,6 +1097,8 @@
                 const courses = (p.abx || []).slice().sort((a, b) => (a.ended ? 1 : 0) - (b.ended ? 1 : 0));
                 const dob = p.dob ? new Date(p.dob).toLocaleDateString('de-DE') : '';
                 const age = getAgeNum(p.dob);
+                const level = severityLevel(p);
+                const schedule = dayScheduleEntries(p);
                 const alerts = [
                     p.warnings ? `CAVE: ${p.warnings}` : '',
                     (p.iso || []).length ? `Isolation: ${(p.iso || []).join(', ')}` : '',
@@ -1052,18 +1120,21 @@
                     const note = (p.consult_notes || {})[name] || '';
                     return `${name}: ${state === 2 ? 'erfolgt' : 'angefordert'}${note ? ' – ' + note : ''}`;
                 }).filter(Boolean) : [];
-                const todos = (p.todo_text || '').split('\n').map(line => line.trim()).filter(Boolean)
-                    .map(line => line.startsWith('[x] ') ? `☒ ${line.slice(4)}` : `☐ ${line.replace(/^\[ \] /, '')}`);
+                const todos = todoList(p).map(task => `${task.done ? '☒' : '☐'} ${task.text}`
+                    + (task.owner ? ` @${task.owner}` : '') + (task.due ? ` bis ${KisLabImport.formatDate(task.due)}` : '')
+                    + (todoDueState(task) === 'overdue' ? ' (überfällig)' : ''));
 
                 return `<section class="patient-sheet">
                     <header class="sheet-head">
                         <div class="sheet-room">${escapeHtml(p.room || 'Gang')}</div>
                         <div class="sheet-ident">
                             <div class="sheet-name">${escapeHtml(p.name || 'ohne Namen')}</div>
-                            <div class="sheet-sub">* ${escapeHtml(dob)}${isNaN(age) ? '' : ` (${age} J.)`} · Rhythmus ${escapeHtml(p.rhythm || '–')}${p.lvef ? ` · LVEF ${escapeHtml(p.lvef)} %` : ''}${p.valves ? ` · ${escapeHtml(p.valves)}` : ''}</div>
+                            <div class="sheet-sub">* ${escapeHtml(dob)}${isNaN(age) ? '' : ` (${age} J.)`}${stayDay(p) ? ` · Aufnahmetag ${stayDay(p)}` : ''} · Rhythmus ${escapeHtml(p.rhythm || '–')}${p.lvef ? ` · LVEF ${escapeHtml(p.lvef)} %` : ''}${p.valves ? ` · ${escapeHtml(p.valves)}` : ''}</div>
                         </div>
                         ${alerts.length ? `<div class="sheet-alerts">${alerts.map(a => `<span>${escapeHtml(a)}</span>`).join('')}</div>` : ''}
                     </header>
+                    ${level ? `<div class="sheet-severity sheet-severity-${p.severity}">Zustand: ${escapeHtml(level.label)}</div>` : ''}
+                    ${p.contingency ? `<div class="sheet-contingency"><strong>Wenn–dann:</strong> ${escapeHtml(p.contingency)}</div>` : ''}
                     ${p.main_diagnosis ? `<div class="sheet-maindiag">${escapeHtml(p.main_diagnosis)}</div>` : ''}
                     <div class="sheet-grid">
                         ${printBlock('Aktuelle Diagnosen', printLines(p.diagnosis))}
@@ -1093,6 +1164,7 @@
                             social.pflegegrad ? `Pflegegrad: ${social.pflegegrad}` : '',
                             social.physio ? `Physio: ${social.physio}` : ''
                         ]))}
+                        ${printBlock('Tagesprofil', printList(schedule.map(slot => `${slot.time} – ${slot.items.join(', ')}`)))}
                         ${printBlock('Bilanz & Gewicht', printList([
                             p.weight ? `Gewicht ${p.weight} kg` : '',
                             (p.vol || {}).ziel ? `Einfuhr ${p.vol.ziel} ml` : '',
@@ -1208,7 +1280,7 @@
             document.getElementById('previewCount').innerText = AppState.parsedPatients.length;
             document.getElementById('btnImportAction').disabled = AppState.parsedPatients.length === 0;
         }
-        function executeImport() { if(AppState.parsedPatients.length===0) return; let count=0; AppState.parsedPatients.forEach(imp => { const exists = AppState.patients.some(p => p.name === imp.name); if(!exists) { const id = Date.now().toString() + Math.random().toString().slice(2,5); AppState.patients.push({id, room: imp.room, name: imp.name, dob: imp.dob, diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", meds_bedarf: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''}, labSets: [], epi: {}, anamnesis: "", micro: [] }); count++; } }); saveData(); render(); document.getElementById('importModal').style.display='none'; alert(`${count} Patienten importiert.`); }
+        function executeImport() { if(AppState.parsedPatients.length===0) return; let count=0; AppState.parsedPatients.forEach(imp => { const exists = AppState.patients.some(p => p.name === imp.name); if(!exists) { const id = Date.now().toString() + Math.random().toString().slice(2,5); AppState.patients.push({id, room: imp.room, name: imp.name, dob: imp.dob, diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", meds_bedarf: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''}, labSets: [], epi: {}, anamnesis: "", micro: [], severity: "", contingency: "", admission_date: "" }); count++; } }); saveData(); render(); document.getElementById('importModal').style.display='none'; alert(`${count} Patienten importiert.`); }
 
         function downloadJson(data, filename) {
             const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
@@ -1247,7 +1319,7 @@
             showToast(`${anon.length} Patienten anonymisiert exportiert.`);
         }
         function importData(i) { const f = i.files[0]; if(!f)return; const r = new FileReader(); r.onload=function(e){try{const d=JSON.parse(e.target.result);if(Array.isArray(d)){if(confirm(`Backup mit ${d.length} Patienten laden?`)){AppState.patients=d;saveData();render();alert("Geladen!");}}}catch(err){alert("Fehler!");}};r.readAsText(f);i.value=''; }
-        function addNewPatient() { const id = Date.now().toString(); AppState.patients.push({id, room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", meds_bedarf: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''}, labSets: [], epi: {}, anamnesis: "", micro: [] }); saveData(); render(); setTimeout(()=>{const i=document.querySelector(`input[data-pid="${id}"]`);if(i)i.focus();},100); }
+        function addNewPatient() { const id = Date.now().toString(); AppState.patients.push({id, room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", meds_bedarf: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''}, labSets: [], epi: {}, anamnesis: "", micro: [], severity: "", contingency: "", admission_date: "" }); saveData(); render(); setTimeout(()=>{const i=document.querySelector(`input[data-pid="${id}"]`);if(i)i.focus();},100); }
         function updateField(id, f, v) { const p = AppState.patients.find(x => x.id === id); if(p){p[f]=v;saveData();} }
         function updateFieldRender(id, f, v) { const p = AppState.patients.find(x => x.id === id); if(p){p[f]=v;saveData();render();} }
         function getAge(d) { if(!d) return ""; const a=getAgeNum(d); return isNaN(a)?"":`(${a}J)`; }
@@ -1605,6 +1677,87 @@
         function insertExamText(c, t) { document.getElementById('gen-text-output').value += `\n[${c}]: ${t}`; }
         function saveExamToPatient() { AppState.patients.find(x => x.id === AppState.currentEditingId).exam_text = document.getElementById('gen-text-output').value; saveData(); document.getElementById('examModal').style.display = 'none'; }
         
+        // --- ÜBERGABE: STABILITÄT, WENN-DANN, LIEGETAG, AUFGABEN ---
+        function severityLevel(p) {
+            const levels = (typeof SEVERITY_LEVELS !== 'undefined') ? SEVERITY_LEVELS : [];
+            return levels.find(level => level.key === p.severity) || null;
+        }
+        function cycleSeverity(id) {
+            const levels = (typeof SEVERITY_LEVELS !== 'undefined') ? SEVERITY_LEVELS : [];
+            const patient = AppState.patients.find(x => x.id === id);
+            if(!patient || !levels.length) return;
+            const index = levels.findIndex(level => level.key === patient.severity);
+            // Durchschalten: ohne Angabe → stabil → Beobachtung → instabil → ohne Angabe
+            patient.severity = index + 1 >= levels.length ? '' : levels[index + 1].key;
+            saveData();
+            render();
+        }
+        function stayDay(p) {
+            return p.admission_date ? getDaysSince(p.admission_date) : 0;
+        }
+
+        // Aufgaben: "[ ] Text @Person !2026-10-07" – Zuständigkeit und Frist stehen in der Zeile.
+        function parseTodoLine(line) {
+            const raw = String(line || '');
+            const done = /^\[x\]\s*/i.test(raw);
+            let text = raw.replace(/^\[[x ]\]\s*/i, '');
+            let owner = '';
+            let due = '';
+            text = text.replace(/\s*!(\d{4}-\d{2}-\d{2})\b/, (match, date) => { due = date; return ''; });
+            text = text.replace(/\s*@([^\s@!]+)/, (match, person) => { owner = person; return ''; });
+            return { done, text: text.trim(), owner, due };
+        }
+        function formatTodoLine(task) {
+            return `[${task.done ? 'x' : ' '}] ${task.text}${task.owner ? ` @${task.owner}` : ''}${task.due ? ` !${task.due}` : ''}`;
+        }
+        function todoList(p) {
+            return (p.todo_text || '').split('\n').filter(line => line.trim()).map(parseTodoLine);
+        }
+        function writeTodoList(id, tasks) {
+            const patient = AppState.patients.find(x => x.id === id);
+            if(!patient) return;
+            patient.todo_text = tasks.map(formatTodoLine).join('\n');
+            saveData();
+            render();
+        }
+        function updateTodoField(id, index, field, value) {
+            const tasks = todoList(AppState.patients.find(x => x.id === id) || {});
+            if(!tasks[index]) return;
+            tasks[index][field] = value;
+            writeTodoList(id, tasks);
+        }
+        function todoDueState(task) {
+            if(!task.due || task.done) return '';
+            const today = todayIso();
+            if(task.due < today) return 'overdue';
+            if(task.due === today) return 'today';
+            return 'future';
+        }
+        function openTodoCount(p) {
+            const tasks = todoList(p);
+            return { open: tasks.filter(task => !task.done).length,
+                overdue: tasks.filter(task => todoDueState(task) === 'overdue').length };
+        }
+
+        // Tagesprofil: feste Uhrzeiten stehen in den Dosierangaben aus ID PHARMA.
+        function dayScheduleEntries(p) {
+            const slots = {};
+            const add = (time, label) => {
+                if(!slots[time]) slots[time] = [];
+                if(!slots[time].includes(label)) slots[time].push(label);
+            };
+            [['meds_current', ''], ['meds_bedarf', ' (b. Bedarf)']].forEach(([field, suffix]) => {
+                (p[field] || '').split(',').map(item => item.trim()).filter(Boolean).forEach(item => {
+                    const name = item.split('·')[0].trim();
+                    const times = item.match(/\b([01]?\d|2[0-3]):[0-5]\d\b/g) || [];
+                    times.forEach(time => add(time.padStart(5, '0'), name + suffix));
+                });
+            });
+            // Nüchtern und geplante Entlassung gehören ebenfalls in den Tagesablauf.
+            if(p.fasting) add('06:00', 'nüchtern bleiben');
+            return Object.keys(slots).sort().map(time => ({ time, items: slots[time] }));
+        }
+
         // --- MEDIKATIONSCHECK & MIKROBIOLOGIE ---
         const EGFR_SELECTOR = { code: 'V_EGFR', codes: ['V_EGFRM1', 'V_EGFRM2', 'V_EGFRW1', 'V_EGFRW2', 'V_EGFR'], labelIncludes: 'egfr' };
 
@@ -1658,6 +1811,91 @@
             patient.micro = (patient.micro || []).filter(item => item.id !== microId);
             saveData();
             render();
+        }
+
+        // --- ÜBERGABE-MODUS: ein Patient pro Bildschirm, Reihenfolge nach I-PASS ---
+        function openHandover(index) {
+            if(!AppState.patients.length) { alert('Keine Patienten vorhanden.'); return; }
+            AppState.handoverIndex = Math.min(Math.max(index || 0, 0), AppState.patients.length - 1);
+            renderHandover();
+            document.getElementById('handoverModal').style.display = 'block';
+            setTimeout(() => document.getElementById('handoverModal').focus(), 50);
+        }
+        function closeHandover() { document.getElementById('handoverModal').style.display = 'none'; }
+        function stepHandover(delta) {
+            const count = AppState.patients.length;
+            if(!count) return;
+            AppState.handoverIndex = (AppState.handoverIndex + delta + count) % count;
+            renderHandover();
+        }
+        // Die Tasten müssen auch greifen, wenn der Fokus noch nirgends im Fenster liegt.
+        function handleHandoverKey(e) {
+            const modal = document.getElementById('handoverModal');
+            if(!modal || modal.style.display !== 'block') return;
+            if(e.key === 'Escape') { closeHandover(); return; }
+            // In Textfeldern bleiben die Pfeiltasten dem Text vorbehalten.
+            const target = e.target;
+            if(target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+            if(e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); stepHandover(1); }
+            if(e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); stepHandover(-1); }
+        }
+        function handoverSection(title, body, options) {
+            if(!body) return '';
+            const settings = options || {};
+            return `<section class="mb-3"><h3 class="text-[11px] font-bold uppercase tracking-wide ${settings.tone || 'text-slate-500'} border-b border-slate-200 mb-1">${escapeHtml(title)}</h3><div class="${settings.size || 'text-sm'} leading-snug">${body}</div></section>`;
+        }
+        function renderHandover() {
+            const p = AppState.patients[AppState.handoverIndex];
+            const body = document.getElementById('handover-body');
+            if(!p) { body.innerHTML = ''; return; }
+            document.getElementById('handover-position').innerText = `${AppState.handoverIndex + 1} von ${AppState.patients.length}`;
+
+            const level = severityLevel(p);
+            const age = getAgeNum(p.dob);
+            const safety = safetyWarnings(p);
+            const deltas = (typeof LAB_DELTA_RULES !== 'undefined') ? KisLabImport.checkDeltas(p.labSets || [], LAB_DELTA_RULES) : [];
+            const micro = microFindings(p).filter(item => !item.negative && !item.pending);
+            const tasks = todoList(p);
+            const open = tasks.filter(task => !task.done);
+            const courses = (p.abx || []).filter(course => !course.ended);
+            const alerts = [p.warnings ? `CAVE: ${p.warnings}` : '', (p.iso || []).length ? `Isolation: ${(p.iso || []).join(', ')}` : '',
+                p.fasting ? 'NÜCHTERN' : '', p.dnr ? 'DNR' : '', p.dni ? 'DNI' : ''].filter(Boolean);
+
+            body.innerHTML = `
+                <div class="flex items-start gap-3 mb-3">
+                    <div class="text-4xl font-black text-blue-900 bg-blue-50 rounded px-3 py-1 flex-shrink-0">${escapeHtml(p.room || 'Gang')}</div>
+                    <div class="flex-grow min-w-0">
+                        <div class="text-2xl font-bold leading-tight">${escapeHtml(p.name || 'ohne Namen')}</div>
+                        <div class="text-xs text-slate-500">${isNaN(age) ? '' : `${age} Jahre · `}${stayDay(p) ? `Aufnahmetag ${stayDay(p)} · ` : ''}Rhythmus ${escapeHtml(p.rhythm || '–')}${p.lvef ? ` · LVEF ${escapeHtml(p.lvef)} %` : ''}</div>
+                    </div>
+                    <div class="flex flex-col items-end gap-1 flex-shrink-0">
+                        <button onclick="cycleSeverity('${p.id}'); renderHandover();" class="px-3 py-1 rounded font-bold border text-sm ${level ? level.tone : 'bg-white text-slate-400 border-slate-300'}">${level ? level.label : 'Stabilität?'}</button>
+                        ${alerts.length ? `<div class="flex flex-wrap gap-1 justify-end">${alerts.map(a => `<span class="text-[10px] font-bold border border-red-400 bg-red-50 text-red-800 rounded px-1">${escapeHtml(a)}</span>`).join('')}</div>` : ''}
+                    </div>
+                </div>
+                ${p.main_diagnosis ? `<div class="bg-slate-100 border-l-4 border-slate-700 px-3 py-2 font-bold mb-3">${escapeHtml(p.main_diagnosis)}</div>` : ''}
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-6">
+                    <div>
+                        ${handoverSection('Diagnosen', printLines(p.diagnosis))}
+                        ${handoverSection('Antiinfektiv', printList(courses.map(formatAbxCourse)))}
+                        ${handoverSection('Mikrobiologie', printList(micro.map(item => `${KisLabImport.formatDate(item.date)} ${item.material}: ${item.result}`)), { tone: 'text-emerald-700' })}
+                        ${handoverSection('Relevante Laborveränderungen', printList(deltas.map(warning => warning.text)), { tone: 'text-rose-700' })}
+                        ${handoverSection('Medikationscheck', printList(safety.map(item => `${item.title}${item.text ? ': ' + item.text : ''}`)), { tone: 'text-red-700' })}
+                    </div>
+                    <div>
+                        ${handoverSection(`Offene Aufgaben (${open.length})`, printList(open.map(task =>
+                            `${task.text}${task.owner ? ` @${task.owner}` : ''}${task.due ? ` bis ${KisLabImport.formatDate(task.due)}` : ''}${todoDueState(task) === 'overdue' ? ' ⚠ überfällig' : ''}`)), { tone: 'text-amber-700', size: 'text-base' })}
+                        <section class="mb-3">
+                            <h3 class="text-[11px] font-bold uppercase tracking-wide text-sky-700 border-b border-slate-200 mb-1">Wenn–dann (Dienstanweisung)</h3>
+                            <textarea oninput="updateField('${p.id}', 'contingency', this.value)" class="w-full border-2 ${p.contingency ? 'border-sky-400 bg-sky-50' : 'border-slate-200'} rounded p-2 text-sm h-20" placeholder="z. B. Bei RR syst. < 90 → Arzt rufen">${escapeHtml(p.contingency || '')}</textarea>
+                        </section>
+                        ${handoverSection('Entlassung', printList([
+                            p.discharge_date ? `Geplant: ${new Date(p.discharge_date).toLocaleDateString('de-DE')}` : '',
+                            (p.social || {}).reha ? `Reha: ${p.social.reha}` : ''
+                        ]))}
+                        ${handoverSection('Notizen', printLines(p.exam_text))}
+                    </div>
+                </div>`;
         }
 
         // --- SCHNELL-IMPORT: Format aus dem eingefügten Text erkennen ---
