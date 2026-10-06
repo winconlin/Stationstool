@@ -47,6 +47,20 @@ Dasselbe gibt es für das zweite Modul als `Medical-Suite-komplett.html`.
 
 > **Einschränkung:** In der Einzeldatei stecken die Konfigurationsdateien fest eingebaut. Wer Medikamentenlisten oder Regeln anpassen will (→ [Abschnitt 16](#16-anpassen)), nimmt Weg B – oder baut die Einzeldatei nach dem Anpassen neu (→ [Abschnitt 18](#18-technisches)).
 
+### Beim Umstieg von Weg B auf Weg A
+
+Die gespeicherten Patienten gehören zum Browser, nicht zur Datei. In **Edge und Chrome** sind sie nach dem Umstieg auf die Einzeldatei weiterhin da – auch wenn die Datei anders heißt oder in einem anderen Ordner liegt (geprüft). **Firefox kann das anders handhaben** und jeder Datei einen eigenen Speicher geben.
+
+Machen Sie es deshalb so, dann kann nichts schiefgehen:
+
+1. In der alten `Station.html` auf **💾 Backup** klicken.
+2. Die Einzeldatei öffnen.
+3. Ist die Liste leer: **📂 Import** und das eben erstellte Backup laden.
+
+### Aktualisieren
+
+Eine neue Fassung holen heißt: die Datei noch einmal herunterladen und die alte ersetzen. Die Patientendaten bleiben davon unberührt, sie liegen im Browser. **Trotzdem vorher ein Backup machen** – es kostet zehn Sekunden.
+
 ## Weg B: der ganze Ordner
 
 1. Den gesamten Ordner auf den Rechner kopieren. **Alle Dateien müssen zusammenbleiben** – `Station.html` allein funktioniert nicht.
@@ -596,7 +610,7 @@ kis_lab_import.js     Labor und BGA, Verlauf, Warnungen, Mikrobiologie
 med_safety.js         Wirkstoffklassen und Medikationscheck-Regeln
 epikrise_export.js    Epikrisen-Prompt samt Entfernung von Name und Geburtsdatum
 
-tests/                97 Tests (node --test tests/*.test.js)
+tests/                100 Tests (node --test tests/*.test.js)
 build_single_file.js  Erzeugt die Einzeldatei-Fassungen neu
 build_tailwind.sh     Erzeugt tailwind.css neu – nur bei neuen Tailwind-Klassen nötig
 ```
@@ -616,6 +630,8 @@ node build_single_file.js
 ```
 
 Das Skript bettet Stylesheets und Skripte in der richtigen Reihenfolge ein und schreibt `Stationsliste-komplett.html` sowie `Medical-Suite-komplett.html`. Bleibt ein externer Verweis übrig, bricht es mit einer Fehlermeldung ab.
+
+**Vergessen kann man es nicht:** Die Testreihe baut die Einzeldateien nach und vergleicht sie mit den eingecheckten. Ist eine davon nicht mehr auf dem Stand der Einzelteile, schlägt der Test fehl und nennt den Grund.
 
 ### tailwind.css neu erzeugen
 
