@@ -31,15 +31,49 @@ Ein Werkzeug für die tägliche Stationsarbeit in der Inneren Medizin und Kardio
 
 # 1. Erster Start
 
-1. Den gesamten Ordner auf den Rechner kopieren. **Alle Dateien müssen zusammenbleiben** – die HTML-Datei allein funktioniert nicht.
-2. `Station.html` doppelklicken. Sie öffnet sich im Standardbrowser (Chrome, Edge und Firefox sind getestet).
+Es gibt zwei Wege. **Weg A ist der einfachere** und für Stationsrechner empfohlen.
+
+## Weg A: eine einzige Datei
+
+Im Repository liegt **`Stationsliste-komplett.html`**. Darin steckt alles – Stylesheet, Konfiguration, alle Module. Eine Datei, sonst nichts.
+
+1. Auf GitHub die Datei `Stationsliste-komplett.html` anklicken.
+2. Rechts oben auf den Knopf **„Download raw file"** (Pfeil nach unten) klicken. **Nicht** den grünen Knopf *Code → Download ZIP* – der liefert den ganzen Ordner als Archiv.
+3. Die heruntergeladene Datei doppelklicken.
+
+Fertig. Kein Entpacken, kein Ordner, nichts, was verlorengehen kann. Die Datei lässt sich auf den Desktop legen, per Mail verschicken oder auf einen USB-Stick kopieren.
+
+Dasselbe gibt es für das zweite Modul als `Medical-Suite-komplett.html`.
+
+> **Einschränkung:** In der Einzeldatei stecken die Konfigurationsdateien fest eingebaut. Wer Medikamentenlisten oder Regeln anpassen will (→ [Abschnitt 16](#16-anpassen)), nimmt Weg B – oder baut die Einzeldatei nach dem Anpassen neu (→ [Abschnitt 18](#18-technisches)).
+
+## Weg B: der ganze Ordner
+
+1. Den gesamten Ordner auf den Rechner kopieren. **Alle Dateien müssen zusammenbleiben** – `Station.html` allein funktioniert nicht.
+2. `Station.html` doppelklicken.
 3. Auf **+ Patient** klicken und loslegen.
 
-Für die Arbeit im Alltag lohnt sich ein Lesezeichen oder eine Verknüpfung auf dem Desktop.
+Getestet mit Chrome, Edge und Firefox.
 
-Ein zweites Modul, `medical_suite.html`, enthält Textbausteine für Anamnese, Status und Prozedurberichte. Es arbeitet unabhängig und teilt keine Daten mit der Stationsliste.
+## Wenn die ZIP-Datei sich nicht öffnen lässt
+
+Meldet Windows *„Der ZIP-komprimierte Ordner … ist ungültig"*, liegt es fast nie am Archiv selbst. Der Reihe nach:
+
+1. **Dateigröße prüfen.** Rechtsklick → Eigenschaften. Die ZIP ist rund 140 KB groß. Steht dort 0 KB oder nur wenige KB, ist der Download abgebrochen – erneut herunterladen.
+2. **Auf die lokale Festplatte kopieren.** Liegt die Datei auf einem Netzlaufwerk (`\\server3\…`), kann der Windows-Explorer sie oft nicht entpacken. Erst nach `C:\Temp` kopieren, dann dort öffnen. Das löst den Fall am häufigsten.
+3. **Entsperren.** Rechtsklick → Eigenschaften → unten bei *Sicherheit* das Häkchen **Zulassen** setzen → OK. Windows blockiert aus dem Internet geladene Archive manchmal.
+4. **Mit 7-Zip öffnen** statt mit dem Windows-Explorer.
+5. **Oder per PowerShell entpacken:**
+   ```powershell
+   Expand-Archive -Path "$env:USERPROFILE\Downloads\Stationstool-main.zip" -DestinationPath "C:\Stationstool"
+   ```
+6. **Oder Weg A nehmen** und das ZIP ganz umgehen.
+
+Hilft nichts davon, blockiert vermutlich ein Virenscanner oder Proxy das Archiv. Dann ist Weg A der Ausweg, weil eine einzelne HTML-Datei solche Filter in der Regel passiert.
 
 **Wichtig zum Verständnis:** Die Daten liegen im Speicher *dieses einen Browsers auf diesem einen Rechner*. Ein anderer Browser, ein anderer PC oder ein gelöschter Browser-Cache bedeutet: leere Liste. Deshalb regelmäßig sichern (→ [Abschnitt 14](#14-sichern-und-übertragen)).
+
+Ein zweites Modul, `medical_suite.html`, enthält Textbausteine für Anamnese, Status und Prozedurberichte. Es arbeitet unabhängig und teilt keine Daten mit der Stationsliste.
 
 ---
 
@@ -519,6 +553,9 @@ medical_suite.html    Eigenständiges Modul für Anamnese, Status, Prozeduren
 tailwind.css          Mitgeliefertes Stylesheet – kein Internet nötig
 style.css             Eigene Anpassungen, vor allem die Druckprofile
 
+Stationsliste-komplett.html   Dieselbe Anwendung als EINE Datei (erzeugt)
+Medical-Suite-komplett.html   Dasselbe für das zweite Modul (erzeugt)
+
 config_base.js        Grundkonstanten, Labor- und Antibiotikaregeln
 config_meds.js        Medikamentenkatalog
 config_exam.js        Untersuchungsbausteine
@@ -531,6 +568,7 @@ med_safety.js         Wirkstoffklassen und Medikationscheck-Regeln
 epikrise_export.js    Epikrisen-Prompt samt Entfernung von Name und Geburtsdatum
 
 tests/                97 Tests (node --test tests/*.test.js)
+build_single_file.js  Erzeugt die Einzeldatei-Fassungen neu
 build_tailwind.sh     Erzeugt tailwind.css neu – nur bei neuen Tailwind-Klassen nötig
 ```
 
@@ -539,6 +577,16 @@ build_tailwind.sh     Erzeugt tailwind.css neu – nur bei neuen Tailwind-Klasse
 ```sh
 node --test tests/*.test.js
 ```
+
+### Einzeldatei neu erzeugen
+
+Nach jeder Änderung an den Konfigurations- oder Moduldateien:
+
+```sh
+node build_single_file.js
+```
+
+Das Skript bettet Stylesheets und Skripte in der richtigen Reihenfolge ein und schreibt `Stationsliste-komplett.html` sowie `Medical-Suite-komplett.html`. Bleibt ein externer Verweis übrig, bricht es mit einer Fehlermeldung ab.
 
 ### tailwind.css neu erzeugen
 
