@@ -57,19 +57,48 @@ Getestet mit Chrome, Edge und Firefox.
 
 ## Wenn die ZIP-Datei sich nicht öffnen lässt
 
-Meldet Windows *„Der ZIP-komprimierte Ordner … ist ungültig"*, liegt es fast nie am Archiv selbst. Der Reihe nach:
+Meldet Windows *„Der ZIP-komprimierte Ordner … ist ungültig"*, liegt es fast nie am Archiv selbst.
 
-1. **Dateigröße prüfen.** Rechtsklick → Eigenschaften. Die ZIP ist rund 140 KB groß. Steht dort 0 KB oder nur wenige KB, ist der Download abgebrochen – erneut herunterladen.
-2. **Auf die lokale Festplatte kopieren.** Liegt die Datei auf einem Netzlaufwerk (`\\server3\…`), kann der Windows-Explorer sie oft nicht entpacken. Erst nach `C:\Temp` kopieren, dann dort öffnen. Das löst den Fall am häufigsten.
-3. **Entsperren.** Rechtsklick → Eigenschaften → unten bei *Sicherheit* das Häkchen **Zulassen** setzen → OK. Windows blockiert aus dem Internet geladene Archive manchmal.
-4. **Mit 7-Zip öffnen** statt mit dem Windows-Explorer.
-5. **Oder per PowerShell entpacken:**
+### Zuerst: ist die Datei überhaupt vollständig angekommen?
+
+Rechtsklick auf die ZIP → **Eigenschaften** → Zeile **Größe**. Diese Zahl muss **genau** mit der auf GitHub angezeigten übereinstimmen. Weicht sie ab, wurde der Download unterwegs abgeschnitten – in Kliniknetzen kappen Virenscanner und Proxys gern Archive, die sie nicht zu Ende prüfen können.
+
+Ein ZIP trägt sein Inhaltsverzeichnis **am Ende**. Fehlt das Ende, hält Windows die ganze Datei für ungültig, auch wenn der Anfang in Ordnung ist. Erneutes Herunterladen hilft dann nicht, solange die Ursache bleibt.
+
+### Dann der Reihe nach
+
+1. **Entsperren.** Rechtsklick → Eigenschaften → unten bei *Sicherheit* das Kästchen **Zulassen** ankreuzen → Übernehmen. Ist dieses Kästchen leer, verweigert Windows das Entpacken – mit derselben irreführenden Meldung.
+2. **Auf die lokale Festplatte kopieren.** Liegt die Datei auf einem Netzlaufwerk (`\\server3\…`), kann der Explorer sie oft nicht entpacken. Erst nach `C:\Temp` kopieren, dann dort öffnen.
+3. **Mit 7-Zip öffnen** statt mit dem Windows-Explorer.
+4. **Oder per PowerShell entpacken:**
    ```powershell
    Expand-Archive -Path "$env:USERPROFILE\Downloads\Stationstool-main.zip" -DestinationPath "C:\Stationstool"
    ```
-6. **Oder Weg A nehmen** und das ZIP ganz umgehen.
+5. **Oder Weg A nehmen** und das ZIP ganz umgehen.
 
-Hilft nichts davon, blockiert vermutlich ein Virenscanner oder Proxy das Archiv. Dann ist Weg A der Ausweg, weil eine einzelne HTML-Datei solche Filter in der Regel passiert.
+### Weg A mit Prüfung – empfohlen bei Proxy oder Virenscanner
+
+Dieser PowerShell-Block lädt die Einzeldatei, prüft, ob sie **vollständig** angekommen ist, und hebt die Windows-Blockierung gleich mit auf. Einfach in ein PowerShell-Fenster einfügen:
+
+```powershell
+$url  = 'https://raw.githubusercontent.com/winconlin/Stationstool/main/Stationsliste-komplett.html'
+$ziel = "$env:USERPROFILE\Desktop\Stationsliste.html"
+
+Invoke-WebRequest -Uri $url -OutFile $ziel -UseBasicParsing
+Unblock-File $ziel
+
+$groesse = (Get-Item $ziel).Length
+"Größe: {0:N0} Bytes" -f $groesse
+if ((Get-Content $ziel -Raw) -match '</html>\s*$') {
+    "Die Datei ist vollständig und kann geöffnet werden."
+} else {
+    "ACHTUNG: Die Datei ist unvollständig - der Download wurde abgeschnitten."
+}
+```
+
+Der entscheidende Test ist die letzte Zeile: Eine vollständige HTML-Datei endet auf `</html>`. Fehlt das, wurde auch dieser Download gekappt – dann hilft nur noch die IT oder ein Rechner mit anderem Netzzugang.
+
+**Dasselbe von Hand:** Die heruntergeladene `.html` mit dem Editor öffnen und ans Dateiende springen (`Strg + Ende`). Dort muss `</html>` stehen.
 
 **Wichtig zum Verständnis:** Die Daten liegen im Speicher *dieses einen Browsers auf diesem einen Rechner*. Ein anderer Browser, ein anderer PC oder ein gelöschter Browser-Cache bedeutet: leere Liste. Deshalb regelmäßig sichern (→ [Abschnitt 14](#14-sichern-und-übertragen)).
 
