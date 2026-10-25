@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Suite - Kardiologie</title>
+    <!-- Tailwind liegt als fertige Datei bei: das Werkzeug braucht kein Internet. -->
+    <style>/* tailwind.css */
+*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:""}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.container{width:100%}@media (min-width:640px){.container{max-width:640px}}@media (min-width:768px){.container{max-width:768px}}@media (min-width:1024px){.container{max-width:1024px}}@media (min-width:1280px){.container{max-width:1280px}}@media (min-width:1536px){.container{max-width:1536px}}.visible{visibility:visible}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.sticky{position:sticky}.inset-0{inset:0}.bottom-4{bottom:1rem}.right-1{right:.25rem}.right-4{right:1rem}.top-0{top:0}.top-1{top:.25rem}.z-20{z-index:20}.z-50{z-index:50}.col-span-2{grid-column:span 2/span 2}.col-span-full{grid-column:1/-1}.mx-1{margin-left:.25rem;margin-right:.25rem}.mx-auto{margin-left:auto;margin-right:auto}.my-2{margin-top:.5rem;margin-bottom:.5rem}.mb-0\.5{margin-bottom:.125rem}.mb-1{margin-bottom:.25rem}.mb-2{margin-bottom:.5rem}.mb-3{margin-bottom:.75rem}.mb-4{margin-bottom:1rem}.ml-1{margin-left:.25rem}.ml-2{margin-left:.5rem}.ml-auto{margin-left:auto}.mr-1{margin-right:.25rem}.mt-0\.5{margin-top:.125rem}.mt-1{margin-top:.25rem}.mt-10{margin-top:2.5rem}.mt-2{margin-top:.5rem}.mt-20{margin-top:5rem}.mt-3{margin-top:.75rem}.mt-4{margin-top:1rem}.block{display:block}.inline-block{display:inline-block}.flex{display:flex}.table{display:table}.grid{display:grid}.hidden{display:none}.h-10{height:2.5rem}.h-20{height:5rem}.h-24{height:6rem}.h-32{height:8rem}.h-4{height:1rem}.h-\[80vh\]{height:80vh}.h-\[88vh\]{height:88vh}.h-\[92vh\]{height:92vh}.h-full{height:100%}.max-h-20{max-height:5rem}.max-h-40{max-height:10rem}.max-h-\[70vh\]{max-height:70vh}.max-h-\[90vh\]{max-height:90vh}.min-h-24{min-height:6rem}.min-h-\[14px\]{min-height:14px}.min-h-screen{min-height:100vh}.w-1\/3{width:33.333333%}.w-10{width:2.5rem}.w-11{width:2.75rem}.w-12{width:3rem}.w-14{width:3.5rem}.w-16{width:4rem}.w-2\/3{width:66.666667%}.w-20{width:5rem}.w-24{width:6rem}.w-48{width:12rem}.w-6{width:1.5rem}.w-8{width:2rem}.w-9{width:2.25rem}.w-\[380px\]{width:380px}.w-full{width:100%}.w-px{width:1px}.min-w-0{min-width:0}.max-w-2xl{max-width:42rem}.max-w-3xl{max-width:48rem}.max-w-4xl{max-width:56rem}.max-w-5xl{max-width:64rem}.max-w-6xl{max-width:72rem}.max-w-\[1900px\]{max-width:1900px}.flex-1{flex:1 1 0%}.flex-shrink-0{flex-shrink:0}.flex-grow{flex-grow:1}.transform{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}@keyframes pulse{50%{opacity:.5}}.animate-pulse{animation:pulse 2s cubic-bezier(.4,0,.6,1) infinite}.cursor-pointer{cursor:pointer}.select-none{-webkit-user-select:none;-moz-user-select:none;user-select:none}.resize-none{resize:none}.list-none{list-style-type:none}.grid-cols-1{grid-template-columns:repeat(1,minmax(0,1fr))}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}.grid-cols-6{grid-template-columns:repeat(6,minmax(0,1fr))}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-end{align-items:flex-end}.items-center{align-items:center}.justify-end{justify-content:flex-end}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0\.5{gap:.125rem}.gap-1{gap:.25rem}.gap-2{gap:.5rem}.gap-3{gap:.75rem}.gap-4{gap:1rem}.gap-6{gap:1.5rem}.gap-x-2{-moz-column-gap:.5rem;column-gap:.5rem}.gap-x-6{-moz-column-gap:1.5rem;column-gap:1.5rem}.gap-y-0\.5{row-gap:.125rem}.space-y-2>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(.5rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(.5rem*var(--tw-space-y-reverse))}.space-y-3>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(.75rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(.75rem*var(--tw-space-y-reverse))}.space-y-4>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem*var(--tw-space-y-reverse))}.self-start{align-self:flex-start}.self-end{align-self:flex-end}.overflow-auto{overflow:auto}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.rounded{border-radius:.25rem}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:.5rem}.rounded-xl{border-radius:.75rem}.rounded-b{border-bottom-right-radius:.25rem;border-bottom-left-radius:.25rem}.rounded-t{border-top-left-radius:.25rem;border-top-right-radius:.25rem}.border{border-width:1px}.border-2{border-width:2px}.border-x{border-left-width:1px;border-right-width:1px}.border-y{border-top-width:1px}.border-b,.border-y{border-bottom-width:1px}.border-b-2{border-bottom-width:2px}.border-l-4{border-left-width:4px}.border-t{border-top-width:1px}.border-dashed{border-style:dashed}.border-none{border-style:none}.border-amber-100{--tw-border-opacity:1;border-color:rgb(254 243 199/var(--tw-border-opacity,1))}.border-amber-200{--tw-border-opacity:1;border-color:rgb(253 230 138/var(--tw-border-opacity,1))}.border-amber-300{--tw-border-opacity:1;border-color:rgb(252 211 77/var(--tw-border-opacity,1))}.border-amber-400{--tw-border-opacity:1;border-color:rgb(251 191 36/var(--tw-border-opacity,1))}.border-amber-50{--tw-border-opacity:1;border-color:rgb(255 251 235/var(--tw-border-opacity,1))}.border-amber-500{--tw-border-opacity:1;border-color:rgb(245 158 11/var(--tw-border-opacity,1))}.border-amber-600{--tw-border-opacity:1;border-color:rgb(217 119 6/var(--tw-border-opacity,1))}.border-amber-700{--tw-border-opacity:1;border-color:rgb(180 83 9/var(--tw-border-opacity,1))}.border-amber-800{--tw-border-opacity:1;border-color:rgb(146 64 14/var(--tw-border-opacity,1))}.border-amber-900{--tw-border-opacity:1;border-color:rgb(120 53 15/var(--tw-border-opacity,1))}.border-blue-100{--tw-border-opacity:1;border-color:rgb(219 234 254/var(--tw-border-opacity,1))}.border-blue-200{--tw-border-opacity:1;border-color:rgb(191 219 254/var(--tw-border-opacity,1))}.border-blue-300{--tw-border-opacity:1;border-color:rgb(147 197 253/var(--tw-border-opacity,1))}.border-blue-400{--tw-border-opacity:1;border-color:rgb(96 165 250/var(--tw-border-opacity,1))}.border-blue-50{--tw-border-opacity:1;border-color:rgb(239 246 255/var(--tw-border-opacity,1))}.border-blue-500{--tw-border-opacity:1;border-color:rgb(59 130 246/var(--tw-border-opacity,1))}.border-blue-600{--tw-border-opacity:1;border-color:rgb(37 99 235/var(--tw-border-opacity,1))}.border-blue-700{--tw-border-opacity:1;border-color:rgb(29 78 216/var(--tw-border-opacity,1))}.border-blue-800{--tw-border-opacity:1;border-color:rgb(30 64 175/var(--tw-border-opacity,1))}.border-blue-900{--tw-border-opacity:1;border-color:rgb(30 58 138/var(--tw-border-opacity,1))}.border-cyan-100{--tw-border-opacity:1;border-color:rgb(207 250 254/var(--tw-border-opacity,1))}.border-cyan-200{--tw-border-opacity:1;border-color:rgb(165 243 252/var(--tw-border-opacity,1))}.border-cyan-300{--tw-border-opacity:1;border-color:rgb(103 232 249/var(--tw-border-opacity,1))}.border-cyan-400{--tw-border-opacity:1;border-color:rgb(34 211 238/var(--tw-border-opacity,1))}.border-cyan-50{--tw-border-opacity:1;border-color:rgb(236 254 255/var(--tw-border-opacity,1))}.border-cyan-500{--tw-border-opacity:1;border-color:rgb(6 182 212/var(--tw-border-opacity,1))}.border-cyan-600{--tw-border-opacity:1;border-color:rgb(8 145 178/var(--tw-border-opacity,1))}.border-cyan-700{--tw-border-opacity:1;border-color:rgb(14 116 144/var(--tw-border-opacity,1))}.border-cyan-800{--tw-border-opacity:1;border-color:rgb(21 94 117/var(--tw-border-opacity,1))}.border-cyan-900{--tw-border-opacity:1;border-color:rgb(22 78 99/var(--tw-border-opacity,1))}.border-emerald-100{--tw-border-opacity:1;border-color:rgb(209 250 229/var(--tw-border-opacity,1))}.border-emerald-200{--tw-border-opacity:1;border-color:rgb(167 243 208/var(--tw-border-opacity,1))}.border-emerald-300{--tw-border-opacity:1;border-color:rgb(110 231 183/var(--tw-border-opacity,1))}.border-emerald-400{--tw-border-opacity:1;border-color:rgb(52 211 153/var(--tw-border-opacity,1))}.border-emerald-50{--tw-border-opacity:1;border-color:rgb(236 253 245/var(--tw-border-opacity,1))}.border-emerald-500{--tw-border-opacity:1;border-color:rgb(16 185 129/var(--tw-border-opacity,1))}.border-emerald-600{--tw-border-opacity:1;border-color:rgb(5 150 105/var(--tw-border-opacity,1))}.border-emerald-700{--tw-border-opacity:1;border-color:rgb(4 120 87/var(--tw-border-opacity,1))}.border-emerald-800{--tw-border-opacity:1;border-color:rgb(6 95 70/var(--tw-border-opacity,1))}.border-emerald-900{--tw-border-opacity:1;border-color:rgb(6 78 59/var(--tw-border-opacity,1))}.border-fuchsia-100{--tw-border-opacity:1;border-color:rgb(250 232 255/var(--tw-border-opacity,1))}.border-fuchsia-200{--tw-border-opacity:1;border-color:rgb(245 208 254/var(--tw-border-opacity,1))}.border-fuchsia-300{--tw-border-opacity:1;border-color:rgb(240 171 252/var(--tw-border-opacity,1))}.border-fuchsia-400{--tw-border-opacity:1;border-color:rgb(232 121 249/var(--tw-border-opacity,1))}.border-fuchsia-50{--tw-border-opacity:1;border-color:rgb(253 244 255/var(--tw-border-opacity,1))}.border-fuchsia-500{--tw-border-opacity:1;border-color:rgb(217 70 239/var(--tw-border-opacity,1))}.border-fuchsia-600{--tw-border-opacity:1;border-color:rgb(192 38 211/var(--tw-border-opacity,1))}.border-fuchsia-700{--tw-border-opacity:1;border-color:rgb(162 28 175/var(--tw-border-opacity,1))}.border-fuchsia-800{--tw-border-opacity:1;border-color:rgb(134 25 143/var(--tw-border-opacity,1))}.border-fuchsia-900{--tw-border-opacity:1;border-color:rgb(112 26 117/var(--tw-border-opacity,1))}.border-gray-100{--tw-border-opacity:1;border-color:rgb(243 244 246/var(--tw-border-opacity,1))}.border-gray-200{--tw-border-opacity:1;border-color:rgb(229 231 235/var(--tw-border-opacity,1))}.border-gray-300{--tw-border-opacity:1;border-color:rgb(209 213 219/var(--tw-border-opacity,1))}.border-gray-400{--tw-border-opacity:1;border-color:rgb(156 163 175/var(--tw-border-opacity,1))}.border-gray-50{--tw-border-opacity:1;border-color:rgb(249 250 251/var(--tw-border-opacity,1))}.border-gray-500{--tw-border-opacity:1;border-color:rgb(107 114 128/var(--tw-border-opacity,1))}.border-gray-600{--tw-border-opacity:1;border-color:rgb(75 85 99/var(--tw-border-opacity,1))}.border-gray-700{--tw-border-opacity:1;border-color:rgb(55 65 81/var(--tw-border-opacity,1))}.border-gray-800{--tw-border-opacity:1;border-color:rgb(31 41 55/var(--tw-border-opacity,1))}.border-gray-900{--tw-border-opacity:1;border-color:rgb(17 24 39/var(--tw-border-opacity,1))}.border-green-100{--tw-border-opacity:1;border-color:rgb(220 252 231/var(--tw-border-opacity,1))}.border-green-200{--tw-border-opacity:1;border-color:rgb(187 247 208/var(--tw-border-opacity,1))}.border-green-300{--tw-border-opacity:1;border-color:rgb(134 239 172/var(--tw-border-opacity,1))}.border-green-400{--tw-border-opacity:1;border-color:rgb(74 222 128/var(--tw-border-opacity,1))}.border-green-50{--tw-border-opacity:1;border-color:rgb(240 253 244/var(--tw-border-opacity,1))}.border-green-500{--tw-border-opacity:1;border-color:rgb(34 197 94/var(--tw-border-opacity,1))}.border-green-600{--tw-border-opacity:1;border-color:rgb(22 163 74/var(--tw-border-opacity,1))}.border-green-700{--tw-border-opacity:1;border-color:rgb(21 128 61/var(--tw-border-opacity,1))}.border-green-800{--tw-border-opacity:1;border-color:rgb(22 101 52/var(--tw-border-opacity,1))}.border-green-900{--tw-border-opacity:1;border-color:rgb(20 83 45/var(--tw-border-opacity,1))}.border-indigo-100{--tw-border-opacity:1;border-color:rgb(224 231 255/var(--tw-border-opacity,1))}.border-indigo-200{--tw-border-opacity:1;border-color:rgb(199 210 254/var(--tw-border-opacity,1))}.border-indigo-300{--tw-border-opacity:1;border-color:rgb(165 180 252/var(--tw-border-opacity,1))}.border-indigo-400{--tw-border-opacity:1;border-color:rgb(129 140 248/var(--tw-border-opacity,1))}.border-indigo-50{--tw-border-opacity:1;border-color:rgb(238 242 255/var(--tw-border-opacity,1))}.border-indigo-500{--tw-border-opacity:1;border-color:rgb(99 102 241/var(--tw-border-opacity,1))}.border-indigo-600{--tw-border-opacity:1;border-color:rgb(79 70 229/var(--tw-border-opacity,1))}.border-indigo-700{--tw-border-opacity:1;border-color:rgb(67 56 202/var(--tw-border-opacity,1))}.border-indigo-800{--tw-border-opacity:1;border-color:rgb(55 48 163/var(--tw-border-opacity,1))}.border-indigo-900{--tw-border-opacity:1;border-color:rgb(49 46 129/var(--tw-border-opacity,1))}.border-orange-100{--tw-border-opacity:1;border-color:rgb(255 237 213/var(--tw-border-opacity,1))}.border-orange-200{--tw-border-opacity:1;border-color:rgb(254 215 170/var(--tw-border-opacity,1))}.border-orange-300{--tw-border-opacity:1;border-color:rgb(253 186 116/var(--tw-border-opacity,1))}.border-orange-400{--tw-border-opacity:1;border-color:rgb(251 146 60/var(--tw-border-opacity,1))}.border-orange-50{--tw-border-opacity:1;border-color:rgb(255 247 237/var(--tw-border-opacity,1))}.border-orange-500{--tw-border-opacity:1;border-color:rgb(249 115 22/var(--tw-border-opacity,1))}.border-orange-600{--tw-border-opacity:1;border-color:rgb(234 88 12/var(--tw-border-opacity,1))}.border-orange-700{--tw-border-opacity:1;border-color:rgb(194 65 12/var(--tw-border-opacity,1))}.border-orange-800{--tw-border-opacity:1;border-color:rgb(154 52 18/var(--tw-border-opacity,1))}.border-orange-900{--tw-border-opacity:1;border-color:rgb(124 45 18/var(--tw-border-opacity,1))}.border-pink-100{--tw-border-opacity:1;border-color:rgb(252 231 243/var(--tw-border-opacity,1))}.border-pink-200{--tw-border-opacity:1;border-color:rgb(251 207 232/var(--tw-border-opacity,1))}.border-pink-300{--tw-border-opacity:1;border-color:rgb(249 168 212/var(--tw-border-opacity,1))}.border-pink-400{--tw-border-opacity:1;border-color:rgb(244 114 182/var(--tw-border-opacity,1))}.border-pink-50{--tw-border-opacity:1;border-color:rgb(253 242 248/var(--tw-border-opacity,1))}.border-pink-500{--tw-border-opacity:1;border-color:rgb(236 72 153/var(--tw-border-opacity,1))}.border-pink-600{--tw-border-opacity:1;border-color:rgb(219 39 119/var(--tw-border-opacity,1))}.border-pink-700{--tw-border-opacity:1;border-color:rgb(190 24 93/var(--tw-border-opacity,1))}.border-pink-800{--tw-border-opacity:1;border-color:rgb(157 23 77/var(--tw-border-opacity,1))}.border-pink-900{--tw-border-opacity:1;border-color:rgb(131 24 67/var(--tw-border-opacity,1))}.border-purple-100{--tw-border-opacity:1;border-color:rgb(243 232 255/var(--tw-border-opacity,1))}.border-purple-200{--tw-border-opacity:1;border-color:rgb(233 213 255/var(--tw-border-opacity,1))}.border-purple-300{--tw-border-opacity:1;border-color:rgb(216 180 254/var(--tw-border-opacity,1))}.border-purple-400{--tw-border-opacity:1;border-color:rgb(192 132 252/var(--tw-border-opacity,1))}.border-purple-50{--tw-border-opacity:1;border-color:rgb(250 245 255/var(--tw-border-opacity,1))}.border-purple-500{--tw-border-opacity:1;border-color:rgb(168 85 247/var(--tw-border-opacity,1))}.border-purple-600{--tw-border-opacity:1;border-color:rgb(147 51 234/var(--tw-border-opacity,1))}.border-purple-700{--tw-border-opacity:1;border-color:rgb(126 34 206/var(--tw-border-opacity,1))}.border-purple-800{--tw-border-opacity:1;border-color:rgb(107 33 168/var(--tw-border-opacity,1))}.border-purple-900{--tw-border-opacity:1;border-color:rgb(88 28 135/var(--tw-border-opacity,1))}.border-red-100{--tw-border-opacity:1;border-color:rgb(254 226 226/var(--tw-border-opacity,1))}.border-red-200{--tw-border-opacity:1;border-color:rgb(254 202 202/var(--tw-border-opacity,1))}.border-red-300{--tw-border-opacity:1;border-color:rgb(252 165 165/var(--tw-border-opacity,1))}.border-red-400{--tw-border-opacity:1;border-color:rgb(248 113 113/var(--tw-border-opacity,1))}.border-red-50{--tw-border-opacity:1;border-color:rgb(254 242 242/var(--tw-border-opacity,1))}.border-red-500{--tw-border-opacity:1;border-color:rgb(239 68 68/var(--tw-border-opacity,1))}.border-red-600{--tw-border-opacity:1;border-color:rgb(220 38 38/var(--tw-border-opacity,1))}.border-red-700{--tw-border-opacity:1;border-color:rgb(185 28 28/var(--tw-border-opacity,1))}.border-red-800{--tw-border-opacity:1;border-color:rgb(153 27 27/var(--tw-border-opacity,1))}.border-red-900{--tw-border-opacity:1;border-color:rgb(127 29 29/var(--tw-border-opacity,1))}.border-rose-100{--tw-border-opacity:1;border-color:rgb(255 228 230/var(--tw-border-opacity,1))}.border-rose-200{--tw-border-opacity:1;border-color:rgb(254 205 211/var(--tw-border-opacity,1))}.border-rose-300{--tw-border-opacity:1;border-color:rgb(253 164 175/var(--tw-border-opacity,1))}.border-rose-400{--tw-border-opacity:1;border-color:rgb(251 113 133/var(--tw-border-opacity,1))}.border-rose-50{--tw-border-opacity:1;border-color:rgb(255 241 242/var(--tw-border-opacity,1))}.border-rose-500{--tw-border-opacity:1;border-color:rgb(244 63 94/var(--tw-border-opacity,1))}.border-rose-600{--tw-border-opacity:1;border-color:rgb(225 29 72/var(--tw-border-opacity,1))}.border-rose-700{--tw-border-opacity:1;border-color:rgb(190 18 60/var(--tw-border-opacity,1))}.border-rose-800{--tw-border-opacity:1;border-color:rgb(159 18 57/var(--tw-border-opacity,1))}.border-rose-900{--tw-border-opacity:1;border-color:rgb(136 19 55/var(--tw-border-opacity,1))}.border-sky-100{--tw-border-opacity:1;border-color:rgb(224 242 254/var(--tw-border-opacity,1))}.border-sky-200{--tw-border-opacity:1;border-color:rgb(186 230 253/var(--tw-border-opacity,1))}.border-sky-300{--tw-border-opacity:1;border-color:rgb(125 211 252/var(--tw-border-opacity,1))}.border-sky-400{--tw-border-opacity:1;border-color:rgb(56 189 248/var(--tw-border-opacity,1))}.border-sky-50{--tw-border-opacity:1;border-color:rgb(240 249 255/var(--tw-border-opacity,1))}.border-sky-500{--tw-border-opacity:1;border-color:rgb(14 165 233/var(--tw-border-opacity,1))}.border-sky-600{--tw-border-opacity:1;border-color:rgb(2 132 199/var(--tw-border-opacity,1))}.border-sky-700{--tw-border-opacity:1;border-color:rgb(3 105 161/var(--tw-border-opacity,1))}.border-sky-800{--tw-border-opacity:1;border-color:rgb(7 89 133/var(--tw-border-opacity,1))}.border-sky-900{--tw-border-opacity:1;border-color:rgb(12 74 110/var(--tw-border-opacity,1))}.border-slate-100{--tw-border-opacity:1;border-color:rgb(241 245 249/var(--tw-border-opacity,1))}.border-slate-200{--tw-border-opacity:1;border-color:rgb(226 232 240/var(--tw-border-opacity,1))}.border-slate-300{--tw-border-opacity:1;border-color:rgb(203 213 225/var(--tw-border-opacity,1))}.border-slate-400{--tw-border-opacity:1;border-color:rgb(148 163 184/var(--tw-border-opacity,1))}.border-slate-50{--tw-border-opacity:1;border-color:rgb(248 250 252/var(--tw-border-opacity,1))}.border-slate-500{--tw-border-opacity:1;border-color:rgb(100 116 139/var(--tw-border-opacity,1))}.border-slate-600{--tw-border-opacity:1;border-color:rgb(71 85 105/var(--tw-border-opacity,1))}.border-slate-700{--tw-border-opacity:1;border-color:rgb(51 65 85/var(--tw-border-opacity,1))}.border-slate-800{--tw-border-opacity:1;border-color:rgb(30 41 59/var(--tw-border-opacity,1))}.border-slate-900{--tw-border-opacity:1;border-color:rgb(15 23 42/var(--tw-border-opacity,1))}.border-teal-100{--tw-border-opacity:1;border-color:rgb(204 251 241/var(--tw-border-opacity,1))}.border-teal-200{--tw-border-opacity:1;border-color:rgb(153 246 228/var(--tw-border-opacity,1))}.border-teal-300{--tw-border-opacity:1;border-color:rgb(94 234 212/var(--tw-border-opacity,1))}.border-teal-400{--tw-border-opacity:1;border-color:rgb(45 212 191/var(--tw-border-opacity,1))}.border-teal-50{--tw-border-opacity:1;border-color:rgb(240 253 250/var(--tw-border-opacity,1))}.border-teal-500{--tw-border-opacity:1;border-color:rgb(20 184 166/var(--tw-border-opacity,1))}.border-teal-600{--tw-border-opacity:1;border-color:rgb(13 148 136/var(--tw-border-opacity,1))}.border-teal-700{--tw-border-opacity:1;border-color:rgb(15 118 110/var(--tw-border-opacity,1))}.border-teal-800{--tw-border-opacity:1;border-color:rgb(17 94 89/var(--tw-border-opacity,1))}.border-teal-900{--tw-border-opacity:1;border-color:rgb(19 78 74/var(--tw-border-opacity,1))}.border-transparent{border-color:transparent}.border-violet-100{--tw-border-opacity:1;border-color:rgb(237 233 254/var(--tw-border-opacity,1))}.border-violet-200{--tw-border-opacity:1;border-color:rgb(221 214 254/var(--tw-border-opacity,1))}.border-violet-300{--tw-border-opacity:1;border-color:rgb(196 181 253/var(--tw-border-opacity,1))}.border-violet-400{--tw-border-opacity:1;border-color:rgb(167 139 250/var(--tw-border-opacity,1))}.border-violet-50{--tw-border-opacity:1;border-color:rgb(245 243 255/var(--tw-border-opacity,1))}.border-violet-500{--tw-border-opacity:1;border-color:rgb(139 92 246/var(--tw-border-opacity,1))}.border-violet-600{--tw-border-opacity:1;border-color:rgb(124 58 237/var(--tw-border-opacity,1))}.border-violet-700{--tw-border-opacity:1;border-color:rgb(109 40 217/var(--tw-border-opacity,1))}.border-violet-800{--tw-border-opacity:1;border-color:rgb(91 33 182/var(--tw-border-opacity,1))}.border-violet-900{--tw-border-opacity:1;border-color:rgb(76 29 149/var(--tw-border-opacity,1))}.border-yellow-100{--tw-border-opacity:1;border-color:rgb(254 249 195/var(--tw-border-opacity,1))}.border-yellow-200{--tw-border-opacity:1;border-color:rgb(254 240 138/var(--tw-border-opacity,1))}.border-yellow-300{--tw-border-opacity:1;border-color:rgb(253 224 71/var(--tw-border-opacity,1))}.border-yellow-400{--tw-border-opacity:1;border-color:rgb(250 204 21/var(--tw-border-opacity,1))}.border-yellow-50{--tw-border-opacity:1;border-color:rgb(254 252 232/var(--tw-border-opacity,1))}.border-yellow-500{--tw-border-opacity:1;border-color:rgb(234 179 8/var(--tw-border-opacity,1))}.border-yellow-600{--tw-border-opacity:1;border-color:rgb(202 138 4/var(--tw-border-opacity,1))}.border-yellow-700{--tw-border-opacity:1;border-color:rgb(161 98 7/var(--tw-border-opacity,1))}.border-yellow-800{--tw-border-opacity:1;border-color:rgb(133 77 14/var(--tw-border-opacity,1))}.border-yellow-900{--tw-border-opacity:1;border-color:rgb(113 63 18/var(--tw-border-opacity,1))}.bg-amber-100{--tw-bg-opacity:1;background-color:rgb(254 243 199/var(--tw-bg-opacity,1))}.bg-amber-200{--tw-bg-opacity:1;background-color:rgb(253 230 138/var(--tw-bg-opacity,1))}.bg-amber-300{--tw-bg-opacity:1;background-color:rgb(252 211 77/var(--tw-bg-opacity,1))}.bg-amber-400{--tw-bg-opacity:1;background-color:rgb(251 191 36/var(--tw-bg-opacity,1))}.bg-amber-50{--tw-bg-opacity:1;background-color:rgb(255 251 235/var(--tw-bg-opacity,1))}.bg-amber-500{--tw-bg-opacity:1;background-color:rgb(245 158 11/var(--tw-bg-opacity,1))}.bg-amber-600{--tw-bg-opacity:1;background-color:rgb(217 119 6/var(--tw-bg-opacity,1))}.bg-amber-700{--tw-bg-opacity:1;background-color:rgb(180 83 9/var(--tw-bg-opacity,1))}.bg-amber-800{--tw-bg-opacity:1;background-color:rgb(146 64 14/var(--tw-bg-opacity,1))}.bg-amber-900{--tw-bg-opacity:1;background-color:rgb(120 53 15/var(--tw-bg-opacity,1))}.bg-blue-100{--tw-bg-opacity:1;background-color:rgb(219 234 254/var(--tw-bg-opacity,1))}.bg-blue-200{--tw-bg-opacity:1;background-color:rgb(191 219 254/var(--tw-bg-opacity,1))}.bg-blue-300{--tw-bg-opacity:1;background-color:rgb(147 197 253/var(--tw-bg-opacity,1))}.bg-blue-400{--tw-bg-opacity:1;background-color:rgb(96 165 250/var(--tw-bg-opacity,1))}.bg-blue-50{--tw-bg-opacity:1;background-color:rgb(239 246 255/var(--tw-bg-opacity,1))}.bg-blue-500{--tw-bg-opacity:1;background-color:rgb(59 130 246/var(--tw-bg-opacity,1))}.bg-blue-600{--tw-bg-opacity:1;background-color:rgb(37 99 235/var(--tw-bg-opacity,1))}.bg-blue-700{--tw-bg-opacity:1;background-color:rgb(29 78 216/var(--tw-bg-opacity,1))}.bg-blue-800{--tw-bg-opacity:1;background-color:rgb(30 64 175/var(--tw-bg-opacity,1))}.bg-blue-900{--tw-bg-opacity:1;background-color:rgb(30 58 138/var(--tw-bg-opacity,1))}.bg-cyan-100{--tw-bg-opacity:1;background-color:rgb(207 250 254/var(--tw-bg-opacity,1))}.bg-cyan-200{--tw-bg-opacity:1;background-color:rgb(165 243 252/var(--tw-bg-opacity,1))}.bg-cyan-300{--tw-bg-opacity:1;background-color:rgb(103 232 249/var(--tw-bg-opacity,1))}.bg-cyan-400{--tw-bg-opacity:1;background-color:rgb(34 211 238/var(--tw-bg-opacity,1))}.bg-cyan-50{--tw-bg-opacity:1;background-color:rgb(236 254 255/var(--tw-bg-opacity,1))}.bg-cyan-500{--tw-bg-opacity:1;background-color:rgb(6 182 212/var(--tw-bg-opacity,1))}.bg-cyan-600{--tw-bg-opacity:1;background-color:rgb(8 145 178/var(--tw-bg-opacity,1))}.bg-cyan-700{--tw-bg-opacity:1;background-color:rgb(14 116 144/var(--tw-bg-opacity,1))}.bg-cyan-800{--tw-bg-opacity:1;background-color:rgb(21 94 117/var(--tw-bg-opacity,1))}.bg-cyan-900{--tw-bg-opacity:1;background-color:rgb(22 78 99/var(--tw-bg-opacity,1))}.bg-emerald-100{--tw-bg-opacity:1;background-color:rgb(209 250 229/var(--tw-bg-opacity,1))}.bg-emerald-200{--tw-bg-opacity:1;background-color:rgb(167 243 208/var(--tw-bg-opacity,1))}.bg-emerald-300{--tw-bg-opacity:1;background-color:rgb(110 231 183/var(--tw-bg-opacity,1))}.bg-emerald-400{--tw-bg-opacity:1;background-color:rgb(52 211 153/var(--tw-bg-opacity,1))}.bg-emerald-50{--tw-bg-opacity:1;background-color:rgb(236 253 245/var(--tw-bg-opacity,1))}.bg-emerald-500{--tw-bg-opacity:1;background-color:rgb(16 185 129/var(--tw-bg-opacity,1))}.bg-emerald-600{--tw-bg-opacity:1;background-color:rgb(5 150 105/var(--tw-bg-opacity,1))}.bg-emerald-700{--tw-bg-opacity:1;background-color:rgb(4 120 87/var(--tw-bg-opacity,1))}.bg-emerald-800{--tw-bg-opacity:1;background-color:rgb(6 95 70/var(--tw-bg-opacity,1))}.bg-emerald-900{--tw-bg-opacity:1;background-color:rgb(6 78 59/var(--tw-bg-opacity,1))}.bg-fuchsia-100{--tw-bg-opacity:1;background-color:rgb(250 232 255/var(--tw-bg-opacity,1))}.bg-fuchsia-200{--tw-bg-opacity:1;background-color:rgb(245 208 254/var(--tw-bg-opacity,1))}.bg-fuchsia-300{--tw-bg-opacity:1;background-color:rgb(240 171 252/var(--tw-bg-opacity,1))}.bg-fuchsia-400{--tw-bg-opacity:1;background-color:rgb(232 121 249/var(--tw-bg-opacity,1))}.bg-fuchsia-50{--tw-bg-opacity:1;background-color:rgb(253 244 255/var(--tw-bg-opacity,1))}.bg-fuchsia-500{--tw-bg-opacity:1;background-color:rgb(217 70 239/var(--tw-bg-opacity,1))}.bg-fuchsia-600{--tw-bg-opacity:1;background-color:rgb(192 38 211/var(--tw-bg-opacity,1))}.bg-fuchsia-700{--tw-bg-opacity:1;background-color:rgb(162 28 175/var(--tw-bg-opacity,1))}.bg-fuchsia-800{--tw-bg-opacity:1;background-color:rgb(134 25 143/var(--tw-bg-opacity,1))}.bg-fuchsia-900{--tw-bg-opacity:1;background-color:rgb(112 26 117/var(--tw-bg-opacity,1))}.bg-gray-100{--tw-bg-opacity:1;background-color:rgb(243 244 246/var(--tw-bg-opacity,1))}.bg-gray-200{--tw-bg-opacity:1;background-color:rgb(229 231 235/var(--tw-bg-opacity,1))}.bg-gray-300{--tw-bg-opacity:1;background-color:rgb(209 213 219/var(--tw-bg-opacity,1))}.bg-gray-400{--tw-bg-opacity:1;background-color:rgb(156 163 175/var(--tw-bg-opacity,1))}.bg-gray-50{--tw-bg-opacity:1;background-color:rgb(249 250 251/var(--tw-bg-opacity,1))}.bg-gray-500{--tw-bg-opacity:1;background-color:rgb(107 114 128/var(--tw-bg-opacity,1))}.bg-gray-600{--tw-bg-opacity:1;background-color:rgb(75 85 99/var(--tw-bg-opacity,1))}.bg-gray-700{--tw-bg-opacity:1;background-color:rgb(55 65 81/var(--tw-bg-opacity,1))}.bg-gray-800{--tw-bg-opacity:1;background-color:rgb(31 41 55/var(--tw-bg-opacity,1))}.bg-gray-900{--tw-bg-opacity:1;background-color:rgb(17 24 39/var(--tw-bg-opacity,1))}.bg-green-100{--tw-bg-opacity:1;background-color:rgb(220 252 231/var(--tw-bg-opacity,1))}.bg-green-200{--tw-bg-opacity:1;background-color:rgb(187 247 208/var(--tw-bg-opacity,1))}.bg-green-300{--tw-bg-opacity:1;background-color:rgb(134 239 172/var(--tw-bg-opacity,1))}.bg-green-400{--tw-bg-opacity:1;background-color:rgb(74 222 128/var(--tw-bg-opacity,1))}.bg-green-50{--tw-bg-opacity:1;background-color:rgb(240 253 244/var(--tw-bg-opacity,1))}.bg-green-500{--tw-bg-opacity:1;background-color:rgb(34 197 94/var(--tw-bg-opacity,1))}.bg-green-600{--tw-bg-opacity:1;background-color:rgb(22 163 74/var(--tw-bg-opacity,1))}.bg-green-700{--tw-bg-opacity:1;background-color:rgb(21 128 61/var(--tw-bg-opacity,1))}.bg-green-800{--tw-bg-opacity:1;background-color:rgb(22 101 52/var(--tw-bg-opacity,1))}.bg-green-900{--tw-bg-opacity:1;background-color:rgb(20 83 45/var(--tw-bg-opacity,1))}.bg-indigo-100{--tw-bg-opacity:1;background-color:rgb(224 231 255/var(--tw-bg-opacity,1))}.bg-indigo-200{--tw-bg-opacity:1;background-color:rgb(199 210 254/var(--tw-bg-opacity,1))}.bg-indigo-300{--tw-bg-opacity:1;background-color:rgb(165 180 252/var(--tw-bg-opacity,1))}.bg-indigo-400{--tw-bg-opacity:1;background-color:rgb(129 140 248/var(--tw-bg-opacity,1))}.bg-indigo-50{--tw-bg-opacity:1;background-color:rgb(238 242 255/var(--tw-bg-opacity,1))}.bg-indigo-500{--tw-bg-opacity:1;background-color:rgb(99 102 241/var(--tw-bg-opacity,1))}.bg-indigo-600{--tw-bg-opacity:1;background-color:rgb(79 70 229/var(--tw-bg-opacity,1))}.bg-indigo-700{--tw-bg-opacity:1;background-color:rgb(67 56 202/var(--tw-bg-opacity,1))}.bg-indigo-800{--tw-bg-opacity:1;background-color:rgb(55 48 163/var(--tw-bg-opacity,1))}.bg-indigo-900{--tw-bg-opacity:1;background-color:rgb(49 46 129/var(--tw-bg-opacity,1))}.bg-orange-100{--tw-bg-opacity:1;background-color:rgb(255 237 213/var(--tw-bg-opacity,1))}.bg-orange-200{--tw-bg-opacity:1;background-color:rgb(254 215 170/var(--tw-bg-opacity,1))}.bg-orange-300{--tw-bg-opacity:1;background-color:rgb(253 186 116/var(--tw-bg-opacity,1))}.bg-orange-400{--tw-bg-opacity:1;background-color:rgb(251 146 60/var(--tw-bg-opacity,1))}.bg-orange-50{--tw-bg-opacity:1;background-color:rgb(255 247 237/var(--tw-bg-opacity,1))}.bg-orange-50\/40{background-color:rgba(255,247,237,.4)}.bg-orange-500{--tw-bg-opacity:1;background-color:rgb(249 115 22/var(--tw-bg-opacity,1))}.bg-orange-600{--tw-bg-opacity:1;background-color:rgb(234 88 12/var(--tw-bg-opacity,1))}.bg-orange-700{--tw-bg-opacity:1;background-color:rgb(194 65 12/var(--tw-bg-opacity,1))}.bg-orange-800{--tw-bg-opacity:1;background-color:rgb(154 52 18/var(--tw-bg-opacity,1))}.bg-orange-900{--tw-bg-opacity:1;background-color:rgb(124 45 18/var(--tw-bg-opacity,1))}.bg-pink-100{--tw-bg-opacity:1;background-color:rgb(252 231 243/var(--tw-bg-opacity,1))}.bg-pink-200{--tw-bg-opacity:1;background-color:rgb(251 207 232/var(--tw-bg-opacity,1))}.bg-pink-300{--tw-bg-opacity:1;background-color:rgb(249 168 212/var(--tw-bg-opacity,1))}.bg-pink-400{--tw-bg-opacity:1;background-color:rgb(244 114 182/var(--tw-bg-opacity,1))}.bg-pink-50{--tw-bg-opacity:1;background-color:rgb(253 242 248/var(--tw-bg-opacity,1))}.bg-pink-500{--tw-bg-opacity:1;background-color:rgb(236 72 153/var(--tw-bg-opacity,1))}.bg-pink-600{--tw-bg-opacity:1;background-color:rgb(219 39 119/var(--tw-bg-opacity,1))}.bg-pink-700{--tw-bg-opacity:1;background-color:rgb(190 24 93/var(--tw-bg-opacity,1))}.bg-pink-800{--tw-bg-opacity:1;background-color:rgb(157 23 77/var(--tw-bg-opacity,1))}.bg-pink-900{--tw-bg-opacity:1;background-color:rgb(131 24 67/var(--tw-bg-opacity,1))}.bg-purple-100{--tw-bg-opacity:1;background-color:rgb(243 232 255/var(--tw-bg-opacity,1))}.bg-purple-200{--tw-bg-opacity:1;background-color:rgb(233 213 255/var(--tw-bg-opacity,1))}.bg-purple-300{--tw-bg-opacity:1;background-color:rgb(216 180 254/var(--tw-bg-opacity,1))}.bg-purple-400{--tw-bg-opacity:1;background-color:rgb(192 132 252/var(--tw-bg-opacity,1))}.bg-purple-50{--tw-bg-opacity:1;background-color:rgb(250 245 255/var(--tw-bg-opacity,1))}.bg-purple-500{--tw-bg-opacity:1;background-color:rgb(168 85 247/var(--tw-bg-opacity,1))}.bg-purple-600{--tw-bg-opacity:1;background-color:rgb(147 51 234/var(--tw-bg-opacity,1))}.bg-purple-700{--tw-bg-opacity:1;background-color:rgb(126 34 206/var(--tw-bg-opacity,1))}.bg-purple-800{--tw-bg-opacity:1;background-color:rgb(107 33 168/var(--tw-bg-opacity,1))}.bg-purple-900{--tw-bg-opacity:1;background-color:rgb(88 28 135/var(--tw-bg-opacity,1))}.bg-red-100{--tw-bg-opacity:1;background-color:rgb(254 226 226/var(--tw-bg-opacity,1))}.bg-red-100\/50{background-color:hsla(0,93%,94%,.5)}.bg-red-200{--tw-bg-opacity:1;background-color:rgb(254 202 202/var(--tw-bg-opacity,1))}.bg-red-300{--tw-bg-opacity:1;background-color:rgb(252 165 165/var(--tw-bg-opacity,1))}.bg-red-400{--tw-bg-opacity:1;background-color:rgb(248 113 113/var(--tw-bg-opacity,1))}.bg-red-50{--tw-bg-opacity:1;background-color:rgb(254 242 242/var(--tw-bg-opacity,1))}.bg-red-500{--tw-bg-opacity:1;background-color:rgb(239 68 68/var(--tw-bg-opacity,1))}.bg-red-600{--tw-bg-opacity:1;background-color:rgb(220 38 38/var(--tw-bg-opacity,1))}.bg-red-700{--tw-bg-opacity:1;background-color:rgb(185 28 28/var(--tw-bg-opacity,1))}.bg-red-800{--tw-bg-opacity:1;background-color:rgb(153 27 27/var(--tw-bg-opacity,1))}.bg-red-900{--tw-bg-opacity:1;background-color:rgb(127 29 29/var(--tw-bg-opacity,1))}.bg-rose-100{--tw-bg-opacity:1;background-color:rgb(255 228 230/var(--tw-bg-opacity,1))}.bg-rose-200{--tw-bg-opacity:1;background-color:rgb(254 205 211/var(--tw-bg-opacity,1))}.bg-rose-300{--tw-bg-opacity:1;background-color:rgb(253 164 175/var(--tw-bg-opacity,1))}.bg-rose-400{--tw-bg-opacity:1;background-color:rgb(251 113 133/var(--tw-bg-opacity,1))}.bg-rose-50{--tw-bg-opacity:1;background-color:rgb(255 241 242/var(--tw-bg-opacity,1))}.bg-rose-500{--tw-bg-opacity:1;background-color:rgb(244 63 94/var(--tw-bg-opacity,1))}.bg-rose-600{--tw-bg-opacity:1;background-color:rgb(225 29 72/var(--tw-bg-opacity,1))}.bg-rose-700{--tw-bg-opacity:1;background-color:rgb(190 18 60/var(--tw-bg-opacity,1))}.bg-rose-800{--tw-bg-opacity:1;background-color:rgb(159 18 57/var(--tw-bg-opacity,1))}.bg-rose-900{--tw-bg-opacity:1;background-color:rgb(136 19 55/var(--tw-bg-opacity,1))}.bg-sky-100{--tw-bg-opacity:1;background-color:rgb(224 242 254/var(--tw-bg-opacity,1))}.bg-sky-200{--tw-bg-opacity:1;background-color:rgb(186 230 253/var(--tw-bg-opacity,1))}.bg-sky-300{--tw-bg-opacity:1;background-color:rgb(125 211 252/var(--tw-bg-opacity,1))}.bg-sky-400{--tw-bg-opacity:1;background-color:rgb(56 189 248/var(--tw-bg-opacity,1))}.bg-sky-50{--tw-bg-opacity:1;background-color:rgb(240 249 255/var(--tw-bg-opacity,1))}.bg-sky-500{--tw-bg-opacity:1;background-color:rgb(14 165 233/var(--tw-bg-opacity,1))}.bg-sky-600{--tw-bg-opacity:1;background-color:rgb(2 132 199/var(--tw-bg-opacity,1))}.bg-sky-700{--tw-bg-opacity:1;background-color:rgb(3 105 161/var(--tw-bg-opacity,1))}.bg-sky-800{--tw-bg-opacity:1;background-color:rgb(7 89 133/var(--tw-bg-opacity,1))}.bg-sky-900{--tw-bg-opacity:1;background-color:rgb(12 74 110/var(--tw-bg-opacity,1))}.bg-slate-100{--tw-bg-opacity:1;background-color:rgb(241 245 249/var(--tw-bg-opacity,1))}.bg-slate-200{--tw-bg-opacity:1;background-color:rgb(226 232 240/var(--tw-bg-opacity,1))}.bg-slate-300{--tw-bg-opacity:1;background-color:rgb(203 213 225/var(--tw-bg-opacity,1))}.bg-slate-400{--tw-bg-opacity:1;background-color:rgb(148 163 184/var(--tw-bg-opacity,1))}.bg-slate-50{--tw-bg-opacity:1;background-color:rgb(248 250 252/var(--tw-bg-opacity,1))}.bg-slate-500{--tw-bg-opacity:1;background-color:rgb(100 116 139/var(--tw-bg-opacity,1))}.bg-slate-600{--tw-bg-opacity:1;background-color:rgb(71 85 105/var(--tw-bg-opacity,1))}.bg-slate-700{--tw-bg-opacity:1;background-color:rgb(51 65 85/var(--tw-bg-opacity,1))}.bg-slate-800{--tw-bg-opacity:1;background-color:rgb(30 41 59/var(--tw-bg-opacity,1))}.bg-slate-900{--tw-bg-opacity:1;background-color:rgb(15 23 42/var(--tw-bg-opacity,1))}.bg-teal-100{--tw-bg-opacity:1;background-color:rgb(204 251 241/var(--tw-bg-opacity,1))}.bg-teal-200{--tw-bg-opacity:1;background-color:rgb(153 246 228/var(--tw-bg-opacity,1))}.bg-teal-300{--tw-bg-opacity:1;background-color:rgb(94 234 212/var(--tw-bg-opacity,1))}.bg-teal-400{--tw-bg-opacity:1;background-color:rgb(45 212 191/var(--tw-bg-opacity,1))}.bg-teal-50{--tw-bg-opacity:1;background-color:rgb(240 253 250/var(--tw-bg-opacity,1))}.bg-teal-500{--tw-bg-opacity:1;background-color:rgb(20 184 166/var(--tw-bg-opacity,1))}.bg-teal-600{--tw-bg-opacity:1;background-color:rgb(13 148 136/var(--tw-bg-opacity,1))}.bg-teal-700{--tw-bg-opacity:1;background-color:rgb(15 118 110/var(--tw-bg-opacity,1))}.bg-teal-800{--tw-bg-opacity:1;background-color:rgb(17 94 89/var(--tw-bg-opacity,1))}.bg-teal-900{--tw-bg-opacity:1;background-color:rgb(19 78 74/var(--tw-bg-opacity,1))}.bg-transparent{background-color:transparent}.bg-violet-100{--tw-bg-opacity:1;background-color:rgb(237 233 254/var(--tw-bg-opacity,1))}.bg-violet-200{--tw-bg-opacity:1;background-color:rgb(221 214 254/var(--tw-bg-opacity,1))}.bg-violet-300{--tw-bg-opacity:1;background-color:rgb(196 181 253/var(--tw-bg-opacity,1))}.bg-violet-400{--tw-bg-opacity:1;background-color:rgb(167 139 250/var(--tw-bg-opacity,1))}.bg-violet-50{--tw-bg-opacity:1;background-color:rgb(245 243 255/var(--tw-bg-opacity,1))}.bg-violet-500{--tw-bg-opacity:1;background-color:rgb(139 92 246/var(--tw-bg-opacity,1))}.bg-violet-600{--tw-bg-opacity:1;background-color:rgb(124 58 237/var(--tw-bg-opacity,1))}.bg-violet-700{--tw-bg-opacity:1;background-color:rgb(109 40 217/var(--tw-bg-opacity,1))}.bg-violet-800{--tw-bg-opacity:1;background-color:rgb(91 33 182/var(--tw-bg-opacity,1))}.bg-violet-900{--tw-bg-opacity:1;background-color:rgb(76 29 149/var(--tw-bg-opacity,1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.bg-yellow-100{--tw-bg-opacity:1;background-color:rgb(254 249 195/var(--tw-bg-opacity,1))}.bg-yellow-200{--tw-bg-opacity:1;background-color:rgb(254 240 138/var(--tw-bg-opacity,1))}.bg-yellow-300{--tw-bg-opacity:1;background-color:rgb(253 224 71/var(--tw-bg-opacity,1))}.bg-yellow-400{--tw-bg-opacity:1;background-color:rgb(250 204 21/var(--tw-bg-opacity,1))}.bg-yellow-50{--tw-bg-opacity:1;background-color:rgb(254 252 232/var(--tw-bg-opacity,1))}.bg-yellow-500{--tw-bg-opacity:1;background-color:rgb(234 179 8/var(--tw-bg-opacity,1))}.bg-yellow-600{--tw-bg-opacity:1;background-color:rgb(202 138 4/var(--tw-bg-opacity,1))}.bg-yellow-700{--tw-bg-opacity:1;background-color:rgb(161 98 7/var(--tw-bg-opacity,1))}.bg-yellow-800{--tw-bg-opacity:1;background-color:rgb(133 77 14/var(--tw-bg-opacity,1))}.bg-yellow-900{--tw-bg-opacity:1;background-color:rgb(113 63 18/var(--tw-bg-opacity,1))}.p-0{padding:0}.p-0\.5{padding:.125rem}.p-1{padding:.25rem}.p-1\.5{padding:.375rem}.p-2{padding:.5rem}.p-3{padding:.75rem}.p-4{padding:1rem}.p-6{padding:1.5rem}.px-0\.5{padding-left:.125rem;padding-right:.125rem}.px-1{padding-left:.25rem;padding-right:.25rem}.px-1\.5{padding-left:.375rem;padding-right:.375rem}.px-2{padding-left:.5rem;padding-right:.5rem}.px-3{padding-left:.75rem;padding-right:.75rem}.px-4{padding-left:1rem;padding-right:1rem}.px-5{padding-left:1.25rem;padding-right:1.25rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.py-0\.5{padding-top:.125rem;padding-bottom:.125rem}.py-1{padding-top:.25rem;padding-bottom:.25rem}.py-1\.5{padding-top:.375rem;padding-bottom:.375rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.py-3{padding-top:.75rem;padding-bottom:.75rem}.pb-0\.5{padding-bottom:.125rem}.pb-1{padding-bottom:.25rem}.pb-2{padding-bottom:.5rem}.pb-24{padding-bottom:6rem}.pr-1{padding-right:.25rem}.pr-2{padding-right:.5rem}.pt-1{padding-top:.25rem}.pt-2{padding-top:.5rem}.pt-4{padding-top:1rem}.text-left{text-align:left}.text-center{text-align:center}.text-right{text-align:right}.align-middle{vertical-align:middle}.font-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace}.text-2xl{font-size:1.5rem;line-height:2rem}.text-4xl{font-size:2.25rem;line-height:2.5rem}.text-\[10px\]{font-size:10px}.text-\[11px\]{font-size:11px}.text-\[7px\]{font-size:7px}.text-\[8pt\]{font-size:8pt}.text-\[8px\]{font-size:8px}.text-\[9px\]{font-size:9px}.text-base{font-size:1rem;line-height:1.5rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-xs{font-size:.75rem;line-height:1rem}.font-black{font-weight:900}.font-bold{font-weight:700}.font-medium{font-weight:500}.font-normal{font-weight:400}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.normal-case{text-transform:none}.italic{font-style:italic}.leading-none{line-height:1}.leading-relaxed{line-height:1.625}.leading-snug{line-height:1.375}.leading-tight{line-height:1.25}.tracking-wide{letter-spacing:.025em}.text-amber-100{--tw-text-opacity:1;color:rgb(254 243 199/var(--tw-text-opacity,1))}.text-amber-200{--tw-text-opacity:1;color:rgb(253 230 138/var(--tw-text-opacity,1))}.text-amber-300{--tw-text-opacity:1;color:rgb(252 211 77/var(--tw-text-opacity,1))}.text-amber-400{--tw-text-opacity:1;color:rgb(251 191 36/var(--tw-text-opacity,1))}.text-amber-50{--tw-text-opacity:1;color:rgb(255 251 235/var(--tw-text-opacity,1))}.text-amber-500{--tw-text-opacity:1;color:rgb(245 158 11/var(--tw-text-opacity,1))}.text-amber-600{--tw-text-opacity:1;color:rgb(217 119 6/var(--tw-text-opacity,1))}.text-amber-700{--tw-text-opacity:1;color:rgb(180 83 9/var(--tw-text-opacity,1))}.text-amber-800{--tw-text-opacity:1;color:rgb(146 64 14/var(--tw-text-opacity,1))}.text-amber-900{--tw-text-opacity:1;color:rgb(120 53 15/var(--tw-text-opacity,1))}.text-blue-100{--tw-text-opacity:1;color:rgb(219 234 254/var(--tw-text-opacity,1))}.text-blue-200{--tw-text-opacity:1;color:rgb(191 219 254/var(--tw-text-opacity,1))}.text-blue-300{--tw-text-opacity:1;color:rgb(147 197 253/var(--tw-text-opacity,1))}.text-blue-400{--tw-text-opacity:1;color:rgb(96 165 250/var(--tw-text-opacity,1))}.text-blue-50{--tw-text-opacity:1;color:rgb(239 246 255/var(--tw-text-opacity,1))}.text-blue-500{--tw-text-opacity:1;color:rgb(59 130 246/var(--tw-text-opacity,1))}.text-blue-600{--tw-text-opacity:1;color:rgb(37 99 235/var(--tw-text-opacity,1))}.text-blue-700{--tw-text-opacity:1;color:rgb(29 78 216/var(--tw-text-opacity,1))}.text-blue-800{--tw-text-opacity:1;color:rgb(30 64 175/var(--tw-text-opacity,1))}.text-blue-900{--tw-text-opacity:1;color:rgb(30 58 138/var(--tw-text-opacity,1))}.text-cyan-100{--tw-text-opacity:1;color:rgb(207 250 254/var(--tw-text-opacity,1))}.text-cyan-200{--tw-text-opacity:1;color:rgb(165 243 252/var(--tw-text-opacity,1))}.text-cyan-300{--tw-text-opacity:1;color:rgb(103 232 249/var(--tw-text-opacity,1))}.text-cyan-400{--tw-text-opacity:1;color:rgb(34 211 238/var(--tw-text-opacity,1))}.text-cyan-50{--tw-text-opacity:1;color:rgb(236 254 255/var(--tw-text-opacity,1))}.text-cyan-500{--tw-text-opacity:1;color:rgb(6 182 212/var(--tw-text-opacity,1))}.text-cyan-600{--tw-text-opacity:1;color:rgb(8 145 178/var(--tw-text-opacity,1))}.text-cyan-700{--tw-text-opacity:1;color:rgb(14 116 144/var(--tw-text-opacity,1))}.text-cyan-800{--tw-text-opacity:1;color:rgb(21 94 117/var(--tw-text-opacity,1))}.text-cyan-900{--tw-text-opacity:1;color:rgb(22 78 99/var(--tw-text-opacity,1))}.text-emerald-100{--tw-text-opacity:1;color:rgb(209 250 229/var(--tw-text-opacity,1))}.text-emerald-200{--tw-text-opacity:1;color:rgb(167 243 208/var(--tw-text-opacity,1))}.text-emerald-300{--tw-text-opacity:1;color:rgb(110 231 183/var(--tw-text-opacity,1))}.text-emerald-400{--tw-text-opacity:1;color:rgb(52 211 153/var(--tw-text-opacity,1))}.text-emerald-50{--tw-text-opacity:1;color:rgb(236 253 245/var(--tw-text-opacity,1))}.text-emerald-500{--tw-text-opacity:1;color:rgb(16 185 129/var(--tw-text-opacity,1))}.text-emerald-600{--tw-text-opacity:1;color:rgb(5 150 105/var(--tw-text-opacity,1))}.text-emerald-700{--tw-text-opacity:1;color:rgb(4 120 87/var(--tw-text-opacity,1))}.text-emerald-800{--tw-text-opacity:1;color:rgb(6 95 70/var(--tw-text-opacity,1))}.text-emerald-900{--tw-text-opacity:1;color:rgb(6 78 59/var(--tw-text-opacity,1))}.text-fuchsia-100{--tw-text-opacity:1;color:rgb(250 232 255/var(--tw-text-opacity,1))}.text-fuchsia-200{--tw-text-opacity:1;color:rgb(245 208 254/var(--tw-text-opacity,1))}.text-fuchsia-300{--tw-text-opacity:1;color:rgb(240 171 252/var(--tw-text-opacity,1))}.text-fuchsia-400{--tw-text-opacity:1;color:rgb(232 121 249/var(--tw-text-opacity,1))}.text-fuchsia-50{--tw-text-opacity:1;color:rgb(253 244 255/var(--tw-text-opacity,1))}.text-fuchsia-500{--tw-text-opacity:1;color:rgb(217 70 239/var(--tw-text-opacity,1))}.text-fuchsia-600{--tw-text-opacity:1;color:rgb(192 38 211/var(--tw-text-opacity,1))}.text-fuchsia-700{--tw-text-opacity:1;color:rgb(162 28 175/var(--tw-text-opacity,1))}.text-fuchsia-800{--tw-text-opacity:1;color:rgb(134 25 143/var(--tw-text-opacity,1))}.text-fuchsia-900{--tw-text-opacity:1;color:rgb(112 26 117/var(--tw-text-opacity,1))}.text-gray-100{--tw-text-opacity:1;color:rgb(243 244 246/var(--tw-text-opacity,1))}.text-gray-200{--tw-text-opacity:1;color:rgb(229 231 235/var(--tw-text-opacity,1))}.text-gray-300{--tw-text-opacity:1;color:rgb(209 213 219/var(--tw-text-opacity,1))}.text-gray-400{--tw-text-opacity:1;color:rgb(156 163 175/var(--tw-text-opacity,1))}.text-gray-50{--tw-text-opacity:1;color:rgb(249 250 251/var(--tw-text-opacity,1))}.text-gray-500{--tw-text-opacity:1;color:rgb(107 114 128/var(--tw-text-opacity,1))}.text-gray-600{--tw-text-opacity:1;color:rgb(75 85 99/var(--tw-text-opacity,1))}.text-gray-700{--tw-text-opacity:1;color:rgb(55 65 81/var(--tw-text-opacity,1))}.text-gray-800{--tw-text-opacity:1;color:rgb(31 41 55/var(--tw-text-opacity,1))}.text-gray-900{--tw-text-opacity:1;color:rgb(17 24 39/var(--tw-text-opacity,1))}.text-green-100{--tw-text-opacity:1;color:rgb(220 252 231/var(--tw-text-opacity,1))}.text-green-200{--tw-text-opacity:1;color:rgb(187 247 208/var(--tw-text-opacity,1))}.text-green-300{--tw-text-opacity:1;color:rgb(134 239 172/var(--tw-text-opacity,1))}.text-green-400{--tw-text-opacity:1;color:rgb(74 222 128/var(--tw-text-opacity,1))}.text-green-50{--tw-text-opacity:1;color:rgb(240 253 244/var(--tw-text-opacity,1))}.text-green-500{--tw-text-opacity:1;color:rgb(34 197 94/var(--tw-text-opacity,1))}.text-green-600{--tw-text-opacity:1;color:rgb(22 163 74/var(--tw-text-opacity,1))}.text-green-700{--tw-text-opacity:1;color:rgb(21 128 61/var(--tw-text-opacity,1))}.text-green-800{--tw-text-opacity:1;color:rgb(22 101 52/var(--tw-text-opacity,1))}.text-green-900{--tw-text-opacity:1;color:rgb(20 83 45/var(--tw-text-opacity,1))}.text-indigo-100{--tw-text-opacity:1;color:rgb(224 231 255/var(--tw-text-opacity,1))}.text-indigo-200{--tw-text-opacity:1;color:rgb(199 210 254/var(--tw-text-opacity,1))}.text-indigo-300{--tw-text-opacity:1;color:rgb(165 180 252/var(--tw-text-opacity,1))}.text-indigo-400{--tw-text-opacity:1;color:rgb(129 140 248/var(--tw-text-opacity,1))}.text-indigo-50{--tw-text-opacity:1;color:rgb(238 242 255/var(--tw-text-opacity,1))}.text-indigo-500{--tw-text-opacity:1;color:rgb(99 102 241/var(--tw-text-opacity,1))}.text-indigo-600{--tw-text-opacity:1;color:rgb(79 70 229/var(--tw-text-opacity,1))}.text-indigo-700{--tw-text-opacity:1;color:rgb(67 56 202/var(--tw-text-opacity,1))}.text-indigo-800{--tw-text-opacity:1;color:rgb(55 48 163/var(--tw-text-opacity,1))}.text-indigo-900{--tw-text-opacity:1;color:rgb(49 46 129/var(--tw-text-opacity,1))}.text-orange-100{--tw-text-opacity:1;color:rgb(255 237 213/var(--tw-text-opacity,1))}.text-orange-200{--tw-text-opacity:1;color:rgb(254 215 170/var(--tw-text-opacity,1))}.text-orange-300{--tw-text-opacity:1;color:rgb(253 186 116/var(--tw-text-opacity,1))}.text-orange-400{--tw-text-opacity:1;color:rgb(251 146 60/var(--tw-text-opacity,1))}.text-orange-50{--tw-text-opacity:1;color:rgb(255 247 237/var(--tw-text-opacity,1))}.text-orange-500{--tw-text-opacity:1;color:rgb(249 115 22/var(--tw-text-opacity,1))}.text-orange-600{--tw-text-opacity:1;color:rgb(234 88 12/var(--tw-text-opacity,1))}.text-orange-700{--tw-text-opacity:1;color:rgb(194 65 12/var(--tw-text-opacity,1))}.text-orange-800{--tw-text-opacity:1;color:rgb(154 52 18/var(--tw-text-opacity,1))}.text-orange-900{--tw-text-opacity:1;color:rgb(124 45 18/var(--tw-text-opacity,1))}.text-pink-100{--tw-text-opacity:1;color:rgb(252 231 243/var(--tw-text-opacity,1))}.text-pink-200{--tw-text-opacity:1;color:rgb(251 207 232/var(--tw-text-opacity,1))}.text-pink-300{--tw-text-opacity:1;color:rgb(249 168 212/var(--tw-text-opacity,1))}.text-pink-400{--tw-text-opacity:1;color:rgb(244 114 182/var(--tw-text-opacity,1))}.text-pink-50{--tw-text-opacity:1;color:rgb(253 242 248/var(--tw-text-opacity,1))}.text-pink-500{--tw-text-opacity:1;color:rgb(236 72 153/var(--tw-text-opacity,1))}.text-pink-600{--tw-text-opacity:1;color:rgb(219 39 119/var(--tw-text-opacity,1))}.text-pink-700{--tw-text-opacity:1;color:rgb(190 24 93/var(--tw-text-opacity,1))}.text-pink-800{--tw-text-opacity:1;color:rgb(157 23 77/var(--tw-text-opacity,1))}.text-pink-900{--tw-text-opacity:1;color:rgb(131 24 67/var(--tw-text-opacity,1))}.text-purple-100{--tw-text-opacity:1;color:rgb(243 232 255/var(--tw-text-opacity,1))}.text-purple-200{--tw-text-opacity:1;color:rgb(233 213 255/var(--tw-text-opacity,1))}.text-purple-300{--tw-text-opacity:1;color:rgb(216 180 254/var(--tw-text-opacity,1))}.text-purple-400{--tw-text-opacity:1;color:rgb(192 132 252/var(--tw-text-opacity,1))}.text-purple-50{--tw-text-opacity:1;color:rgb(250 245 255/var(--tw-text-opacity,1))}.text-purple-500{--tw-text-opacity:1;color:rgb(168 85 247/var(--tw-text-opacity,1))}.text-purple-600{--tw-text-opacity:1;color:rgb(147 51 234/var(--tw-text-opacity,1))}.text-purple-700{--tw-text-opacity:1;color:rgb(126 34 206/var(--tw-text-opacity,1))}.text-purple-800{--tw-text-opacity:1;color:rgb(107 33 168/var(--tw-text-opacity,1))}.text-purple-900{--tw-text-opacity:1;color:rgb(88 28 135/var(--tw-text-opacity,1))}.text-red-100{--tw-text-opacity:1;color:rgb(254 226 226/var(--tw-text-opacity,1))}.text-red-200{--tw-text-opacity:1;color:rgb(254 202 202/var(--tw-text-opacity,1))}.text-red-300{--tw-text-opacity:1;color:rgb(252 165 165/var(--tw-text-opacity,1))}.text-red-400{--tw-text-opacity:1;color:rgb(248 113 113/var(--tw-text-opacity,1))}.text-red-50{--tw-text-opacity:1;color:rgb(254 242 242/var(--tw-text-opacity,1))}.text-red-500{--tw-text-opacity:1;color:rgb(239 68 68/var(--tw-text-opacity,1))}.text-red-600{--tw-text-opacity:1;color:rgb(220 38 38/var(--tw-text-opacity,1))}.text-red-700{--tw-text-opacity:1;color:rgb(185 28 28/var(--tw-text-opacity,1))}.text-red-800{--tw-text-opacity:1;color:rgb(153 27 27/var(--tw-text-opacity,1))}.text-red-900{--tw-text-opacity:1;color:rgb(127 29 29/var(--tw-text-opacity,1))}.text-rose-100{--tw-text-opacity:1;color:rgb(255 228 230/var(--tw-text-opacity,1))}.text-rose-200{--tw-text-opacity:1;color:rgb(254 205 211/var(--tw-text-opacity,1))}.text-rose-300{--tw-text-opacity:1;color:rgb(253 164 175/var(--tw-text-opacity,1))}.text-rose-400{--tw-text-opacity:1;color:rgb(251 113 133/var(--tw-text-opacity,1))}.text-rose-50{--tw-text-opacity:1;color:rgb(255 241 242/var(--tw-text-opacity,1))}.text-rose-500{--tw-text-opacity:1;color:rgb(244 63 94/var(--tw-text-opacity,1))}.text-rose-600{--tw-text-opacity:1;color:rgb(225 29 72/var(--tw-text-opacity,1))}.text-rose-700{--tw-text-opacity:1;color:rgb(190 18 60/var(--tw-text-opacity,1))}.text-rose-800{--tw-text-opacity:1;color:rgb(159 18 57/var(--tw-text-opacity,1))}.text-rose-900{--tw-text-opacity:1;color:rgb(136 19 55/var(--tw-text-opacity,1))}.text-sky-100{--tw-text-opacity:1;color:rgb(224 242 254/var(--tw-text-opacity,1))}.text-sky-200{--tw-text-opacity:1;color:rgb(186 230 253/var(--tw-text-opacity,1))}.text-sky-300{--tw-text-opacity:1;color:rgb(125 211 252/var(--tw-text-opacity,1))}.text-sky-400{--tw-text-opacity:1;color:rgb(56 189 248/var(--tw-text-opacity,1))}.text-sky-50{--tw-text-opacity:1;color:rgb(240 249 255/var(--tw-text-opacity,1))}.text-sky-500{--tw-text-opacity:1;color:rgb(14 165 233/var(--tw-text-opacity,1))}.text-sky-600{--tw-text-opacity:1;color:rgb(2 132 199/var(--tw-text-opacity,1))}.text-sky-700{--tw-text-opacity:1;color:rgb(3 105 161/var(--tw-text-opacity,1))}.text-sky-800{--tw-text-opacity:1;color:rgb(7 89 133/var(--tw-text-opacity,1))}.text-sky-900{--tw-text-opacity:1;color:rgb(12 74 110/var(--tw-text-opacity,1))}.text-slate-100{--tw-text-opacity:1;color:rgb(241 245 249/var(--tw-text-opacity,1))}.text-slate-200{--tw-text-opacity:1;color:rgb(226 232 240/var(--tw-text-opacity,1))}.text-slate-300{--tw-text-opacity:1;color:rgb(203 213 225/var(--tw-text-opacity,1))}.text-slate-400{--tw-text-opacity:1;color:rgb(148 163 184/var(--tw-text-opacity,1))}.text-slate-50{--tw-text-opacity:1;color:rgb(248 250 252/var(--tw-text-opacity,1))}.text-slate-500{--tw-text-opacity:1;color:rgb(100 116 139/var(--tw-text-opacity,1))}.text-slate-600{--tw-text-opacity:1;color:rgb(71 85 105/var(--tw-text-opacity,1))}.text-slate-700{--tw-text-opacity:1;color:rgb(51 65 85/var(--tw-text-opacity,1))}.text-slate-800{--tw-text-opacity:1;color:rgb(30 41 59/var(--tw-text-opacity,1))}.text-slate-900{--tw-text-opacity:1;color:rgb(15 23 42/var(--tw-text-opacity,1))}.text-teal-100{--tw-text-opacity:1;color:rgb(204 251 241/var(--tw-text-opacity,1))}.text-teal-200{--tw-text-opacity:1;color:rgb(153 246 228/var(--tw-text-opacity,1))}.text-teal-300{--tw-text-opacity:1;color:rgb(94 234 212/var(--tw-text-opacity,1))}.text-teal-400{--tw-text-opacity:1;color:rgb(45 212 191/var(--tw-text-opacity,1))}.text-teal-50{--tw-text-opacity:1;color:rgb(240 253 250/var(--tw-text-opacity,1))}.text-teal-500{--tw-text-opacity:1;color:rgb(20 184 166/var(--tw-text-opacity,1))}.text-teal-600{--tw-text-opacity:1;color:rgb(13 148 136/var(--tw-text-opacity,1))}.text-teal-700{--tw-text-opacity:1;color:rgb(15 118 110/var(--tw-text-opacity,1))}.text-teal-800{--tw-text-opacity:1;color:rgb(17 94 89/var(--tw-text-opacity,1))}.text-teal-900{--tw-text-opacity:1;color:rgb(19 78 74/var(--tw-text-opacity,1))}.text-violet-100{--tw-text-opacity:1;color:rgb(237 233 254/var(--tw-text-opacity,1))}.text-violet-200{--tw-text-opacity:1;color:rgb(221 214 254/var(--tw-text-opacity,1))}.text-violet-300{--tw-text-opacity:1;color:rgb(196 181 253/var(--tw-text-opacity,1))}.text-violet-400{--tw-text-opacity:1;color:rgb(167 139 250/var(--tw-text-opacity,1))}.text-violet-50{--tw-text-opacity:1;color:rgb(245 243 255/var(--tw-text-opacity,1))}.text-violet-500{--tw-text-opacity:1;color:rgb(139 92 246/var(--tw-text-opacity,1))}.text-violet-600{--tw-text-opacity:1;color:rgb(124 58 237/var(--tw-text-opacity,1))}.text-violet-700{--tw-text-opacity:1;color:rgb(109 40 217/var(--tw-text-opacity,1))}.text-violet-800{--tw-text-opacity:1;color:rgb(91 33 182/var(--tw-text-opacity,1))}.text-violet-900{--tw-text-opacity:1;color:rgb(76 29 149/var(--tw-text-opacity,1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.text-yellow-100{--tw-text-opacity:1;color:rgb(254 249 195/var(--tw-text-opacity,1))}.text-yellow-200{--tw-text-opacity:1;color:rgb(254 240 138/var(--tw-text-opacity,1))}.text-yellow-300{--tw-text-opacity:1;color:rgb(253 224 71/var(--tw-text-opacity,1))}.text-yellow-400{--tw-text-opacity:1;color:rgb(250 204 21/var(--tw-text-opacity,1))}.text-yellow-50{--tw-text-opacity:1;color:rgb(254 252 232/var(--tw-text-opacity,1))}.text-yellow-500{--tw-text-opacity:1;color:rgb(234 179 8/var(--tw-text-opacity,1))}.text-yellow-600{--tw-text-opacity:1;color:rgb(202 138 4/var(--tw-text-opacity,1))}.text-yellow-700{--tw-text-opacity:1;color:rgb(161 98 7/var(--tw-text-opacity,1))}.text-yellow-800{--tw-text-opacity:1;color:rgb(133 77 14/var(--tw-text-opacity,1))}.text-yellow-900{--tw-text-opacity:1;color:rgb(113 63 18/var(--tw-text-opacity,1))}.line-through{text-decoration-line:line-through}.placeholder-red-300::-moz-placeholder{--tw-placeholder-opacity:1;color:rgb(252 165 165/var(--tw-placeholder-opacity,1))}.placeholder-red-300::placeholder{--tw-placeholder-opacity:1;color:rgb(252 165 165/var(--tw-placeholder-opacity,1))}.placeholder-slate-300::-moz-placeholder{--tw-placeholder-opacity:1;color:rgb(203 213 225/var(--tw-placeholder-opacity,1))}.placeholder-slate-300::placeholder{--tw-placeholder-opacity:1;color:rgb(203 213 225/var(--tw-placeholder-opacity,1))}.opacity-0{opacity:0}.opacity-40{opacity:.4}.opacity-50{opacity:.5}.opacity-60{opacity:.6}.opacity-80{opacity:.8}.shadow{--tw-shadow:0 1px 3px 0 rgba(0,0,0,.1),0 1px 2px -1px rgba(0,0,0,.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color),0 1px 2px -1px var(--tw-shadow-color)}.shadow,.shadow-lg{box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-lg{--tw-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color),0 4px 6px -4px var(--tw-shadow-color)}.shadow-md{--tw-shadow:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);--tw-shadow-colored:0 4px 6px -1px var(--tw-shadow-color),0 2px 4px -2px var(--tw-shadow-color)}.shadow-md,.shadow-sm{box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-sm{--tw-shadow:0 1px 2px 0 rgba(0,0,0,.05);--tw-shadow-colored:0 1px 2px 0 var(--tw-shadow-color)}.outline-none{outline:2px solid transparent;outline-offset:2px}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.transition-colors{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.transition-opacity{transition-property:opacity;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.duration-300{transition-duration:.3s}.empty\:hidden:empty{display:none}.hover\:border-blue-100:hover{--tw-border-opacity:1;border-color:rgb(219 234 254/var(--tw-border-opacity,1))}.hover\:border-indigo-300:hover{--tw-border-opacity:1;border-color:rgb(165 180 252/var(--tw-border-opacity,1))}.hover\:bg-amber-400:hover{--tw-bg-opacity:1;background-color:rgb(251 191 36/var(--tw-bg-opacity,1))}.hover\:bg-blue-100:hover{--tw-bg-opacity:1;background-color:rgb(219 234 254/var(--tw-bg-opacity,1))}.hover\:bg-blue-50:hover{--tw-bg-opacity:1;background-color:rgb(239 246 255/var(--tw-bg-opacity,1))}.hover\:bg-blue-500:hover{--tw-bg-opacity:1;background-color:rgb(59 130 246/var(--tw-bg-opacity,1))}.hover\:bg-cyan-100:hover{--tw-bg-opacity:1;background-color:rgb(207 250 254/var(--tw-bg-opacity,1))}.hover\:bg-emerald-200:hover{--tw-bg-opacity:1;background-color:rgb(167 243 208/var(--tw-bg-opacity,1))}.hover\:bg-green-50:hover{--tw-bg-opacity:1;background-color:rgb(240 253 244/var(--tw-bg-opacity,1))}.hover\:bg-green-500:hover{--tw-bg-opacity:1;background-color:rgb(34 197 94/var(--tw-bg-opacity,1))}.hover\:bg-indigo-100:hover{--tw-bg-opacity:1;background-color:rgb(224 231 255/var(--tw-bg-opacity,1))}.hover\:bg-indigo-200:hover{--tw-bg-opacity:1;background-color:rgb(199 210 254/var(--tw-bg-opacity,1))}.hover\:bg-indigo-50:hover{--tw-bg-opacity:1;background-color:rgb(238 242 255/var(--tw-bg-opacity,1))}.hover\:bg-indigo-500:hover{--tw-bg-opacity:1;background-color:rgb(99 102 241/var(--tw-bg-opacity,1))}.hover\:bg-indigo-700:hover{--tw-bg-opacity:1;background-color:rgb(67 56 202/var(--tw-bg-opacity,1))}.hover\:bg-purple-100:hover{--tw-bg-opacity:1;background-color:rgb(243 232 255/var(--tw-bg-opacity,1))}.hover\:bg-purple-200:hover{--tw-bg-opacity:1;background-color:rgb(233 213 255/var(--tw-bg-opacity,1))}.hover\:bg-purple-500:hover{--tw-bg-opacity:1;background-color:rgb(168 85 247/var(--tw-bg-opacity,1))}.hover\:bg-purple-700:hover{--tw-bg-opacity:1;background-color:rgb(126 34 206/var(--tw-bg-opacity,1))}.hover\:bg-red-100:hover{--tw-bg-opacity:1;background-color:rgb(254 226 226/var(--tw-bg-opacity,1))}.hover\:bg-red-500:hover{--tw-bg-opacity:1;background-color:rgb(239 68 68/var(--tw-bg-opacity,1))}.hover\:bg-sky-500:hover{--tw-bg-opacity:1;background-color:rgb(14 165 233/var(--tw-bg-opacity,1))}.hover\:bg-slate-100:hover{--tw-bg-opacity:1;background-color:rgb(241 245 249/var(--tw-bg-opacity,1))}.hover\:bg-slate-200:hover{--tw-bg-opacity:1;background-color:rgb(226 232 240/var(--tw-bg-opacity,1))}.hover\:bg-slate-300:hover{--tw-bg-opacity:1;background-color:rgb(203 213 225/var(--tw-bg-opacity,1))}.hover\:bg-slate-50:hover{--tw-bg-opacity:1;background-color:rgb(248 250 252/var(--tw-bg-opacity,1))}.hover\:bg-slate-500:hover{--tw-bg-opacity:1;background-color:rgb(100 116 139/var(--tw-bg-opacity,1))}.hover\:bg-teal-500:hover{--tw-bg-opacity:1;background-color:rgb(20 184 166/var(--tw-bg-opacity,1))}.hover\:bg-yellow-200:hover{--tw-bg-opacity:1;background-color:rgb(254 240 138/var(--tw-bg-opacity,1))}.hover\:bg-yellow-300:hover{--tw-bg-opacity:1;background-color:rgb(253 224 71/var(--tw-bg-opacity,1))}.hover\:bg-yellow-500:hover{--tw-bg-opacity:1;background-color:rgb(234 179 8/var(--tw-bg-opacity,1))}.hover\:text-blue-500:hover{--tw-text-opacity:1;color:rgb(59 130 246/var(--tw-text-opacity,1))}.hover\:text-blue-600:hover{--tw-text-opacity:1;color:rgb(37 99 235/var(--tw-text-opacity,1))}.hover\:text-indigo-600:hover{--tw-text-opacity:1;color:rgb(79 70 229/var(--tw-text-opacity,1))}.hover\:text-red-200:hover{--tw-text-opacity:1;color:rgb(254 202 202/var(--tw-text-opacity,1))}.hover\:text-red-500:hover{--tw-text-opacity:1;color:rgb(239 68 68/var(--tw-text-opacity,1))}.hover\:text-white:hover{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.hover\:underline:hover{text-decoration-line:underline}.hover\:opacity-80:hover{opacity:.8}.hover\:shadow-md:hover{--tw-shadow:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);--tw-shadow-colored:0 4px 6px -1px var(--tw-shadow-color),0 2px 4px -2px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.focus\:border-blue-500:focus{--tw-border-opacity:1;border-color:rgb(59 130 246/var(--tw-border-opacity,1))}.focus\:border-indigo-500:focus{--tw-border-opacity:1;border-color:rgb(99 102 241/var(--tw-border-opacity,1))}.focus\:border-slate-300:focus{--tw-border-opacity:1;border-color:rgb(203 213 225/var(--tw-border-opacity,1))}.focus\:text-blue-600:focus{--tw-text-opacity:1;color:rgb(37 99 235/var(--tw-text-opacity,1))}.focus\:outline-none:focus{outline:2px solid transparent;outline-offset:2px}.focus\:ring-1:focus{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color)}.focus\:ring-1:focus,.focus\:ring-2:focus{box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}.focus\:ring-2:focus{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color)}.focus\:ring-blue-500:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(59 130 246/var(--tw-ring-opacity,1))}.focus\:ring-indigo-500:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(99 102 241/var(--tw-ring-opacity,1))}.focus\:ring-yellow-500:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(234 179 8/var(--tw-ring-opacity,1))}.disabled\:opacity-40:disabled{opacity:.4}.disabled\:opacity-50:disabled{opacity:.5}.group:hover .group-hover\:text-blue-500{--tw-text-opacity:1;color:rgb(59 130 246/var(--tw-text-opacity,1))}.group:hover .group-hover\:opacity-100{opacity:1}.has-\[\:checked\]\:bg-green-600:has(:checked){--tw-bg-opacity:1;background-color:rgb(22 163 74/var(--tw-bg-opacity,1))}.has-\[\:checked\]\:bg-orange-500:has(:checked){--tw-bg-opacity:1;background-color:rgb(249 115 22/var(--tw-bg-opacity,1))}.has-\[\:checked\]\:bg-purple-600:has(:checked){--tw-bg-opacity:1;background-color:rgb(147 51 234/var(--tw-bg-opacity,1))}.has-\[\:checked\]\:bg-slate-400:has(:checked){--tw-bg-opacity:1;background-color:rgb(148 163 184/var(--tw-bg-opacity,1))}.has-\[\:checked\]\:font-bold:has(:checked){font-weight:700}.has-\[\:checked\]\:text-white:has(:checked){--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}@media (min-width:640px){.sm\:w-1\/2{width:50%}.sm\:w-20{width:5rem}.sm\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.sm\:grid-cols-\[1fr_auto\]{grid-template-columns:1fr auto}.sm\:flex-row{flex-direction:row}.sm\:items-center{align-items:center}.sm\:pb-0{padding-bottom:0}}@media (min-width:768px){.md\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}}@media (min-width:1024px){.lg\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.lg\:grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}}@media (min-width:1280px){.xl\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.xl\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}}
+    </style>
+    <script>/* config_base.js */
+// NEU: Die typischen Konsile
+const CONSULTS = ["Uro", "UCH", "Neuro", "Gastro", "Endokr", "Pulmo", "Nephro", "Anästh", "Chir", "Psych"];
+
+const DIAGNOSTICS = ["Labor", "EKG", "Rö-Thx", "Echo", "Sono", "CT", "MRT", "Lufu", "Kolo", "ÖGD", "Konsil", "HKL"];
+
+const DAILY_TASKS = [
+    { key: 'be', label: 'BE' },
+    { key: 'viggo', label: 'Viggo' },
+    { key: 'visite', label: 'Visite' },
+    { key: 'brief', label: 'Brief' },
+    { key: 'ange', label: 'Ang.' },
+    { key: 'aufkl', label: 'Aufkl.' }
+];
+
+const CVRF_CONFIG = [
+    { key: 'htn', icon: '🩸', label: 'Art. Hypertonie' },
+    { key: 'dm', icon: '🍬', label: 'Diabetes' },
+    { key: 'dlp', icon: '🍟', label: 'Dyslipidämie' },
+    { key: 'nik', icon: '🚬', label: 'Nikotin' },
+    { key: 'fam', icon: '🧬', label: 'Pos. Familienanamnese' },
+    { key: 'adipos', icon: '⚖️', label: 'Adipositas' }
+];
+function getAgeNum(dob) {
+    if(!dob) return 0;
+    const today = new Date();
+    const birthDate = new Date(dob);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+    return age;
+}
+
+// --- LABOR: VERLAUF & RELEVANTE ÄNDERUNGEN ---------------------------------
+// Diese Parameter erscheinen als Trend (Sparkline + Pfeil) auf der Patientenkarte.
+const LAB_TRENDS = [
+    { code: 'V_HB', label: 'Hb' },
+    { code: 'V_LEU', label: 'Leuko' },
+    { code: 'V_THR', label: 'Thrombo' },
+    { code: 'V_CRP', label: 'CRP' },
+    { code: 'V_KREA', label: 'Krea' },
+    { code: 'V_EGFR', label: 'eGFR', codes: ['V_EGFRM1', 'V_EGFRM2', 'V_EGFRW1', 'V_EGFRW2', 'V_EGFR'], labelIncludes: 'egfr' },
+    { code: 'V_NA', label: 'Natrium' },
+    { code: 'V_K', label: 'Kalium' }
+];
+
+// Relevante Änderungen im Verlauf – greifen auch dann, wenn der Wert noch im Normbereich liegt.
+// drop/rise/change sind absolute Beträge in der Einheit des eigenen Labors (hier CRP in mg/dl!),
+// dropPercent/risePercent sind prozentual; minAbsolute verhindert Meldungen über winzige
+// Änderungen bei schon niedrigen Werten. withinDays begrenzt das Zeitfenster.
+const LAB_DELTA_RULES = [
+    { code: 'V_HB',      label: 'Hb-Abfall',              drop: 2,           unit: 'g/dl',   withinDays: 3, severity: 'high',   note: 'Blutungsquelle?' },
+    { code: 'V_KREA',    label: 'Kreatinin-Anstieg',      rise: 0.3,         unit: 'mg/dl',  withinDays: 2, severity: 'high',   note: 'AKI-Kriterium (KDIGO)' },
+    { code: 'V_KREA',    label: 'Kreatinin-Verdopplung',  risePercent: 100,  unit: 'mg/dl',  withinDays: 7, severity: 'high',   note: 'AKI Stadium 2' },
+    { code: 'V_NA',      label: 'Natrium-Änderung',       change: 8,         unit: 'mmol/l', withinDays: 1, severity: 'high',   note: 'Korrekturgeschwindigkeit prüfen' },
+    { code: 'V_K',       label: 'Kalium-Änderung',        change: 1,         unit: 'mmol/l', withinDays: 1, severity: 'medium' },
+    { code: 'V_THR',     label: 'Thrombozyten-Abfall',    dropPercent: 30,   unit: 'G/l',    withinDays: 3, severity: 'medium', note: 'HIT / Sepsis?' },
+    { code: 'V_CRP',     label: 'CRP-Anstieg',            rise: 2,           unit: 'mg/dl',  withinDays: 2, severity: 'medium' },
+    { code: 'V_CRP',     label: 'CRP-Verdopplung',        risePercent: 100,  unit: 'mg/dl',  withinDays: 2, severity: 'medium' },
+    { code: 'V_EGFR',    label: 'eGFR-Abfall',            dropPercent: 25,   unit: 'ml/min', withinDays: 7, severity: 'medium', minAbsolute: 10,
+      codes: ['V_EGFRM1', 'V_EGFRM2', 'V_EGFRW1', 'V_EGFRW2', 'V_EGFR'], labelIncludes: 'egfr' },
+    { code: 'V_BNP',     label: 'NT-proBNP-Anstieg',      risePercent: 50,   unit: 'pg/ml',  withinDays: 3, severity: 'medium', minAbsolute: 300, note: 'Dekompensation?' },
+    { code: 'V_TROPT',   label: 'Troponin-Anstieg',       risePercent: 50,   unit: 'pg/ml',  withinDays: 1, severity: 'high',   minAbsolute: 20,  note: 'Dynamik – ACS?' }
+];
+
+// Antibiotika: Tag 3 ist der Reevaluationszeitpunkt (Deeskalation, Oralisierung, Absetzen),
+// ab Tag 8 bzw. 11 wird zur Überprüfung der Gesamtdauer geraten.
+const ABX_REVIEW_DAYS = { reevaluate: 3, hint: 8, warn: 11 };
+
+// --- ANTIINFEKTIVA -------------------------------------------------------
+// Erkennung unabhängig vom Medikamentenkatalog: Wirkstoff plus gängige Handelsnamen.
+// Ein Treffer gilt, wenn einer der Begriffe am Wortanfang in der aktuellen Medikation steht.
+const ANTIINFECTIVES = [
+    { name: 'Amoxicillin', aliases: ['Amoxi'] },
+    { name: 'Amoxicillin/Clavulansäure', aliases: ['Amoxiclav', 'Augmentan'] },
+    { name: 'Ampicillin', aliases: [] },
+    { name: 'Ampicillin/Sulbactam', aliases: ['Unacid', 'Sultamicillin'] },
+    { name: 'Penicillin G', aliases: ['Benzylpenicillin'] },
+    { name: 'Flucloxacillin', aliases: ['Staphylex'] },
+    { name: 'Piperacillin/Tazobactam', aliases: ['Tazobac', 'Pip/Taz', 'Piperacillin'] },
+    { name: 'Cefazolin', aliases: [] },
+    { name: 'Cefuroxim', aliases: ['Zinacef'] },
+    { name: 'Cefotaxim', aliases: ['Claforan'] },
+    { name: 'Ceftriaxon', aliases: ['Rocephin'] },
+    { name: 'Ceftazidim', aliases: ['Fortum'] },
+    { name: 'Cefepim', aliases: ['Maxipime'] },
+    { name: 'Cefpodoxim', aliases: ['Orelox'] },
+    { name: 'Ceftazidim/Avibactam', aliases: ['Zavicefta'] },
+    { name: 'Ceftolozan/Tazobactam', aliases: ['Zerbaxa'] },
+    { name: 'Meropenem', aliases: ['Meronem'] },
+    { name: 'Imipenem', aliases: ['Zienam'] },
+    { name: 'Ertapenem', aliases: ['Invanz'] },
+    { name: 'Aztreonam', aliases: ['Azactam'] },
+    { name: 'Vancomycin', aliases: ['Vanco'] },
+    { name: 'Teicoplanin', aliases: ['Targocid'] },
+    { name: 'Dalbavancin', aliases: ['Xydalba'] },
+    { name: 'Daptomycin', aliases: ['Cubicin'] },
+    { name: 'Linezolid', aliases: ['Zyvoxid'] },
+    { name: 'Clindamycin', aliases: ['Sobelin'] },
+    { name: 'Gentamicin', aliases: ['Refobacin'] },
+    { name: 'Tobramycin', aliases: [] },
+    { name: 'Amikacin', aliases: [] },
+    { name: 'Ciprofloxacin', aliases: ['Cipro', 'Ciprobay'] },
+    { name: 'Levofloxacin', aliases: ['Tavanic'] },
+    { name: 'Moxifloxacin', aliases: ['Avalox', 'Avelox'] },
+    { name: 'Azithromycin', aliases: ['Zithromax'] },
+    { name: 'Clarithromycin', aliases: ['Klacid'] },
+    { name: 'Erythromycin', aliases: [] },
+    { name: 'Doxycyclin', aliases: ['Doxy'] },
+    { name: 'Minocyclin', aliases: [] },
+    { name: 'Tigecyclin', aliases: ['Tygacil'] },
+    { name: 'Eravacyclin', aliases: ['Xerava'] },
+    { name: 'Cotrimoxazol', aliases: ['Trimethoprim/Sulfamethoxazol', 'TMP/SMX', 'Bactrim', 'Eusaprim'] },
+    { name: 'Metronidazol', aliases: ['Clont', 'Flagyl'] },
+    { name: 'Rifampicin', aliases: ['Rifa'] },
+    { name: 'Fosfomycin', aliases: ['Infectofos', 'Monuril'] },
+    { name: 'Nitrofurantoin', aliases: ['Furadantin'] },
+    { name: 'Pivmecillinam', aliases: ['X-Systo'] },
+    { name: 'Colistin', aliases: ['Colistimethat'] },
+    { name: 'Fidaxomicin', aliases: ['Dificlir'] },
+    { name: 'Isoniazid', aliases: [] },
+    { name: 'Ethambutol', aliases: [] },
+    { name: 'Pyrazinamid', aliases: [] },
+    { name: 'Fluconazol', aliases: ['Diflucan'] },
+    { name: 'Voriconazol', aliases: ['Vfend'] },
+    { name: 'Posaconazol', aliases: ['Noxafil'] },
+    { name: 'Isavuconazol', aliases: ['Cresemba'] },
+    { name: 'Caspofungin', aliases: ['Cancidas'] },
+    { name: 'Micafungin', aliases: ['Mycamine'] },
+    { name: 'Anidulafungin', aliases: ['Ecalta'] },
+    { name: 'Amphotericin B', aliases: ['AmBisome'] },
+    { name: 'Nystatin', aliases: [] },
+    { name: 'Aciclovir', aliases: ['Zovirax'] },
+    { name: 'Valaciclovir', aliases: ['Valtrex'] },
+    { name: 'Ganciclovir', aliases: ['Cymeven'] },
+    { name: 'Valganciclovir', aliases: ['Valcyte'] },
+    { name: 'Oseltamivir', aliases: ['Tamiflu'] },
+    { name: 'Remdesivir', aliases: ['Veklury'] },
+    { name: 'Nirmatrelvir/Ritonavir', aliases: ['Paxlovid'] }
+];
+
+// --- ÜBERGABE (nach I-PASS) ----------------------------------------------
+// Einschätzung der Stabilität – der erste Satz jeder Übergabe.
+const SEVERITY_LEVELS = [
+    { key: 'stabil',      label: 'stabil',      short: 'S', tone: 'bg-green-100 text-green-800 border-green-300',   bar: '#16a34a' },
+    { key: 'beobachtung', label: 'Beobachtung', short: 'B', tone: 'bg-amber-100 text-amber-900 border-amber-400',   bar: '#f59e0b' },
+    { key: 'instabil',    label: 'instabil',    short: 'I', tone: 'bg-red-100 text-red-800 border-red-400',          bar: '#dc2626' }
+];
+
+    </script>
+<style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .tab-btn { @apply px-6 py-3 font-bold text-sm text-slate-500 border-b-2 border-transparent hover:text-indigo-600 transition outline-none; }
+        .tab-btn.active { @apply text-indigo-700 border-indigo-600 bg-indigo-50/50; }
+
+        .anam-btn { @apply text-xs border border-slate-200 bg-white hover:bg-indigo-50 hover:border-indigo-300 text-slate-700 py-1.5 px-2 rounded transition text-left; }
+        .anam-btn:active { @apply bg-indigo-100 transform scale-95; }
+        
+        .exam-cat-title { @apply text-[10px] uppercase font-bold text-slate-400 mt-2 mb-1 tracking-wider; }
+        
+        textarea { @apply font-mono text-sm leading-relaxed resize-none focus:ring-2 focus:ring-indigo-500 outline-none border-slate-300 rounded-lg; }
+    </style>
+    <!-- Einzeldatei-Fassung, erzeugt am 2026-10-06
+         aus medical_suite.html und 2 Zusatzdateien. Zum Ändern die Einzeldateien
+         bearbeiten und "node build_single_file.js" ausführen. -->
+</head>
+<body>
+
+    <div class="bg-white border-b shadow-sm z-20 flex justify-between items-center px-6 py-3 flex-shrink-0">
+        <div class="flex items-center gap-4">
+            <div class="bg-indigo-600 text-white w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xl">MS</div>
+            <div>
+                <h1 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                    <select id="patGender" class="bg-transparent border-none font-bold text-indigo-700 outline-none cursor-pointer hover:bg-slate-100 rounded" onchange="updateGlobalData()">
+                        <option value="m">Herr</option>
+                        <option value="f">Frau</option>
+                    </select>
+                    <input type="text" id="patLastName" class="bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-500 outline-none w-48" placeholder="Nachname" oninput="updateGlobalData()">
+                </h1>
+                <div class="flex gap-4 text-xs text-slate-500 mt-0.5">
+                    <span class="flex items-center gap-1">🎂 <input type="date" id="patBirth" class="bg-transparent border-none p-0 h-4 w-24 text-slate-500" onchange="updateGlobalData()"></span>
+                    <span class="flex items-center gap-1">🚪 Entlassung: <input type="date" id="dateDischarge" class="bg-transparent border-none p-0 h-4 w-24 text-slate-500" onchange="updateGlobalData()"></span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex gap-2">
+            <button onclick="switchTab('anamnese')" id="tab-btn-anamnese" class="tab-btn active">1. Anamnese</button>
+            <button onclick="switchTab('status')" id="tab-btn-status" class="tab-btn">2. Status</button>
+            <button onclick="switchTab('epikrise')" id="tab-btn-epikrise" class="tab-btn">3. Epikrise / Prozedur</button>
+        </div>
+    </div>
+
+    <div class="flex-1 overflow-hidden relative bg-slate-100">
+        
+        <div id="tab-anamnese" class="tab-content absolute inset-0 flex p-6 gap-6">
+            <div class="w-1/3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-y-auto p-4 flex flex-col gap-4">
+                <h3 class="font-bold text-slate-700 border-b pb-2">Baukasten</h3>
+                <div id="anamnese-builder"></div> </div>
+            <div class="w-2/3 flex flex-col gap-2">
+                <div class="flex justify-between items-end">
+                    <label class="font-bold text-slate-700">Generierte Anamnese:</label>
+                    <button onclick="copyToClipboard('anamnese-out')" class="text-xs bg-indigo-100 text-indigo-700 px-3 py-1 rounded hover:bg-indigo-200 font-bold">📋 Kopieren</button>
+                </div>
+                <textarea id="anamnese-out" class="flex-1 p-4 shadow-sm border" placeholder="Klicken Sie links auf Bausteine..."></textarea>
+            </div>
+        </div>
+
+        <div id="tab-status" class="tab-content absolute inset-0 flex p-6 gap-6 hidden">
+            <div class="w-1/3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-y-auto p-4 flex flex-col gap-4">
+                <h3 class="font-bold text-slate-700 border-b pb-2">Status Vorlagen</h3>
+                <div id="exam-builder"></div> </div>
+            <div class="w-2/3 flex flex-col gap-2">
+                <div class="flex justify-between items-end">
+                    <label class="font-bold text-slate-700">Generierter Status:</label>
+                    <button onclick="copyToClipboard('status-out')" class="text-xs bg-indigo-100 text-indigo-700 px-3 py-1 rounded hover:bg-indigo-200 font-bold">📋 Kopieren</button>
+                </div>
+                <textarea id="status-out" class="flex-1 p-4 shadow-sm border" placeholder="Wählen Sie links Befunde aus..."></textarea>
+            </div>
+        </div>
+
+        <div id="tab-epikrise" class="tab-content absolute inset-0 flex p-6 gap-6 hidden">
+            <div class="w-[380px] bg-white rounded-xl shadow-sm border border-slate-200 overflow-y-auto flex flex-col">
+                <div class="p-4 border-b bg-slate-50">
+                    <select id="moduleSelect" onchange="loadModule()" class="w-full p-2 border rounded font-bold text-slate-700">
+                        <option value="">-- Modul wählen --</option>
+                        <optgroup label="Elektrophysiologie">
+                            <option value="pvi">❤️ PVI (Pulmonalveneniso)</option>
+                            <option value="epu">⚡ EPU (AVNRT/WPW/Flutter)</option>
+                            <option value="pm">🔋 Schrittmacher / ICD</option>
+                            <option value="cv">⚡ Cardioversion (Elektrisch)</option>
+                        </optgroup>
+                        <optgroup label="Ischämie">
+                            <option value="acs">🫀 ACS / PCI</option>
+                            <option value="coro">🔍 Diagnostische Coro</option>
+                        </optgroup>
+                        <optgroup label="Strukturell / Sonstiges">
+                            <option value="tavi">👵 TAVI / Klappe</option>
+                            <option value="decomp">💧 Dekompensation</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div id="dynamicFields" class="p-4 space-y-4 flex-1">
+                    <p class="text-center text-slate-400 text-sm mt-10">Bitte Modul oben wählen.</p>
+                </div>
+            </div>
+            <div class="w-full flex flex-col gap-2">
+                <div class="flex justify-between items-end">
+                    <label class="font-bold text-slate-700">Generierter Brief / Prozedurbericht:</label>
+                    <button onclick="copyToClipboard('epikrise-out')" class="text-xs bg-indigo-100 text-indigo-700 px-3 py-1 rounded hover:bg-indigo-200 font-bold">📋 Kopieren</button>
+                </div>
+                <textarea id="epikrise-out" class="flex-1 p-4 shadow-sm border" placeholder="Wählen Sie links ein Modul..."></textarea>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- 1. CONFIG & DATEN ---
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('dateDischarge').value = today;
+        
+        let globalPat = { 
+            id: "", gender: "m", name: "", dob: "", cvrf: [], meds: "" 
+        };
+
+        // --- ANAMNESE CONFIG (Angepasst an Krankenhaus) ---
+        const ANAMNESE_BLOCKS = {
+            "Leitsymptome": [
+                { t: "Dyspnoe (Belastung)", s: "Der Patient berichtet über Dyspnoe, insbesondere bei körperlicher Belastung." },
+                { t: "Dyspnoe (Ruhe)", s: "Es besteht eine Ruhedyspnoe." },
+                { t: "Thoraxschmerz (typisch)", s: "Der Patient klagt über typische anginöse Thoraxschmerzen (retrosternales Druckgefühl)." },
+                { t: "Thoraxschmerz (atypisch)", s: "Es werden atypische Thoraxschmerzen beschrieben (stechend, atemabhängig)." },
+                { t: "Palpitationen", s: "Der Patient berichtet über anfallsartiges Herzrasen." },
+                { t: "Synkope", s: "Es ereignete sich eine Synkope (kurzzeitiger Bewusstseinsverlust) ohne Prodromi." },
+                { t: "Beinödeme", s: "Zuletzt seien zunehmende Beinödeme aufgefallen." }
+            ],
+            "Verlauf": [
+                { t: "Seit heute", s: "Die Beschwerden bestehen akut seit heute." },
+                { t: "Seit Tagen", s: "Die Symptomatik besteht seit einigen Tagen progredient." },
+                { t: "Seit Wochen", s: "Es handelt sich um ein chronisches Geschehen seit Wochen." },
+                { t: "Rezidivierend", s: "Ähnliche Beschwerden seien bereits früher aufgetreten." }
+            ],
+            "Vegetativ": [
+                { t: "B-Symptomatik neg.", s: "Fieber, Nachtschweiß und ungewollter Gewichtsverlust werden verneint." },
+                { t: "Ausscheidung o.B.", s: "Miktion und Stuhlgang seien unauffällig." },
+                { t: "Appetit gut", s: "Der Appetit sei erhalten." },
+                { t: "Infektzeichen", s: "Aktuell bestehen Husten und Gliederschmerzen." }
+            ],
+            "Risikofaktoren": [
+                { t: "Nikotin", s: "Es besteht ein aktiver Nikotinabusus." },
+                { t: "Ex-Raucher", s: "Der Patient ist Ex-Raucher." },
+                { t: "Alkohol", s: "Gelegentlicher Alkoholkonsum wird bejaht." },
+                { t: "Keine Allergien", s: "Allergien sind nicht bekannt." }
+            ]
+        };
+
+        // --- EXAM CONFIG (Aus deinem data_config.js übernommen) ---
+        const EXAM_CONFIG = {
+            "Allgemein": ["Guter AZ, normaler EZ", "Reduzierter AZ", "Adipöser EZ", "Kachektischer EZ"],
+            "Cor": ["Herztöne rein, rhythmisch", "Systolikum (Spitze)", "Arrhythmie", "Leises Systolikum"],
+            "Pulmo": ["VAG bds., keine RG", "Giemen/Brummen", "Rasselgeräusche basal", "Verlängertes Exspirium"],
+            "Abdomen": ["Weich, kein DS", "Druckschmerz Unterbauch", "Resistenz tastbar", "Darmgeräusche regelrecht"],
+            "Extremitäten": ["Keine Ödeme", "Unterschenkelödeme", "Pulsstatus intakt", "Varikosis"]
+        };
+
+        // --- 2. INIT & URL PARSING ---
+        window.onload = function() {
+            const params = new URLSearchParams(window.location.search);
+            
+            // Name Parsing
+            if(params.has('name')) {
+                let raw = params.get('name'); // "Müller, Hans"
+                if(raw.includes(',')) {
+                    document.getElementById('patLastName').value = raw.split(',')[0].trim();
+                } else {
+                    document.getElementById('patLastName').value = raw.split(' ').pop();
+                }
+            }
+            
+            if(params.has('dob')) document.getElementById('patBirth').value = params.get('dob');
+            
+            // CVRF Import
+            if(params.has('cvrf')) {
+                try { globalPat.cvrf = JSON.parse(params.get('cvrf')); } catch(e){}
+            }
+            if(params.has('meds')) globalPat.meds = params.get('meds');
+
+            renderAnamneseBuilder();
+            renderExamBuilder();
+            updateGlobalData();
+        };
+
+        function updateGlobalData() {
+            globalPat.gender = document.getElementById('patGender').value;
+            globalPat.name = document.getElementById('patLastName').value;
+            globalPat.dob = document.getElementById('patBirth').value;
+            
+            // Grammatik Helper
+            const isMale = globalPat.gender === 'm';
+            globalPat.nom = isMale ? (globalPat.name ? `Herr ${globalPat.name}` : "Der Patient") : (globalPat.name ? `Frau ${globalPat.name}` : "Die Patientin");
+            globalPat.akk = isMale ? (globalPat.name ? `Herrn ${globalPat.name}` : "den Patienten") : (globalPat.name ? `Frau ${globalPat.name}` : "die Patientin");
+            globalPat.pron = isMale ? "er" : "sie";
+            globalPat.poss = isMale ? "sein" : "ihr";
+
+            // Live Updates in den Modulen falls nötig
+            if(currentModuleId) updateEpikriseText();
+        }
+
+        // --- 3. UI LOGIC ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+            
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-btn-' + tabId).classList.add('active');
+        }
+
+        function copyToClipboard(areaId) {
+            const el = document.getElementById(areaId);
+            navigator.clipboard.writeText(el.value).then(() => {
+                showToast("Erfolgreich kopiert!");
+            }).catch(err => {
+                console.error("Fehler beim Kopieren: ", err);
+                showToast("Fehler beim Kopieren!", true);
+            });
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.createElement('div');
+            toast.className = `fixed bottom-4 right-4 text-white px-4 py-2 rounded shadow-lg transition-opacity duration-300 z-50 ${isError ? 'bg-red-600' : 'bg-green-600'}`;
+            toast.innerText = message;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 2000);
+        }
+
+        // --- 4. ANAMNESE BUILDER LOGIC ---
+        function renderAnamneseBuilder() {
+            const c = document.getElementById('anamnese-builder');
+            let fullHtml = "";
+            for (const [category, items] of Object.entries(ANAMNESE_BLOCKS)) {
+                let html = `<div class="exam-cat-title">${category}</div><div class="grid grid-cols-1 gap-1">`;
+                items.forEach(item => {
+                    html += `<button onclick="addAnamneseText('${item.t}')" class="anam-btn bg-slate-50" title="${item.s}">${item.t}</button>`;
+                });
+                html += `</div>`;
+                fullHtml += html;
+            }
+            c.innerHTML = fullHtml;
+            // Auto-Fill Start
+            addAnamneseText(`${globalPat.nom} stellt sich vor.`, true);
+        }
+
+        function addAnamneseText(text, isStart = false) {
+            const area = document.getElementById('anamnese-out');
+            
+            // Gender Anpassung im Text (einfache Ersetzung)
+            let processed = text;
+            if(globalPat.gender === 'f') {
+                processed = processed.replace("Der Patient", "Die Patientin").replace("er ", "sie ").replace("Er ", "Sie ");
+            }
+
+            if(isStart && area.value.trim() !== "") return;
+            area.value += (area.value ? " " : "") + processed;
+        }
+
+        // --- 5. EXAM BUILDER LOGIC ---
+        function renderExamBuilder() {
+            const c = document.getElementById('exam-builder');
+            let fullHtml = "";
+            for (const [cat, opts] of Object.entries(EXAM_CONFIG)) {
+                let html = `<div class="exam-cat-title">${cat}</div><div class="flex flex-wrap gap-1">`;
+                opts.forEach(opt => {
+                     html += `<button onclick="addExamText('${cat}', '${opt}')" class="anam-btn bg-slate-50">${opt}</button>`;
+                });
+                html += `</div>`;
+                fullHtml += html;
+            }
+            c.innerHTML = fullHtml;
+        }
+        function addExamText(cat, text) {
+            const area = document.getElementById('status-out');
+            if(!area.value.includes(cat + ":")) {
+                area.value += (area.value ? "\n" : "") + `${cat}: ${text}`;
+            } else {
+                // Append to existing category line? A bit complex for simple text append.
+                // Simple append for now:
+                area.value += `, ${text}`;
+            }
+        }
+
+        // --- 6. EPIKRISE LOGIC (Der "Profi" Teil) ---
+        let currentModuleId = null;
+        
+        // HIER KOMMEN DEINE MODULE REIN (PVI, ACS, etc.)
+        // Ich füge hier die optimierte PVI und ACS Logik ein, die wir besprochen haben.
+        
+        const MODULES = {
+            pvi: {
+                fields: [
+                    { id: "diag_type", label: "Art des VHF", type: "select", options: ["Paroxysmales VHF", "Persistierendes VHF", "Long-standing VHF"] },
+                    { id: "ehra", label: "EHRA", type: "select", options: ["I", "II", "III", "IV"] },
+                    { id: "method", label: "Methode", type: "select", options: ["Kryoballon", "Radiofrequenz (RF)", "Pulsed Field (PFA)"] },
+                    { id: "la_size", label: "LA-Größe", type: "text", value: "nicht dilatiert" },
+                    { id: "aar_plan", label: "Antiarrhythmika", type: "select", options: ["absetzen", "fortführen für 3 Mon.", "Amiodaron ausschleichen"] },
+                    { id: "has_bled", label: "HAS-BLED", type: "number", value: 1 },
+                    { id: "cha_calc", type: "calculator" }
+                ],
+                generate: (d, g) => {
+                    const cha = calculateCha();
+                    const isMale = g.gender === 'm';
+                    let oak = "dauerhaft";
+                    // Leitlinien Logik
+                    if ((isMale && cha === 0) || (!isMale && cha <= 1)) {
+                        oak = "für 3 Monate postinterventionell (Blanking Period)";
+                    }
+                    
+                    return `Aktuelle Diagnosen
+${d.diag_type}, EHRA ${d.ehra}
+CHA2DS2-VASc: ${cha}, HAS-BLED: ${d.has_bled}
+- Aktuell: Erfolgreiche PVI mittels ${d.method} am ${formatDate(today)}
+
+Epikrise
+${g.nom} stellte sich zur elektiven PVI bei symptomatischem VHF vor.
+Präprozedural erfolgte der Ausschluss intracavitärer Thromben mittels TEE.
+Die Ablation erfolgte mittels ${d.method} komplikationslos. Alle Pulmonalvenen wurden isoliert.
+
+Der weitere Verlauf war unauffällig. Echokardiographisch zeigte sich der linke Vorhof ${d.la_size}, kein Perikarderguss.
+Die Leisten waren am Entlasstag reizlos.
+
+Empfehlung zur Antikoagulation:
+Bei einem CHA2DS2-VASc-Score von ${cha} ist eine orale Antikoagulation ${oak} indiziert.
+Zusätzlich PPI für 4 Wochen.
+
+Wir entlassen ${g.akk} am ${formatDate(document.getElementById('dateDischarge').value)} in gutem AZ.
+
+Procedere
+- OAK: ${oak}
+- PPI 2x Standarddosis für 4 Wochen
+- Antiarrhythmika: ${d.aar_plan}
+- Körperliche Schonung für 1 Woche
+- Sofortige Vorstellung bei Fieber/Schluckbeschwerden (V.a. Fistel)`;
+                }
+            },
+            acs: {
+                fields: [
+                     { id: "type", label: "Typ", type: "select", options: ["NSTEMI", "STEMI", "Instabile Angina"] },
+                     { id: "vessel", label: "Gefäß", type: "text", value: "RIVA" },
+                     { id: "stents", label: "Stents", type: "number", value: 1 },
+                     { id: "substance", label: "P2Y12", type: "select", options: ["Ticagrelor", "Prasugrel", "Clopidogrel"] }
+                ],
+                generate: (d, g) => {
+                    return `Aktuelle Diagnosen
+${d.type} bei KHK (${d.vessel})
+- Aktuell: PCI (${d.stents}x DES) am ${formatDate(today)}
+
+Epikrise
+${g.nom} wurde mit ${d.type} aufgenommen. Die Koronarangiographie zeigte eine Läsion im ${d.vessel}, welche mit ${d.stents} Stent(s) versorgt wurde.
+Duale Plättchenhemmung mit ASS + ${d.substance} für 12 Monate.
+
+Wir entlassen ${g.akk} heute in gutem AZ.
+
+Procedere
+- ASS 100mg lebenslang
+- ${d.substance} für 12 Monate
+- Ziel-LDL < 55 mg/dl`;
+                }
+            }
+            // Weitere Module hier einfach ergänzen...
+        };
+
+        function loadModule() {
+            const sel = document.getElementById('moduleSelect');
+            const id = sel.value;
+            currentModuleId = id;
+            const container = document.getElementById('dynamicFields');
+            container.innerHTML = "";
+
+            if(!id || !MODULES[id]) {
+                container.innerHTML = '<p class="text-center text-slate-400 text-sm mt-10">Bitte Modul wählen.</p>';
+                return;
+            }
+
+            // Felder rendern
+            const fragment = document.createDocumentFragment();
+            MODULES[id].fields.forEach(f => {
+                const div = document.createElement('div');
+                div.className = "mb-2";
+                
+                if(f.type === 'calculator') {
+                     div.innerHTML = `
+                        <div class="bg-indigo-50 p-2 rounded border border-indigo-100 text-xs">
+                            <label class="font-bold text-indigo-800 mb-1 block">CHA₂DS₂-VASc</label>
+                            <div class="grid grid-cols-2 gap-1">
+                                <label><input type="checkbox" id="c_c" onchange="updateEpikriseText()"> HI (C)</label>
+                                <label><input type="checkbox" id="c_h" onchange="updateEpikriseText()"> Hyp (H)</label>
+                                <label><input type="checkbox" id="c_a2" onchange="updateEpikriseText()"> Age≥75</label>
+                                <label><input type="checkbox" id="c_d" onchange="updateEpikriseText()"> Diab (D)</label>
+                                <label><input type="checkbox" id="c_s2" onchange="updateEpikriseText()"> Stroke</label>
+                                <label><input type="checkbox" id="c_v" onchange="updateEpikriseText()"> Vasc (V)</label>
+                                <label><input type="checkbox" id="c_a1" onchange="updateEpikriseText()"> 65-74</label>
+                                <label><input type="checkbox" id="c_sc" disabled> Sex (Sc)</label>
+                            </div>
+                            <div class="text-right font-bold mt-1">Score: <span id="scoreVal">0</span></div>
+                        </div>`;
+                     setTimeout(precheckRisks, 50);
+                } else {
+                    let html = `<label class="block text-[10px] uppercase font-bold text-slate-400 mb-0.5">${f.label}</label>`;
+                    if(f.type === 'select') {
+                        html += `<select id="f_${f.id}" class="w-full border p-1.5 rounded text-sm" onchange="updateEpikriseText()">`;
+                        f.options.forEach(o => html += `<option value="${o}">${o}</option>`);
+                        html += `</select>`;
+                    } else {
+                        html += `<input type="${f.type}" id="f_${f.id}" value="${f.value||''}" class="w-full border p-1.5 rounded text-sm" oninput="updateEpikriseText()">`;
+                    }
+                    div.innerHTML = html;
+                }
+                fragment.appendChild(div);
+            });
+            container.appendChild(fragment);
+            updateEpikriseText();
+        }
+
+        function precheckRisks() {
+            // Importierte CVRF nutzen
+            const r = globalPat.cvrf || [];
+            if(r.includes('htn')) document.getElementById('c_h').checked = true;
+            if(r.includes('dm')) document.getElementById('c_d').checked = true;
+            
+            // Alter checken
+            if(globalPat.dob) {
+                const age = getAgeNum(globalPat.dob);
+                if(age >= 75) document.getElementById('c_a2').checked = true;
+                else if(age >= 65) document.getElementById('c_a1').checked = true;
+            }
+            updateEpikriseText();
+        }
+
+        function calculateCha() {
+            if(!document.getElementById('c_c')) return 0;
+            const isFem = globalPat.gender === 'f';
+            document.getElementById('c_sc').checked = isFem;
+            
+            let s = isFem ? 1 : 0;
+            if(document.getElementById('c_c').checked) s++;
+            if(document.getElementById('c_h').checked) s++;
+            if(document.getElementById('c_a2').checked) s+=2;
+            if(document.getElementById('c_d').checked) s++;
+            if(document.getElementById('c_s2').checked) s+=2;
+            if(document.getElementById('c_v').checked) s++;
+            if(document.getElementById('c_a1').checked) s++;
+            
+            document.getElementById('scoreVal').innerText = s;
+            return s;
+        }
+
+        function updateEpikriseText() {
+            if(!currentModuleId) return;
+            
+            // Daten sammeln
+            const d = {};
+            MODULES[currentModuleId].fields.forEach(f => {
+                if(f.type !== 'calculator') {
+                    d[f.id] = document.getElementById('f_' + f.id).value;
+                }
+            });
+
+            // Text generieren
+            const text = MODULES[currentModuleId].generate(d, globalPat);
+            document.getElementById('epikrise-out').value = text;
+        }
+
+        function formatDate(s) { if(!s) return "XX.XX.XX"; const p=s.split('-'); return `${p[2]}.${p[1]}.${p[0]}`; }
+
+    </script>
+</body>
+</html>

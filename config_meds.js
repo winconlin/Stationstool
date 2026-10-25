@@ -27,18 +27,24 @@ const MED_GROUPS = {
         "Timolol",
         "Urapidil",
         "Valsartan",
-        "Verciguat"
+        "Verciguat",
+        "Losartan",
+        "Dapaglifozin."
     ],
     "Gerinnung (OAK, DAPT, Heparine)": [
         "Apixaban (Eliquis)", "Argatroban", "ASS", "Certoparin (Mono-Embolex)",
         "Clopidogrel", "Dabigatran (Pradaxa)", "Dalteparin (Fragmin)",
         "Edoxaban (Lixiana)", "Enoxaparin (Clexane)", "Fondaparinux (Arixtra)",
         "Heparin (Perfusor)", "Marcumar (Phenprocoumon)", "Prasugrel",
-        "Rivaroxaban (Xarelto)", "Ticagrelor", "Tinzaparin (Innohep)"
+        "Rivaroxaban (Xarelto)", "Ticagrelor", "Tinzaparin (Innohep)",
+        "Apixaban",
+        "Edoxaban",
+        "Enoxaparin"
     ],
     "Diuretika & Volumen": [
         "Acetazolamid", "Chlortalidon", "Furosemid (Lasix)", "HCT",
-        "Torasemid", "Xipamid", "Tolvaptan"
+        "Torasemid", "Xipamid", "Tolvaptan",
+        "Hydrochlorothiazid"
     ],
     "Rhythmus & Ischämie": [
         "Adenosin", "Amiodaron", "Digitoxin", "Digoxin", "Diltiazem",
@@ -48,22 +54,27 @@ const MED_GROUPS = {
     "Lipidsenker & Stoffwechsel": [
         "Alirocumab", "Allopurinol", "Atorvastatin", "Bempedoinsäure",
         "Colchicin", "Evolocumab", "Ezetimib", "Febuxostat", "Fenofibrat",
-        "Pravastatin", "Rosuvastatin", "Simvastatin"
+        "Pravastatin", "Rosuvastatin", "Simvastatin",
+        "Sitagliptin"
     ],
     "Analgetika & Muskelrelaxantien": [
         "Baclofen", "Buprenorphin", "Celecoxib", "Codein", "Diclofenac", "Etoricoxib",
         "Fentanyl", "Hydromorphon", "Ibuprofen", "Metamizol (Novalgin)",
         "Morphin", "Naproxen", "Oxycodon", "Paracetamol", "Piritramid (Dipidolor)",
-        "Tapentadol", "Targin", "Tilidin", "Tizanidin", "Tramadol"
+        "Tapentadol", "Targin", "Tilidin", "Midazolam",
+        "Propofol",
+        "Tizanidin", "Tramadol"
     ],
     "Antiinfektiva": [
         "Aciclovir", "Amoxicillin", "Amoxicillin/Clavulansäure",
         "Ampicillin/Sulbactam (Unacid)", "Azithromycin", "Caspofungin",
         "Cefazolin", "Cefepim", "Cefotaxim", "Ceftazidim", "Ceftriaxon",
         "Cefuroxim", "Ciprofloxacin", "Clarithromycin", "Clindamycin",
-        "Cotrimoxazol", "Daptomycin", "Doxycyclin", "Ertapenem", "Fluconazol",
+        "Cotrimoxazol", "Daptomycin", "Doxycyclin", "Ertapenem",
+        "Imipenem", "Fluconazol",
         "Fosfomycin", "Gentamicin", "Levofloxacin", "Linezolid", "Meropenem",
-        "Metronidazol", "Micafungin", "Moxifloxacin", "Piperacillin/Tazobactam (Tazobac)",
+        "Metronidazol", "Micafungin",
+        "Amphotericin B", "Moxifloxacin", "Piperacillin/Tazobactam (Tazobac)",
         "Rifampicin", "Tigecyclin", "Tobramycin", "Vancomycin"
     ],
     "Gastroenterologie & Hepatologie": [
@@ -94,7 +105,11 @@ const MED_GROUPS = {
         "Beclometason/Formoterol (Foster)", "Budesonid/Formoterol",
         "Fluticason", "Ipratropium/Fenoterol (Berodual)", "Macitentan",
         "Prednisolon", "Riociguat", "Salbutamol", "Selexipag",
-        "Sildenafil", "Tadalafil", "Tiotropium", "Trimbow"
+        "Sildenafil", "Tadalafil", "Theophyllin",
+        "Tiotropium", "Trimbow",
+        "ACC",
+        "Cetirizin",
+        "Viani"
     ],
     "Neurologie & Psychiatrie": [
 
@@ -128,7 +143,9 @@ const MED_GROUPS = {
         "Sedonium",
         "Sertralin",
         "Valproat",
-        "Zopiclon"
+        "Zopiclon",
+        "Dronabinol",
+        "Zolpidem"
     ],
     "Nephrologie & Urologie": [
 
@@ -155,6 +172,7 @@ const MED_GROUPS = {
         "Eisen III",
         "Folsäure",
         "Glimepirid",
+        "Metformin",
         "Hydrocortison",
         "Insulin (Actrapid)",
         "Insulin (Basal)",
@@ -168,6 +186,9 @@ const MED_GROUPS = {
         "Propylthiouracil",
         "Sterofundin",
         "Thiamazol",
-        "Thiamin (Vit B1)"
+        "Thiamin (Vit B1)",
+        "Alfacalcidol",
+        "Dekristol",
+        "Levothyroxin"
     ]
 };
