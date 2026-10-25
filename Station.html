@@ -237,6 +237,16 @@
 
         function showToast(msg, isError = false) { const t = document.createElement("div"); t.className = `fixed bottom-4 right-4 text-white px-4 py-2 rounded shadow-lg transition-opacity duration-300 z-50 ${isError ? "bg-red-600" : "bg-green-600"}`; t.innerText = msg; document.body.appendChild(t); setTimeout(() => { t.style.opacity = "0"; setTimeout(() => t.remove(), 300); }, 2000); }
 
+        function esc(str) {
+            if (!str) return "";
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         window.onload = function() {
             loadData();
             loadCustomMedicationCatalog();
@@ -623,7 +633,7 @@
                     currentRoom = displayRoom;
                     let roomHeader = document.createElement('div');
                     roomHeader.className = "col-span-full mt-4 mb-1 flex items-center gap-2 border-b border-indigo-200 pb-1 no-print";
-                    roomHeader.innerHTML = `<span class="bg-indigo-600 text-white font-bold px-3 py-1 rounded shadow-sm">Zimmer ${currentRoom}</span>`;
+                    roomHeader.innerHTML = `<span class="bg-indigo-600 text-white font-bold px-3 py-1 rounded shadow-sm">Zimmer ${esc(currentRoom)}</span>`;
                     containerFrag.appendChild(roomHeader);
                 }
 
@@ -657,47 +667,19 @@
                 let severityBtn = `<button onclick="cycleSeverity('${p.id}')" title="Stabilität (Klick wechselt): stabil → Beobachtung → instabil" class="text-[8px] px-1 py-0.5 rounded font-bold border ${severity ? severity.tone : 'bg-white text-slate-400 border-slate-200'}">${severity ? severity.label : 'Stabilität?'}</button>`;
                 let fastBtn = p.fasting ? `<button onclick="updateFieldRender('${p.id}', 'fasting', false)" class="text-[8px] px-1 py-0.5 rounded font-bold transition-colors badge-nüchtern">⛔ Nüchtern</button>` : `<button onclick="updateFieldRender('${p.id}', 'fasting', true)" class="text-[8px] px-1 py-0.5 rounded font-bold transition-colors text-slate-400 border border-slate-200 bg-white" title="Selten benötigt: nur aktivieren, wenn relevant">Nüchtern?</button>`;
                 
-                let isoBanner = isos.length > 0 ? `<div class="bg-red-600 text-white font-bold text-[9px] px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse shadow-md whitespace-nowrap"><span class="text-xs">☣️</span> ${isos.join(', ')}</div>` : '';
-                let header = `<div class="flex justify-between items-start pb-1 border-b border-slate-100"><div class="flex items-start gap-2 flex-grow min-w-0"><input type="text" data-pid="${p.id}" value="${p.room}" onchange="updateFieldRender('${p.id}', 'room', this.value)" class="font-bold text-xl w-12 text-center text-blue-900 bg-blue-50 rounded p-room flex-shrink-0" placeholder="#"><div class="flex-grow min-w-0"><div class="flex items-center gap-1">${isoBanner}<input type="text" value="${p.name}" onchange="updateFieldRender('${p.id}', 'name', this.value)" class="font-bold text-sm text-slate-900 p-name flex-grow min-w-0" placeholder="Name"></div><div class="flex items-center gap-1 no-print"><input type="date" value="${p.dob}" onchange="updateFieldRender('${p.id}', 'dob', this.value)" class="text-[10px] text-slate-400 w-24 bg-transparent"><span class="text-xs font-bold">${age}</span><span class="text-[8px] text-slate-400">Aufn.</span><input type="date" value="${escapeHtml(p.admission_date || '')}" onchange="updateFieldRender('${p.id}', 'admission_date', this.value)" class="text-[10px] text-slate-400 w-24 bg-transparent" title="Aufnahmedatum"><span class="text-[9px] font-bold text-slate-500">${stayDay(p) ? `Tag ${stayDay(p)}` : ''}</span></div></div></div><div class="flex flex-col gap-1 items-end flex-shrink-0 ml-2"><div class="flex gap-1 items-center">${severityBtn}${fastBtn}</div><button onclick="deletePatient('${p.id}')" aria-label="Patient löschen" title="Patient löschen" tabindex="-1" class="text-slate-300 hover:text-red-500 text-lg leading-none no-print">&times;</button></div></div>`;
+                let header = `<div class="flex justify-between items-start pb-1 border-b border-slate-100"><div class="flex items-center gap-2 w-full"><input type="text" data-pid="${p.id}" value="${esc(p.room)}" onchange="updateFieldRender('${p.id}', 'room', this.value)" class="font-bold text-xl w-12 text-center text-blue-900 bg-blue-50 rounded p-room" placeholder="#"><div class="w-full"><div class="flex items-center gap-1"><input type="text" value="${esc(p.name)}" onchange="updateFieldRender('${p.id}', 'name', this.value)" class="font-bold text-sm text-slate-900 p-name flex-grow" placeholder="Name">${rhythmSel}</div><div class="flex items-center gap-1 no-print"><input type="date" value="${p.dob}" onchange="updateFieldRender('${p.id}', 'dob', this.value)" class="text-[10px] text-slate-400 w-24 bg-transparent"><span class="text-xs font-bold">${age}</span></div></div></div><div class="flex flex-col gap-1 items-end"><div class="flex gap-1 items-center">${fastBtn}<button onclick="toggleResus('${p.id}', 'dnr')" class="resus-btn ${dnrClass}">DNR</button><button onclick="toggleResus('${p.id}', 'dni')" class="resus-btn ${dniClass}">DNI</button></div><button onclick="deletePatient('${p.id}')" aria-label="Patient löschen" title="Patient löschen" tabindex="-1" class="text-slate-300 hover:text-red-500 text-lg leading-none no-print">&times;</button></div></div>`;
                 
                 // ISOLATION & WARNUNGEN
                 let warnColor = p.warnings ? 'bg-red-100 border-red-300 text-red-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-400 italic';
                 let isoTags = isos.map(iso => `<span class="text-[8px] bg-red-600 text-white px-1 rounded font-bold flex items-center gap-1">${iso} <button onclick="removeIso('${p.id}', '${iso}')" class="hover:text-red-200">×</button></span>`).join('');
                 let isoSel = `<select onchange="addIso('${p.id}', this.value); this.value='';" class="text-[8px] bg-red-50 text-red-700 border border-red-200 rounded outline-none w-16"><option value="">+ Keim/Iso</option><option value="MRSA">MRSA</option><option value="3MRGN">3MRGN</option><option value="4MRGN">4MRGN</option><option value="VRE">VRE</option><option value="CDAD">Clostr.</option><option value="Influenza">Influenza</option><option value="RSV">RSV</option><option value="Covid">Covid</option></select>`;
-                let customIsoBtn = `<button onclick="let v=prompt('Erreger:'); if(v) addIso('${p.id}', v);" class="text-[8px] bg-red-50 text-red-700 border border-red-200 rounded px-1 hover:bg-red-100">+</button>`;
-                let warnHtml = `<div class="flex flex-wrap items-center gap-1"><input type="text" value="${p.warnings || ''}" onchange="updateField('${p.id}', 'warnings', this.value)" class="flex-grow text-[10px] rounded p-1 outline-none transition-colors uppercase placeholder-slate-300 ${warnColor}" placeholder="⚠️ Allergien / Warnungen...">${isoTags}${isoSel}${customIsoBtn}</div>`;
+                let warnHtml = `<div class="flex flex-wrap items-center gap-1"><input type="text" value="${esc(p.warnings || '')}" onchange="updateField('${p.id}', 'warnings', this.value)" class="flex-grow text-[10px] rounded p-1 outline-none transition-colors uppercase placeholder-slate-300 ${warnColor}" placeholder="⚠️ Allergien / Warnungen...">${isoTags}${isoSel}</div>`;
 
                 // DIAGNOSEN
                 let diagTextClass = p.expDiag ? "text-expanded" : (p.diagnosis && p.diagnosis.length > 150 ? "text-truncated" : "");
                 let diagToggleBtn = (p.diagnosis && p.diagnosis.length > 150) ? `<button onclick="updateFieldRender('${p.id}', 'expDiag', ${!p.expDiag})" class="text-[9px] text-blue-500 hover:underline w-full text-right bg-red-50 pr-1 pb-1 rounded-b">${p.expDiag ? 'Weniger anzeigen' : 'Mehr lesen...'}</button>` : '';
-                let diag = `<div class="bg-red-50 rounded border border-red-100 relative p-1 flex flex-col gap-1"><input type="text" value="${p.main_diagnosis || ''}" onchange="updateField('${p.id}', 'main_diagnosis', this.value)" class="w-full text-sm font-black text-red-900 bg-red-100/50 placeholder-red-300 outline-none p-1 rounded" placeholder="HAUPTDIAGNOSE / Aufnahmegrund"><textarea oninput="resizeTx(this); updateField('${p.id}', 'diagnosis', this.value)" class="auto-expand w-full text-xs font-medium text-red-900 bg-transparent leading-tight outline-none ${diagTextClass}" placeholder="Weitere Diagnosen...">${p.diagnosis || ''}</textarea>${diagToggleBtn}</div>`;
-                let cvrfHtml = `<div class="flex items-center justify-between py-1 bg-slate-50 border-y border-slate-100 mb-1 px-1 rounded overflow-hidden">
-                    <div class="flex gap-1 flex-shrink-0">`;
-                if(typeof CVRF_CONFIG !== 'undefined') CVRF_CONFIG.forEach(c => {
-                    const active = p.cvrf && p.cvrf.includes(c.key) ? 'cvrf-active' : '';
-                    cvrfHtml += `<button type="button" onclick="toggleCVRF('${p.id}', '${c.key}')" class="cvrf-btn ${active} text-sm p-0.5" title="${c.label}">${c.icon}</button>`;
-                });
-                cvrfHtml += `</div>
-                    ${rhythmSel}
-                    <div class="flex gap-2 flex-shrink-0">
-                        <select onchange="updateFieldRender('${p.id}', 'nyha', this.value)" class="text-[9px] outline-none bg-transparent cursor-pointer text-slate-600 font-bold">
-                            <option value="">NYHA -</option>
-                            <option value="I" ${p.nyha==='I'?'selected':''}>NYHA I</option>
-                            <option value="II" ${p.nyha==='II'?'selected':''}>NYHA II</option>
-                            <option value="III" ${p.nyha==='III'?'selected':''}>NYHA III</option>
-                            <option value="IV" ${p.nyha==='IV'?'selected':''}>NYHA IV</option>
-                        </select>
-                        <select onchange="updateFieldRender('${p.id}', 'ehra', this.value)" class="text-[9px] outline-none bg-transparent cursor-pointer text-slate-600 font-bold">
-                            <option value="">EHRA -</option>
-                            <option value="I" ${p.ehra==='I'?'selected':''}>EHRA I</option>
-                            <option value="IIa" ${p.ehra==='IIa'?'selected':''}>EHRA IIa</option>
-                            <option value="IIb" ${p.ehra==='IIb'?'selected':''}>EHRA IIb</option>
-                            <option value="III" ${p.ehra==='III'?'selected':''}>EHRA III</option>
-                            <option value="IV" ${p.ehra==='IV'?'selected':''}>EHRA IV</option>
-                        </select>
-                    </div>
-                    </div>
-                </div>`;
+                let diag = `<div class="bg-red-50 rounded border border-red-100 relative p-1 flex flex-col gap-1"><input type="text" value="${esc(p.main_diagnosis || '')}" onchange="updateField('${p.id}', 'main_diagnosis', this.value)" class="w-full text-sm font-black text-red-900 bg-red-100/50 placeholder-red-300 outline-none p-1 rounded" placeholder="HAUPTDIAGNOSE / Aufnahmegrund"><textarea oninput="resizeTx(this); updateField('${p.id}', 'diagnosis', this.value)" class="auto-expand w-full text-xs font-medium text-red-900 bg-transparent leading-tight outline-none ${diagTextClass}" placeholder="Weitere Diagnosen...">${esc(p.diagnosis || '')}</textarea>${diagToggleBtn}</div>`;
+                let cvrfHtml = `<div class="flex gap-2 justify-center py-1">`; if(typeof CVRF_CONFIG !== 'undefined') CVRF_CONFIG.forEach(c => { const active = p.cvrf && p.cvrf.includes(c.key) ? 'cvrf-active' : ''; cvrfHtml += `<button type="button" onclick="toggleCVRF('${p.id}', '${c.key}')" class="cvrf-btn ${active} text-sm p-0.5" title="${c.label}">${c.icon}</button>`; }); cvrfHtml += `</div>`;
                 
                 // QUICK LABS & VOLUMEN
                 let eGFRValue = MedSafety.parseEgfr(labs.egfr);
@@ -707,36 +689,16 @@
                     <summary class="compact-summary">📊 Monitoring, Bilanz & Care <span class="font-normal text-slate-400">(selten)</span></summary>
                     <div class="flex flex-col gap-1 mt-1">
                     <div class="grid grid-cols-5 gap-1 bg-blue-50 border border-blue-100 rounded p-1">
-                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">Hb</label><input value="${labs.hb}" onchange="updateDeepField('${p.id}','labs','hb',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200"></div>
-                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">Krea</label><input value="${labs.krea}" onchange="updateDeepField('${p.id}','labs','krea',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200"></div>
-                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">eGFR</label><input value="${labs.egfr}" onchange="updateDeepFieldRender('${p.id}','labs','egfr',this.value)" class="text-[9px] outline-none border-b border-blue-200 rounded-t ${eGFRWarn}" title="${eGFRWarn.includes('red') ? 'WARNUNG: eGFR < 30' : ''}"></div>
-                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">K+</label><input value="${labs.k}" onchange="updateDeepField('${p.id}','labs','k',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200"></div>
-                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">CRP/BNP</label><input value="${labs.crp}" onchange="updateDeepField('${p.id}','labs','crp',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200" placeholder="z.B. 10|2000"></div>
+                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">Hb</label><input value="${esc(labs.hb)}" onchange="updateDeepField('${p.id}','labs','hb',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200"></div>
+                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">Krea</label><input value="${esc(labs.krea)}" onchange="updateDeepField('${p.id}','labs','krea',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200"></div>
+                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">eGFR</label><input value="${esc(labs.egfr)}" onchange="updateDeepFieldRender('${p.id}','labs','egfr',this.value)" class="text-[9px] outline-none border-b border-blue-200 rounded-t ${eGFRWarn}"></div>
+                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">K+</label><input value="${esc(labs.k)}" onchange="updateDeepField('${p.id}','labs','k',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200"></div>
+                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">CRP/BNP</label><input value="${esc(labs.crp)}" onchange="updateDeepField('${p.id}','labs','crp',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200" placeholder="z.B. 10|2000"></div>
                     </div>
-                    <div class="flex gap-1">
-                        <div class="flex-1 flex flex-col gap-1 bg-cyan-50 border border-cyan-100 rounded p-1 text-[9px]">
-                            <div class="font-bold text-cyan-800 border-b border-cyan-100 pb-0.5">⚖️ Bilanz & Gewicht</div>
-                            <div class="grid grid-cols-2 gap-1">
-                                <div class="flex flex-col"><label class="text-[7px] text-cyan-600 font-bold uppercase">Gewicht (kg)</label><input value="${p.weight || ''}" onchange="updateField('${p.id}','weight',this.value)" class="text-[9px] bg-white outline-none border border-cyan-200 rounded px-1" placeholder="z.B. 85.5"></div>
-                                <div class="flex flex-col"><label class="text-[7px] text-cyan-600 font-bold uppercase">Drainagen (ml)</label><input value="${p.drainage || ''}" onchange="updateField('${p.id}','drainage',this.value)" class="text-[9px] bg-white outline-none border border-cyan-200 rounded px-1" placeholder="Pleura re 500"></div>
-                                <div class="flex flex-col"><label class="text-[7px] text-cyan-600 font-bold uppercase">Einfuhr (ml)</label><input value="${vol.ziel || ''}" onchange="updateDeepField('${p.id}','vol','ziel',this.value)" class="text-[9px] bg-white outline-none border border-cyan-200 rounded px-1" placeholder="1500"></div>
-                                <div class="flex flex-col"><label class="text-[7px] text-cyan-600 font-bold uppercase">Ausfuhr (ml)</label><input value="${vol.aktuell || ''}" onchange="updateDeepField('${p.id}','vol','aktuell',this.value)" class="text-[9px] bg-white outline-none border border-cyan-200 rounded px-1" placeholder="2200"></div>
-                            </div>
-                        </div>
-                        <div class="flex-1 flex flex-col gap-1 bg-orange-50 border border-orange-100 rounded p-1 text-[9px]">
-                            <div class="font-bold text-orange-800 border-b border-orange-100 pb-0.5 flex justify-between">
-                                <span>🤝 Care-Status</span>
-                                <div class="flex gap-1">
-                                    <button onclick="toggleResus('${p.id}', 'dnr')" class="resus-btn ${dnrClass}">DNR</button>
-                                    <button onclick="toggleResus('${p.id}', 'dni')" class="resus-btn ${dniClass}">DNI</button>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-1">
-                                <div class="flex flex-col"><label class="text-[7px] text-orange-600 font-bold uppercase">Pflegegrad</label><select onchange="updateDeepFieldRender('${p.id}', 'social', 'pflegegrad', this.value)" class="text-[9px] bg-white outline-none border border-orange-200 rounded px-1"><option value="">-</option><option value="1" ${social.pflegegrad==='1'?'selected':''}>PG 1</option><option value="2" ${social.pflegegrad==='2'?'selected':''}>PG 2</option><option value="3" ${social.pflegegrad==='3'?'selected':''}>PG 3</option><option value="4" ${social.pflegegrad==='4'?'selected':''}>PG 4</option><option value="5" ${social.pflegegrad==='5'?'selected':''}>PG 5</option></select></div>
-                                <div class="flex flex-col"><label class="text-[7px] text-orange-600 font-bold uppercase">Betreuung</label><input value="${social.physio || ''}" onchange="updateDeepField('${p.id}','social','physio',this.value)" class="text-[9px] bg-white outline-none border border-orange-200 rounded px-1" placeholder="Ehefrau / Berufsbetr."></div>
-                                <div class="flex flex-col col-span-2"><label class="text-[7px] text-orange-600 font-bold uppercase">Reha / Ziel</label><input value="${social.reha || ''}" onchange="updateDeepField('${p.id}','social','reha',this.value)" class="text-[9px] bg-white outline-none border border-orange-200 rounded px-1" placeholder="AHB / Kurzzeitpflege"></div>
-                            </div>
-                        </div>
+                    <div class="flex gap-2 items-center bg-cyan-50 border border-cyan-100 rounded p-1 text-[9px]">
+                        <span class="font-bold text-cyan-700">⚖️ Vol:</span>
+                        <label class="text-cyan-600 font-semibold">Ziel:</label><input value="${esc(vol.ziel)}" onchange="updateDeepField('${p.id}','vol','ziel',this.value)" placeholder="-500" class="w-10 bg-transparent outline-none border-b border-cyan-200">
+                        <label class="text-cyan-600 font-semibold">Aktuell:</label><input value="${esc(vol.aktuell)}" onchange="updateDeepField('${p.id}','vol','aktuell',this.value)" placeholder="+200" class="w-10 bg-transparent outline-none border-b border-cyan-200">
                     </div>
                     </div>
                 </details>`;
@@ -854,83 +816,18 @@
                 let activeTasks = (typeof DAILY_TASKS !== 'undefined') ? DAILY_TASKS.filter(t => p.daily && p.daily[t.key]).map(t => t.label) : [];
                 let tasksHtml = `<details class="mb-1 no-print compact-details" ${activeTasks.length ? 'open' : ''}><summary class="compact-summary">✅ Tageschecks ${activeTasks.length ? `<span class="ml-1 text-blue-700">${activeTasks.join(', ')}</span>` : '<span class="font-normal text-slate-400">(bei Bedarf)</span>'}</summary><div class="grid grid-cols-6 gap-0.5 mt-1 daily-grid">`; if(typeof DAILY_TASKS !== 'undefined') DAILY_TASKS.forEach(t => { const cls = (p.daily && p.daily[t.key]) ? 'task-true' : 'task-false'; tasksHtml += `<button type="button" onclick="toggleDaily('${p.id}', '${t.key}')" class="task-btn ${cls} text-[9px] text-center py-0.5 rounded">${t.label}</button>`; }); tasksHtml += `</div></details>`;
                 
-                // WENN-DANN: die Anweisung für Nacht- und Wochenenddienst
-                let contingencyHtml = `
-                <div class="mt-1 border rounded p-1 ${p.contingency ? 'bg-sky-50 border-sky-300' : 'bg-white border-slate-200'}">
-                    <label class="text-[8px] font-bold uppercase ${p.contingency ? 'text-sky-800' : 'text-slate-400'} flex items-center gap-1">↪️ Wenn–dann (Dienstanweisung)</label>
-                    <textarea oninput="resizeTx(this); updateField('${p.id}', 'contingency', this.value)" class="auto-expand w-full text-[10px] bg-transparent leading-tight outline-none ${p.contingency ? 'text-sky-900 font-medium' : ''}" rows="1" placeholder="z. B. Bei RR syst. < 90 → Arzt rufen · Bei Fieber > 38,5 → BK abnehmen">${escapeHtml(p.contingency || "")}</textarea>
-                </div>`;
-
-                const todoCount = openTodoCount(p);
-                let todoHtml = `<div class="bg-yellow-50 border border-yellow-200 rounded p-1 relative group flex flex-col">
-                    <div class="flex items-center gap-1 text-[8px] font-bold uppercase text-yellow-700 mb-0.5">
-                        <span>To-Do</span>
-                        ${todoCount.open ? `<span class="bg-yellow-200 text-yellow-900 rounded px-1">${todoCount.open} offen</span>` : '<span class="font-normal text-slate-400">alles erledigt</span>'}
-                        ${todoCount.overdue ? `<span class="bg-red-200 text-red-900 rounded px-1">${todoCount.overdue} überfällig</span>` : ''}
-                    </div>`;
-                if(p.showRawTodo) { todoHtml += `<textarea onchange="updateFieldRender('${p.id}', 'todo_text', this.value); updateFieldRender('${p.id}', 'showRawTodo', false)" class="auto-expand w-full text-xs bg-white border border-yellow-300 rounded p-1 leading-tight focus:ring-2 focus:ring-yellow-500" placeholder="Freitext To-Dos...">${p.todo_text || ""}</textarea><button onclick="updateFieldRender('${p.id}', 'showRawTodo', false)" class="text-[9px] text-yellow-700 bg-yellow-200 hover:bg-yellow-300 rounded px-1 mt-1 self-end">Fertig</button>`;
-                } else {
-                    const tasks = todoList(p);
-                    if(tasks.length) {
-                        todoHtml += `<div class="flex flex-col gap-0.5 mb-1">`;
-                        tasks.forEach((task, idx) => {
-                            const icon = task.done ? '✅' : '🔲';
-                            const strike = task.done ? 'line-through text-slate-400' : 'text-slate-800 font-medium';
-                            const dueState = todoDueState(task);
-                            const dueTone = dueState === 'overdue' ? 'bg-red-200 text-red-900 font-bold'
-                                : dueState === 'today' ? 'bg-amber-200 text-amber-900 font-bold' : 'bg-white text-slate-500';
-                            todoHtml += `<div class="flex items-start gap-1 hover:bg-yellow-200 p-0.5 rounded transition">
-                                <span class="mt-0.5 text-[10px] cursor-pointer" onclick="toggleTodoLine('${p.id}', ${idx})">${icon}</span>
-                                <span class="text-xs ${strike} leading-tight flex-grow cursor-pointer min-w-0" onclick="toggleTodoLine('${p.id}', ${idx})">${escapeHtml(task.text)}</span>
-                                <input type="text" value="${escapeHtml(task.owner)}" onchange="updateTodoField('${p.id}', ${idx}, 'owner', this.value)" class="text-[9px] border border-yellow-300 rounded px-0.5 w-12 bg-white flex-shrink-0" placeholder="wer" title="Zuständig">
-                                <input type="date" value="${escapeHtml(task.due)}" onchange="updateTodoField('${p.id}', ${idx}, 'due', this.value)" class="text-[9px] border border-yellow-300 rounded px-0.5 flex-shrink-0 ${dueTone}" title="Frist">
-                                ${task.done ? `<button onclick="deleteTodoLine('${p.id}', ${idx})" class="text-[9px] bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded px-1 flex-shrink-0">❌</button>` : ''}
-                            </div>`;
-                        });
-                        todoHtml += `</div>`;
-                    } else { todoHtml += `<span class="text-[10px] text-slate-400 italic px-1 mb-1">Keine To-Dos...</span>`; }
-                    todoHtml += `<input type="text" placeholder="+ Neues To-Do (Enter) – @Person und !2026-10-07 möglich" class="w-full text-xs bg-white border border-yellow-300 rounded p-1 outline-none focus:ring-1 focus:ring-yellow-500" onkeydown="if(event.key==='Enter'){ addTodoLine('${p.id}', this.value); this.value=''; }"><button onclick="updateFieldRender('${p.id}', 'showRawTodo', true)" class="absolute top-1 right-1 text-[10px] text-yellow-600 opacity-0 group-hover:opacity-100 transition bg-yellow-100 px-1 rounded shadow-sm">✏️ Edit</button>`;
-                } todoHtml += `</div>`;
+                let todoHtml = `<div class="bg-yellow-50 border border-yellow-200 rounded p-1 relative group flex flex-col">`;
+                if(p.showRawTodo) { todoHtml += `<textarea onchange="updateFieldRender('${p.id}', 'todo_text', this.value); updateFieldRender('${p.id}', 'showRawTodo', false)" class="auto-expand w-full text-xs bg-white border border-yellow-300 rounded p-1 leading-tight focus:ring-2 focus:ring-yellow-500" placeholder="Freitext To-Dos...">${esc(p.todo_text || "")}</textarea><button onclick="updateFieldRender('${p.id}', 'showRawTodo', false)" class="text-[9px] text-yellow-700 bg-yellow-200 hover:bg-yellow-300 rounded px-1 mt-1 self-end">Fertig</button>`;
+                } else { let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines.length > 0) { todoHtml += `<div class="flex flex-col gap-0.5 mb-1">`; lines.forEach((line, idx) => { let isDone = line.startsWith('[x] '); let cleanLine = esc(line.replace(/^(\[x\] |\[ \] )/i, '').trim()); let icon = isDone ? '✅' : '🔲'; let strike = isDone ? 'line-through text-slate-400' : 'text-slate-800 font-medium'; todoHtml += `<div class="flex items-start justify-between gap-1 hover:bg-yellow-200 p-0.5 rounded transition"><div class="flex items-start gap-1 cursor-pointer flex-grow" onclick="toggleTodoLine('${p.id}', ${idx})"><span class="mt-0.5 text-[10px]">${icon}</span><span class="text-xs ${strike} leading-tight">${cleanLine}</span></div>`; if(isDone) { todoHtml += `<button onclick="deleteTodoLine('${p.id}', ${idx})" class="text-[9px] bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded px-1 ml-1">❌</button>`; } todoHtml += `</div>`; }); todoHtml += `</div>`; } else { todoHtml += `<span class="text-[10px] text-slate-400 italic px-1 mb-1">Keine To-Dos...</span>`; } todoHtml += `<input type="text" placeholder="+ Neues To-Do (Enter)" class="w-full text-xs bg-white border border-yellow-300 rounded p-1 outline-none focus:ring-1 focus:ring-yellow-500" onkeydown="if(event.key==='Enter'){ addTodoLine('${p.id}', this.value); this.value=''; }"><button onclick="updateFieldRender('${p.id}', 'showRawTodo', true)" class="absolute top-1 right-1 text-[10px] text-yellow-600 opacity-0 group-hover:opacity-100 transition bg-yellow-100 px-1 rounded shadow-sm">✏️ Edit</button>`; } todoHtml += `</div>`;
 
                 let histTextClass = p.expHist ? "text-expanded" : (p.history && p.history.length > 100 ? "text-truncated" : "");
                 let histToggleBtn = (p.history && p.history.length > 100) ? `<button onclick="updateFieldRender('${p.id}', 'expHist', ${!p.expHist})" class="text-[8px] text-blue-500 hover:underline w-full text-right bg-slate-50 pr-1 pb-1">${p.expHist ? 'Weniger' : 'Mehr...'}</button>` : '';
 
-                // ANTIBIOSE MANAGER: Kurse mit Therapietag, geplanter Dauer und Indikation
-                const abxCourses = (p.abx || []).slice().sort((a, b) =>
-                    (a.ended ? 1 : 0) - (b.ended ? 1 : 0) || String(a.start).localeCompare(String(b.start)));
-                const abxOpenCourses = abxCourses.filter(course => !course.ended);
-                const abxHints = abxOpenCourses.map(abxReviewHint).filter(Boolean);
-                const abxSummary = abxOpenCourses.map(course => {
-                    const planned = parseInt(course.days, 10);
-                    return `${course.name} (T${abxCourseDays(course)}${!isNaN(planned) && planned > 0 ? '/' + planned : ''})`;
-                });
-                let abxHtml = `<details class="mt-1 no-print compact-details" ${abxOpenCourses.length || abxHints.length ? 'open' : ''}><summary class="compact-summary text-purple-800">🦠 Antibiose ${abxOpenCourses.length ? `<span class="ml-1 ${abxHints.length ? 'text-orange-700 font-bold' : ''}">${escapeHtml(abxSummary.join(', '))}${abxHints.length ? ' · ' + escapeHtml(abxHints[0].text) : ''}</span>` : '<span class="font-normal text-slate-400">(keine laufende Antibiose)</span>'}</summary><div class="mt-1 flex flex-col gap-0.5">`;
-                abxHtml += `<div class="flex justify-between items-center"><span class="text-[9px] font-bold text-purple-700 uppercase">Therapiekurse</span><button onclick="addAbx('${p.id}')" class="text-[8px] bg-purple-100 text-purple-700 px-1 rounded hover:bg-purple-200">+ manuell</button></div>`;
-                if(!abxCourses.length) abxHtml += `<div class="text-[9px] text-slate-400 italic">Keine Antibiose erfasst. Erkannt wird sie automatisch aus der aktuellen Medikation.</div>`;
-                abxCourses.forEach(course => {
-                    const days = abxCourseDays(course);
-                    const hint = abxReviewHint(course);
-                    const planned = parseInt(course.days, 10);
-                    const tone = course.ended ? 'bg-slate-50 border-slate-200 text-slate-500' : 'bg-purple-50 border-purple-100';
-                    abxHtml += `<div class="border rounded p-0.5 ${tone}">
-                        <div class="flex items-center gap-1 text-[9px]">
-                            <span class="font-semibold truncate flex-grow ${course.ended ? 'line-through' : ''}">${escapeHtml(course.name)}</span>
-                            <span class="font-bold ${course.ended ? '' : 'text-purple-700'} flex-shrink-0">Tag ${days}${!isNaN(planned) && planned > 0 ? ` / ${planned}` : ''}</span>
-                            ${course.auto ? '<span class="text-[7px] text-purple-400 flex-shrink-0" title="aus der Medikation erkannt">auto</span>' : ''}
-                            <button onclick="endAbxCourse('${p.id}', '${course.id}')" class="text-[8px] px-1 rounded border ${course.ended ? 'bg-white hover:bg-green-50' : 'bg-white hover:bg-slate-100'} flex-shrink-0" title="${course.ended ? 'Kurs wieder öffnen' : 'Kurs beenden'}">${course.ended ? '↻' : '✓'}</button>
-                            <button onclick="removeAbx('${p.id}', '${course.id}')" class="text-[8px] text-red-500 hover:bg-red-100 px-1 rounded flex-shrink-0">✕</button>
-                        </div>
-                        <div class="flex items-center gap-1 mt-0.5">
-                            <input type="date" value="${escapeHtml(course.start || '')}" onchange="updateAbxField('${p.id}', '${course.id}', 'start', this.value)" class="text-[9px] border rounded px-0.5 bg-white" title="Therapiebeginn">
-                            <span class="text-[8px] text-slate-400">bis</span>
-                            <input type="date" value="${escapeHtml(course.ended || '')}" onchange="updateAbxField('${p.id}', '${course.id}', 'ended', this.value)" class="text-[9px] border rounded px-0.5 bg-white" title="Therapieende (leer = läuft)">
-                            <input type="number" min="1" max="60" value="${escapeHtml(course.days || '')}" onchange="updateAbxField('${p.id}', '${course.id}', 'days', this.value)" class="text-[9px] border rounded px-0.5 w-12 bg-white" placeholder="Tage" title="geplante Therapiedauer in Tagen">
-                            <input type="text" value="${escapeHtml(course.indication || '')}" onchange="updateAbxField('${p.id}', '${course.id}', 'indication', this.value)" class="text-[9px] border rounded px-1 flex-grow min-w-0 bg-white" placeholder="Indikation / Fokus">
-                        </div>
-                        ${hint ? `<div class="text-[8px] font-bold border rounded px-1 mt-0.5 ${hint.tone}">⚠ ${hint.text}</div>` : ''}
-                    </div>`;
-                });
-                abxHtml += `</div></details>`;
+                // ANTIBIOSE MANAGER
+                let abxHtml = `<div class="mt-1 flex flex-col gap-0.5 no-print">`;
+                abxHtml += `<div class="flex justify-between items-center"><span class="text-[9px] font-bold text-purple-700 uppercase">🦠 Antibiose</span><button onclick="addAbx('${p.id}')" class="text-[8px] bg-purple-100 text-purple-700 px-1 rounded hover:bg-purple-200">+ ABx</button></div>`;
+                abx.forEach((ab, idx) => { let days = getDaysSince(ab.start); abxHtml += `<div class="flex justify-between text-[9px] bg-purple-50 p-0.5 rounded border border-purple-100"><span class="font-semibold">${esc(ab.name)} <span class="text-purple-600">(Tag ${days})</span></span> <button onclick="removeAbx('${p.id}', ${idx})" class="text-red-500 hover:bg-red-100 px-1 rounded">❌</button></div>`; });
+                abxHtml += `</div>`;
 
                 // MEDS (Current, Paused, DAPT) + AMIO
                 let amioBtn = `<div class="flex justify-between items-center bg-blue-50 p-1 rounded mt-1 no-print border border-blue-100"><span class="text-[9px] font-bold text-blue-800">Amiodaron Aufsättigung:</span><button onclick="addAmio('${p.id}')" class="text-[9px] bg-blue-600 text-white px-2 py-0.5 rounded shadow hover:bg-blue-500"> ${p.amio || 0}g / 10g ➕</button></div>`;
@@ -938,23 +835,17 @@
                 <div class="mt-1">
                      <div class="relative mb-1">
                         <button type="button" class="w-full text-left text-[9px] text-slate-400 font-bold uppercase hover:text-blue-600 flex items-center gap-1" onclick="openMedModal('${p.id}')">💊 Aktuell <span class="no-print opacity-50 text-[8px]">(Suchen/Edit)</span></button>
-                        <textarea readonly onclick="openMedModal('${p.id}')" class="auto-expand w-full text-[10px] bg-white border border-slate-200 rounded p-1 hover:bg-slate-50 cursor-pointer leading-tight focus:ring-2 focus:ring-blue-500">${p.meds_current || "Keine Medikation"}</textarea>
+                        <textarea readonly onclick="openMedModal('${p.id}')" class="auto-expand w-full text-[10px] bg-white border border-slate-200 rounded p-1 hover:bg-slate-50 cursor-pointer leading-tight focus:ring-2 focus:ring-blue-500">${esc(p.meds_current || "Keine Medikation")}</textarea>
                     </div>
                     <div class="flex gap-1 mb-1 no-print">
-                        <button type="button" class="flex-1 bg-red-50 rounded border border-red-100 p-1 cursor-pointer hover:bg-red-100 text-left focus-ring" onclick="openMedModal('${p.id}')"><span class="text-[8px] uppercase text-red-500 font-bold block mb-0.5">Pausiert ⏸️</span><span class="block w-full text-[9px] text-red-800 min-h-[14px] leading-tight">${formatCompactMeds(p.meds_paused)}</span></button>
-                        <button type="button" class="flex-1 bg-purple-50 rounded border border-purple-100 p-1 cursor-pointer hover:bg-purple-100 text-left focus-ring" onclick="openMedModal('${p.id}')"><span class="text-[8px] uppercase text-purple-600 font-bold block mb-0.5">Bedarf 💊</span><span class="block w-full text-[9px] text-purple-800 min-h-[14px] leading-tight">${formatCompactMeds(p.meds_bedarf)}</span></button>
-                        <div class="flex-1 bg-blue-50 rounded border border-blue-100 p-1 flex flex-col justify-between">
-                            <label class="text-[8px] uppercase text-blue-600 font-bold block mb-0.5">Antikoagulation 🩸</label>
-                            <div class="text-[9px] font-bold text-blue-900 leading-tight">${getAnticoagulationStatus(p).status}</div>
-                            <div class="text-[8px] text-blue-700 leading-tight mt-0.5">Aktive Substanzen aus aktueller Medikation</div>
-                            <input type="text" value="${p.dapt_oak || ''}" onchange="updateField('${p.id}', 'dapt_oak', this.value)" class="w-full mt-1 text-[8px] bg-white border border-blue-200 rounded px-1 outline-none text-blue-800" placeholder="Indikation & Dauer...">
-                        </div>
+                        <div class="flex-1 bg-red-50 rounded border border-red-100 p-1"><label class="text-[8px] uppercase text-red-500 font-bold block mb-0.5">Pausiert ⏸️</label><input type="text" value="${esc(p.meds_paused || '')}" onchange="updateField('${p.id}', 'meds_paused', this.value)" class="w-full text-[9px] bg-transparent outline-none text-red-800" placeholder="z.B. Metformin"></div>
+                        <div class="flex-1 bg-blue-50 rounded border border-blue-100 p-1"><label class="text-[8px] uppercase text-blue-600 font-bold block mb-0.5">DAPT / OAK 🩸</label><input type="text" value="${esc(p.dapt_oak || '')}" onchange="updateField('${p.id}', 'dapt_oak', this.value)" class="w-full text-[9px] bg-transparent outline-none text-blue-800" placeholder="z.B. bis 05/26"></div>
                     </div>
                     ${amioBtn}
-                    <details class="group"><summary class="text-[9px] text-slate-400 cursor-pointer list-none hover:text-blue-500 no-print focus:outline-none focus:text-blue-600">▶ Aufnahme: Anamnese, Medikation, Vordiagnosen${p.anamnesis ? ` <span class="text-blue-500">(${p.anamnesis.length} Zeichen)</span>` : ''}</summary><div class="mt-1 pt-1 border-t border-slate-100"><div class="mb-1"><label class="text-[9px] text-slate-400 uppercase">Anamnese bei Aufnahme <span class="normal-case text-[8px] text-slate-300">(fließt in den Epikrisen-Prompt)</span></label><textarea oninput="updateField('${p.id}', 'anamnesis', this.value)" class="w-full text-[9px] bg-slate-50 rounded p-1 leading-tight max-h-40 overflow-y-auto" rows="4" placeholder="Aufnahmegrund, Beschwerden, Vorgeschichte …">${escapeHtml(p.anamnesis || "")}</textarea></div><div class="mb-1 med-hidden-print"><label class="text-[9px] text-slate-400 uppercase">Aufnahme-Med</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'meds_admission', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1" rows="1">${p.meds_admission || ""}</textarea></div><div><label class="text-[9px] text-slate-400 uppercase">Vordiagnosen</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'history', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1 leading-tight outline-none border-b border-transparent focus:border-slate-300 ${histTextClass}" placeholder="Vordiagnosen...">${p.history || ""}</textarea>${histToggleBtn}</div></div></details>
+                    <details class="group"><summary class="text-[9px] text-slate-400 cursor-pointer list-none hover:text-blue-500 no-print focus:outline-none focus:text-blue-600">▶ Aufnahme/Vor.D.</summary><div class="mt-1 pt-1 border-t border-slate-100"><div class="mb-1 med-hidden-print"><label class="text-[9px] text-slate-400 uppercase">Aufnahme-Med</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'meds_admission', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1" rows="1">${esc(p.meds_admission || "")}</textarea></div><div><label class="text-[9px] text-slate-400 uppercase">Vordiagnosen</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'history', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1 leading-tight outline-none border-b border-transparent focus:border-slate-300 ${histTextClass}" placeholder="Vordiagnosen...">${esc(p.history || "")}</textarea>${histToggleBtn}</div></div></details>
                 </div>`;
                 
-                let diagGrid = `<div class="grid grid-cols-4 gap-1 mt-1 diag-grid">`; if(typeof DIAGNOSTICS !== 'undefined') DIAGNOSTICS.forEach(d => { const s = (p.diag_status||{})[d]||0; const res = (p.diag_results||{})[d]||""; const hasRes = res ? 'has-result' : ''; diagGrid += `<button type="button" id="btn-diag-${p.id}-${d}" onclick="toggleDiag(event,'${p.id}','${d}')" oncontextmenu="toggleDiag(event,'${p.id}','${d}')" class="state-btn diag-${s} ${hasRes} py-0.5 rounded text-[9px]" title="${res}">${d} <span class="print-result ml-1">(${res})</span></button>`; }); diagGrid += `</div>`;
+                let diagGrid = `<div class="grid grid-cols-4 gap-1 mt-1 diag-grid">`; if(typeof DIAGNOSTICS !== 'undefined') DIAGNOSTICS.forEach(d => { const s = (p.diag_status||{})[d]||0; const res = (p.diag_results||{})[d]||""; const hasRes = res ? 'has-result' : ''; diagGrid += `<button type="button" id="btn-diag-${p.id}-${d}" onclick="toggleDiag(event,'${p.id}','${d}')" oncontextmenu="toggleDiag(event,'${p.id}','${d}')" class="state-btn diag-${s} ${hasRes} py-0.5 rounded text-[9px]" title="${esc(res)}">${d} <span class="print-result ml-1">(${esc(res)})</span></button>`; }); diagGrid += `</div>`;
                 
                 // KONSIL MANAGER + NOTES
                 let consultHtml = `<div class="flex flex-wrap gap-1 mt-1 border-t border-slate-100 pt-1 justify-center no-print">`; 
@@ -963,7 +854,7 @@
                 consultHtml += `</div>`;
                 if(activeConsults.length > 0) {
                     consultHtml += `<div class="flex flex-col gap-0.5 mt-1 no-print">`;
-                    activeConsults.forEach(c => { let note = (p.consult_notes && p.consult_notes[c]) || ''; consultHtml += `<div class="flex items-center gap-1"><span class="text-[8px] font-bold text-orange-700 w-8">${c}:</span><input type="text" value="${note}" onchange="updateDeepField('${p.id}', 'consult_notes', '${c}', this.value)" class="text-[9px] bg-orange-50 border border-orange-200 rounded px-1 flex-grow outline-none" placeholder="Fragestellung..."></div>`; });
+                    activeConsults.forEach(c => { let note = (p.consult_notes && p.consult_notes[c]) || ''; consultHtml += `<div class="flex items-center gap-1"><span class="text-[8px] font-bold text-orange-700 w-8">${c}:</span><input type="text" value="${esc(note)}" onchange="updateDeepField('${p.id}', 'consult_notes', '${c}', this.value)" class="text-[9px] bg-orange-50 border border-orange-200 rounded px-1 flex-grow outline-none" placeholder="Fragestellung..."></div>`; });
                     consultHtml += `</div>`;
                 }
 
@@ -995,29 +886,19 @@
                 containerFrag.appendChild(card);
 
                 // --- PRINT VIEW ---
-                let mainDiagPrint = p.main_diagnosis ? `<div class="print-main-diag" style="font-size:10pt; font-weight:900; margin-bottom:2px;">${p.main_diagnosis}</div>` : '';
-                let diagPrint = mainDiagPrint + `<div class="print-diag-rest">` + (p.diagnosis || "").replace(/\n/g, '<br>') + `</div>`;
-                let historyPrint = p.history ? `<div class="text-[8pt] text-slate-600 mt-1 print-history">${p.history.replace(/\n/g, ', ')}</div>` : '';
+                let mainDiagPrint = p.main_diagnosis ? `<div class="print-main-diag" style="font-size:10pt; font-weight:900; margin-bottom:2px;">${esc(p.main_diagnosis)}</div>` : '';
+                let diagPrint = mainDiagPrint + `<div class="print-diag-rest">` + esc(p.diagnosis || "").replace(/\n/g, '<br>') + `</div>`;
+                let historyPrint = p.history ? `<div class="text-[8pt] text-slate-600 mt-1 print-history">${esc(p.history).replace(/\n/g, ', ')}</div>` : '';
                 
-                let medsPausedPrint = p.meds_paused ? `<div style="color:#b91c1c; font-size:7.5pt; font-weight:bold; margin-top:2px;">⏸️ Pausiert: ${p.meds_paused}</div>` : '';
-                let daptPrint = p.dapt_oak ? `<div style="color:#1d4ed8; font-size:7.5pt; font-weight:bold; margin-top:2px;">🩸 Gerinnung: ${p.dapt_oak}</div>` : '';
+                let medsPausedPrint = p.meds_paused ? `<div style="color:#b91c1c; font-size:7.5pt; font-weight:bold; margin-top:2px;">⏸️ Pausiert: ${esc(p.meds_paused)}</div>` : '';
+                let daptPrint = p.dapt_oak ? `<div style="color:#1d4ed8; font-size:7.5pt; font-weight:bold; margin-top:2px;">🩸 Gerinnung: ${esc(p.dapt_oak)}</div>` : '';
                 let amioPrint = p.amio ? `<div style="color:#4338ca; font-size:7.5pt; font-weight:bold; margin-top:2px;">💊 Amiodaron: ${p.amio}g</div>` : '';
-                let medsBedarfPrint = p.meds_bedarf ? `<div style="color:#7e22ce; font-size:7.5pt; font-style:italic; margin-top:2px;">💊 Bedarf: ${p.meds_bedarf}</div>` : '';
-                let medsPrint = (p.meds_current ? `<div class="print-meds">💊 ${p.meds_current}</div>` : '') + medsBedarfPrint + medsPausedPrint + daptPrint + amioPrint;
+                let medsPrint = (p.meds_current ? `<div class="print-meds">💊 ${esc(p.meds_current)}</div>` : '') + medsPausedPrint + daptPrint + amioPrint;
                 
-                let todoPrint = '';
-                todoList(p).forEach(task => {
-                    const meta = [task.owner ? `@${task.owner}` : '', task.due ? KisLabImport.formatDate(task.due) : ''].filter(Boolean).join(' ');
-                    const overdue = todoDueState(task) === 'overdue';
-                    if(task.done) todoPrint += `<div style="text-decoration: line-through; color: #888; font-size: 8pt;">☑ ${escapeHtml(task.text)}</div>`;
-                    else todoPrint += `<div style="font-size: 8pt; font-weight: 500;">☐ ${escapeHtml(task.text)}${meta ? ` <span style="font-weight:bold; ${overdue ? 'color:#b91c1c;' : 'color:#555;'}">[${escapeHtml(meta)}]</span>` : ''}</div>`;
-                });
-                let contingencyPrint = p.contingency ? `<div style="font-size:8pt; font-weight:bold; color:#075985; border:1px solid #075985; padding:1px 3px; margin-top:2px;">↪ ${escapeHtml(p.contingency)}</div>` : '';
+                let todoPrint = ''; let printLines = (p.todo_text || "").split('\n').filter(l => l.trim() !== '');
+                printLines.forEach(line => { let isDone = line.startsWith('[x] '); let cleanLine = esc(line.replace(/^(\[x\] |\[ \] )/i, '').trim()); if(isDone) { todoPrint += `<div style="text-decoration: line-through; color: #888; font-size: 8pt;">☑ ${cleanLine}</div>`; } else { todoPrint += `<div style="font-size: 8pt; font-weight: 500;">☐ ${cleanLine}</div>`; } });
 
-                let abxPrint = abxOpenCourses.length > 0 ? `<div style="color:#6b21a8; font-size:7.5pt; font-weight:bold; margin-top:2px;">🦠 ABx: ` + abxOpenCourses.map(course => {
-                    const planned = parseInt(course.days, 10);
-                    return `${course.name} T${abxCourseDays(course)}${!isNaN(planned) && planned > 0 ? '/' + planned : ''}${course.indication ? ' (' + course.indication + ')' : ''}`;
-                }).join(', ') + `</div>` : '';
+                let abxPrint = abx.length > 0 ? `<div style="color:#6b21a8; font-size:7.5pt; font-weight:bold; margin-top:2px;">🦠 ABx: ` + abx.map(a => `${esc(a.name)} (T${getDaysSince(a.start)})`).join(', ') + `</div>` : '';
                 let labPrint = `<div style="font-size:7.5pt; color:#475569; margin-top:2px; border-top:1px dashed #cbd5e1; padding-top:2px;">Hb:${labs.hb||'-'} | Kr:${labs.krea||'-'} | K:${labs.k||'-'} | CRP/BNP:${labs.crp||'-'}</div>`;
                 let eGFRPrint = (labs.egfr && labs.egfr < 30) ? `<div style="color:#c2410c; font-weight:bold; font-size:8pt;">⚠️ eGFR < 30 (${labs.egfr})</div>` : '';
                 let safetyPrint = safetyHigh.length ? `<div style="font-size:7.5pt; color:#991b1b; font-weight:bold;">💊 ` + safetyHigh.map(item => `${item.title}${item.text ? ': ' + item.text : ''}`).join('<br>💊 ') + `</div>` : '';
@@ -1027,17 +908,17 @@
                 let volPrint = (vol.ziel || vol.aktuell) ? `<div style="font-size:7.5pt; color:#0369a1; font-weight:bold;">⚖️ Vol: Ziel ${vol.ziel||'-'} | Akt ${vol.aktuell||'-'}</div>` : '';
 
                 let dailyPrint = []; if(DAILY_TASKS) DAILY_TASKS.forEach(t => { if(p.daily && p.daily[t.key]) dailyPrint.push(t.label); }); let dailyStr = dailyPrint.length > 0 ? `<div class="mt-1 text-[8pt]"><b>✓:</b> ${dailyPrint.join(', ')}</div>` : '';
-                let diagPrintStr = '<div class="mt-1 text-[8pt]">'; if(DIAGNOSTICS) DIAGNOSTICS.forEach(d => { const s = (p.diag_status||{})[d]||0; const res = (p.diag_results||{})[d]||""; if(s === 1) diagPrintStr += `<span class="print-diag-item print-diag-ordered">○ ${d}</span> `; if(s === 2) diagPrintStr += `<span class="print-diag-item print-diag-done">● ${d} ${res ? '('+res+')' : ''}</span> `; }); diagPrintStr += '</div>';
+                let diagPrintStr = '<div class="mt-1 text-[8pt]">'; if(DIAGNOSTICS) DIAGNOSTICS.forEach(d => { const s = (p.diag_status||{})[d]||0; const res = (p.diag_results||{})[d]||""; if(s === 1) diagPrintStr += `<span class="print-diag-item print-diag-ordered">○ ${d}</span> `; if(s === 2) diagPrintStr += `<span class="print-diag-item print-diag-done">● ${d} ${res ? '('+esc(res)+')' : ''}</span> `; }); diagPrintStr += '</div>';
                 
-                let consultPrintStr = '<div class="mt-1 text-[8pt] color-blue-800">'; if(typeof CONSULTS !== 'undefined' && p.consults) CONSULTS.forEach(c => { const s = p.consults[c] || 0; if(s === 1) { let n = (p.consult_notes&&p.consult_notes[c]) ? ` <i>(${p.consult_notes[c]})</i>`:''; consultPrintStr += `<div style="border-bottom: 1px solid orange; color: #854d0e; margin-right: 4px;">K: ${c} (Angef)${n}</div>`; } if(s === 2) consultPrintStr += `<div style="font-weight: bold; color: #166534; margin-right: 4px;">K: ${c} (OK)</div>`; }); consultPrintStr += '</div>';
+                let consultPrintStr = '<div class="mt-1 text-[8pt] color-blue-800">'; if(typeof CONSULTS !== 'undefined' && p.consults) CONSULTS.forEach(c => { const s = p.consults[c] || 0; if(s === 1) { let n = (p.consult_notes&&p.consult_notes[c]) ? ` <i>(${esc(p.consult_notes[c])})</i>`:''; consultPrintStr += `<div style="border-bottom: 1px solid orange; color: #854d0e; margin-right: 4px;">K: ${c} (Angef)${n}</div>`; } if(s === 2) consultPrintStr += `<div style="font-weight: bold; color: #166534; margin-right: 4px;">K: ${c} (OK)</div>`; }); consultPrintStr += '</div>';
 
                 let disDate = p.discharge_date ? new Date(p.discharge_date).toLocaleDateString('de-DE') : '';
                 let disPrint = (disDate || social.reha || social.pflegegrad || social.physio) ? `<div style="margin-top:4px; padding-top:2px; border-top:1px solid #22c55e; color:#166534; font-size:8pt; font-weight:bold;">🏠 Entl: ${disDate || '?'} | Reha: ${social.reha||'?'} | PG: ${social.pflegegrad||'?'} | Physio: ${social.physio||'?'}</div>` : '';
 
                 let cvrfPrint = []; if(CVRF_CONFIG) CVRF_CONFIG.forEach(c => { if(p.cvrf && p.cvrf.includes(c.key)) cvrfPrint.push(c.label); }); let cvrfStr = cvrfPrint.length > 0 ? `<div class="print-cvrf-box"><b>RF:</b> ${cvrfPrint.join(', ')}</div>` : '';
                 
-                let warnPrint = p.warnings ? `<span class="print-alert" style="color:red; border-color:red;">⚠️ ${p.warnings}</span> ` : '';
-                let isoPrint = isos.length > 0 ? `<span class="print-alert" style="color:white; background:red; border-color:red;">${isos.join(', ')}</span> ` : '';
+                let warnPrint = p.warnings ? `<span class="print-alert" style="color:red; border-color:red;">⚠️ ${esc(p.warnings)}</span> ` : '';
+                let isoPrint = isos.length > 0 ? `<span class="print-alert" style="color:white; background:red; border-color:red;">${esc(isos.join(', '))}</span> ` : '';
                 let fastPrint = p.fasting ? `<span class="print-alert" style="color:#991b1b; border-color:#f87171;">⛔ NÜCHTERN</span> ` : '';
                 let rhythmPrint = p.rhythm && p.rhythm !== 'SR' ? `<span style="color:#dc2626; font-weight:900;">[${p.rhythm}]</span> ` : '';
 
@@ -1268,7 +1149,32 @@
                     AppState.parsedPatients.push({ room, name, dob });
                     const div = document.createElement('div');
                     div.className = "flex justify-between items-center bg-slate-50 p-2 border rounded text-xs";
-                    div.innerHTML = `<div class="flex gap-2 items-center"><span class="font-bold bg-blue-100 text-blue-800 px-1 rounded w-12 text-center">${room||"?"}</span><span class="font-bold">${name}</span><span class="text-slate-500">*${dob}</span></div><span class="text-green-600 font-bold">✓</span>`;
+
+                    const leftDiv = document.createElement('div');
+                    leftDiv.className = "flex gap-2 items-center";
+
+                    const roomSpan = document.createElement('span');
+                    roomSpan.className = "font-bold bg-blue-100 text-blue-800 px-1 rounded w-12 text-center";
+                    roomSpan.textContent = room || "?";
+
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = "font-bold";
+                    nameSpan.textContent = name;
+
+                    const dobSpan = document.createElement('span');
+                    dobSpan.className = "text-slate-500";
+                    dobSpan.textContent = "*" + dob;
+
+                    leftDiv.appendChild(roomSpan);
+                    leftDiv.appendChild(nameSpan);
+                    leftDiv.appendChild(dobSpan);
+
+                    const checkSpan = document.createElement('span');
+                    checkSpan.className = "text-green-600 font-bold";
+                    checkSpan.textContent = "✓";
+
+                    div.appendChild(leftDiv);
+                    div.appendChild(checkSpan);
                     preview.appendChild(div);
                 }
             });
@@ -1278,41 +1184,36 @@
         }
         function executeImport() { if(AppState.parsedPatients.length===0) return; let count=0; AppState.parsedPatients.forEach(imp => { const exists = AppState.patients.some(p => p.name === imp.name); if(!exists) { const id = Date.now().toString() + Math.random().toString().slice(2,5); AppState.patients.push({id, room: imp.room, name: imp.name, dob: imp.dob, diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", meds_bedarf: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''}, labSets: [], epi: {}, anamnesis: "", micro: [], severity: "", contingency: "", admission_date: "" }); count++; } }); saveData(); render(); document.getElementById('importModal').style.display='none'; alert(`${count} Patienten importiert.`); }
 
-        function downloadJson(data, filename) {
-            const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url; link.download = filename;
-            document.body.appendChild(link); link.click(); document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-        }
-        function exportData() {
-            downloadJson(AppState.patients, `station_backup_${new Date().toISOString().slice(0,10)}.json`);
-            markBackupDone();
-        }
-        // Anonymes Backup: Namen und Geburtsdaten ersetzt – auch dort, wo sie im Freitext stehen.
+        function exportData() { const d = JSON.stringify(AppState.patients, null, 2); const b = new Blob([d], {type: "application/json"}); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = `station_backup_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
         function exportAnonData() {
-            const anon = AppState.patients.map((patient, index) => {
-                const copy = JSON.parse(JSON.stringify(patient));
-                const clean = (value) => typeof EpikriseExport === 'undefined' ? value
-                    : EpikriseExport.scrub(value, { name: patient.name, dob: patient.dob });
-                const walk = (node) => {
-                    if(typeof node === 'string') return clean(node);
-                    if(Array.isArray(node)) return node.map(walk);
-                    if(node && typeof node === 'object') {
-                        Object.keys(node).forEach(key => { node[key] = walk(node[key]); });
-                        return node;
-                    }
-                    return node;
+            const anon = AppState.patients.map(p => {
+                return {
+                    ...p,
+                    name: "Patient, Anonym",
+                    dob: "1900-01-01",
+                    room: "??",
+                    diagnosis: "REDACTED",
+                    main_diagnosis: "REDACTED",
+                    history: "REDACTED",
+                    meds_current: "REDACTED",
+                    meds_paused: "REDACTED",
+                    dapt_oak: "REDACTED",
+                    todo_text: "REDACTED",
+                    warnings: "REDACTED",
+                    exam_text: "REDACTED",
+                    consult_notes: {}
                 };
-                walk(copy);
-                copy.name = `Anonym ${index + 1}`;
-                copy.dob = '1900-01-01';
-                if(copy.social) copy.social.physio = /^(Ja|Nein)$/.test(copy.social.physio || '') ? copy.social.physio : '';
-                return copy;
             });
-            downloadJson(anon, `station_anon_${new Date().toISOString().slice(0,10)}.json`);
-            showToast(`${anon.length} Patienten anonymisiert exportiert.`);
+            const d = JSON.stringify(anon, null, 2);
+            const b = new Blob([d], {type: "application/json"});
+            const u = URL.createObjectURL(b);
+            const a = document.createElement('a');
+            a.href = u;
+            a.download = `station_anon_backup_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast("Anonymisiertes Backup erstellt.");
         }
         function importData(i) { const f = i.files[0]; if(!f)return; const r = new FileReader(); r.onload=function(e){try{const d=JSON.parse(e.target.result);if(Array.isArray(d)){if(confirm(`Backup mit ${d.length} Patienten laden?`)){AppState.patients=d;saveData();render();alert("Geladen!");}}}catch(err){alert("Fehler!");}};r.readAsText(f);i.value=''; }
         function addNewPatient() { const id = Date.now().toString(); AppState.patients.push({id, room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", meds_bedarf: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''}, labSets: [], epi: {}, anamnesis: "", micro: [], severity: "", contingency: "", admission_date: "" }); saveData(); render(); setTimeout(()=>{const i=document.querySelector(`input[data-pid="${id}"]`);if(i)i.focus();},100); }
