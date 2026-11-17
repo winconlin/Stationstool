@@ -156,3 +156,41 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 .compact-summary { cursor: pointer; user-select: none; padding: 0.25rem 0.5rem; font-size: 0.7rem; line-height: 1rem; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 0.25rem; }
 .compact-summary:hover { color: #2563eb; background: #eff6ff; }
 .compact-summary:focus-visible, .focus-ring:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15); }
+
+/* Gemeinsame Status- und Medikamentendarstellung */
+.workflow-toolbar,.status-controls {display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;padding:.4rem;}
+.workflow-toolbar button,.workflow-toolbar select,.workflow-button,.workflow-dialog button {border:1px solid #94a3b8;border-radius:4px;padding:.25rem .5rem;background:#f1f5f9;color:#0f172a;}
+.patient-status {border:1px solid #64748b;padding:.35rem;margin:.3rem 0;font-size:11px;background:#f1f5f9;}
+.patient-status strong,.patient-status-print {display:block;font-weight:700;}
+.patient-status input,.patient-status select {max-width:100%;border:1px solid #94a3b8;background:white;color:#0f172a;padding:2px;}
+.med-table {width:100%;border-collapse:collapse;table-layout:auto;font-size:11px;font-style:normal;}
+.med-table th,.med-table td {border:1px solid #cbd5e1;padding:4px;vertical-align:top;text-align:left;overflow-wrap:anywhere;}
+.med-table th {background:#e2e8f0;font-weight:700;}
+.workflow-dialog {width:min(1200px,95vw);max-height:90vh;padding:1rem;border:2px solid #334155;border-radius:8px;overflow:auto;}
+.workflow-dialog::backdrop {background:#0008;}
+.workflow-dialog header {display:flex;justify-content:space-between;gap:1rem;margin-bottom:.75rem;}
+.workflow-dialog h2 {font-size:1.2rem;font-weight:700;}
+.workflow-dialog h3 {font-weight:700;margin-top:1rem;}
+.workflow-dialog label {display:block;margin:.5rem 0;}
+.workflow-dialog input,.workflow-dialog textarea,.workflow-dialog select {border:1px solid #64748b;padding:4px;max-width:100%;}
+.workflow-dialog textarea {display:block;width:100%;min-height:5rem;}
+.table-scroll {overflow-x:auto;}.editor input {width:100%;min-width:90px;}.import-row {padding:.4rem;border-bottom:1px solid #cbd5e1;}
+@media print {
+ .workflow-dialog,.workflow-toolbar,.workflow-button {display:none!important;}
+ .med-table {font-size:8pt!important;font-style:normal!important;}
+ .med-table th,.med-table td {padding:2px!important;border:1px solid #555!important;}
+ .med-table thead {display:table-header-group;}.med-table tr {break-inside:avoid;}
+ .patient-status-print {border:2px solid black;padding:2px;font-size:8pt;color:black;}
+ body.print-mode-visite .print-meds,body.print-mode-pocket .print-meds {display:block!important;}
+ .print-meds {font-style:normal;}
+}
+.contingency-field {display:block;font-size:11px;color:#075985;font-weight:bold;}.contingency-field textarea {display:block;width:100%;border:1px solid #7dd3fc;padding:4px;background:#f0f9ff;font-weight:normal;}
+.patient-heading {border-bottom:1px solid #e2e8f0;padding-bottom:5px;min-width:0;}
+.patient-identity {display:grid;grid-template-columns:48px minmax(0,1fr) 22px;gap:6px;align-items:start;}
+.patient-identity .p-room {width:100%;font-weight:bold;font-size:18px;background:#eff6ff;text-align:center;}
+.patient-name-block {min-width:0;}.patient-name-block .p-name {width:100%;min-width:0;font-size:13px;font-weight:bold;}
+.patient-birth {display:flex;gap:4px;align-items:center;font-size:11px;}.patient-birth input {width:110px;min-width:0;}
+.patient-actions {display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;}.patient-actions button {font-size:11px;padding:3px 5px;}
+.rhythm-fields {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px;margin-top:5px;font-size:11px;}
+.rhythm-fields input,.rhythm-fields select {min-width:0;max-width:100%;width:100%;border:1px solid #cbd5e1;}
+.station-nav {gap:8px;flex-wrap:wrap;}.station-nav > div {flex-wrap:wrap;}.station-nav h1 {flex-shrink:0;}

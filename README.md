@@ -649,3 +649,11 @@ Das Werkzeug läuft ohne Server und kann Medico nicht selbst abfragen. Drei Stuf
 1. **Heute umgesetzt:** Kopieren und `Strg + V` – der Schnell-Import macht daraus einen Ein-Schritt-Transfer. Funktioniert ohne Beteiligung der Klinik-IT.
 2. **Der eigentliche „ein Klick": ISiK/FHIR.** CGM MEDICO unterstützt HL7, FHIR und ISiK; für Krankenhäuser sind die ISiK-Schnittstellen verpflichtend, einschließlich der Module für Labor und Medikation. Nötig wären ein freigegebener FHIR-Endpunkt, ein Zugangstoken und eine Freigabe für den Zugriff aus dem Browser – also eine Anfrage an die IT, kein Umbau am Werkzeug.
 3. **Lokaler Helfer** auf dem Stationsrechner. Echtes Ein-Klick-Arbeiten, gibt aber die Eigenschaft „läuft überall ohne Installation" auf und ist auf verwalteten Klinikrechnern meist nicht zulässig.
+
+## Entwicklungsstand November 2026
+
+Die neuen Statusfelder, das strukturierte Medikamentenmodell, der Medico-CSV-Import und die rückwärtskompatiblen Backups sind in [Analyse und Änderungen](docs/ANALYSE_UND_AENDERUNGEN.md) beschrieben. Die `*-komplett.html` bleiben als automatisch erzeugte Offline-Dateien erhalten. Zusätzlich zu den Node-Tests steht `python3 tests/workflow_test.py` für Browser- und Druckprüfungen zur Verfügung.
+
+Der neue Datenschutzexport redigiert Freitexte konservativ und ersetzt kein vollständiges klinisches Backup. Für vollständige Datensicherung den regulären Backup-Knopf verwenden. Bei Speicherfehlern werden Laborabnahmen nicht mehr automatisch entfernt.
+
+Der [Stand der Leitlinienrecherche](docs/LEITLINIEN_RECHERCHE.md) ist gesondert dokumentiert. Neue automatische Therapiealgorithmen sind noch nicht aktiviert.

@@ -13,6 +13,8 @@
     <script src="id_pharma_import.js"></script>
     <script src="med_safety.js"></script>
     <script src="epikrise_export.js"></script>
+    <script src="station_model.js"></script>
+    <script src="station_workflow.js"></script>
     <script src="config_exam.js"></script> 
     <script src="config_scores.js"></script> 
     <link rel="stylesheet" href="style.css">
@@ -25,7 +27,7 @@
 <body class="bg-slate-100 text-slate-800 min-h-screen pb-24" id="main-body">
 
     <div class="bg-indigo-900 text-white p-2 shadow-md no-print sticky top-0 z-50">
-        <div class="max-w-[1900px] mx-auto flex justify-between items-center px-2">
+        <div class="max-w-[1900px] mx-auto flex justify-between items-center px-2 station-nav">
             <h1 class="font-bold text-lg flex items-center gap-2">🏥 Station v17</h1>
             <div class="flex gap-2 text-sm items-center">
                 <button onclick="openBmpModal()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded text-xs ml-2 flex items-center gap-1">📠 BMP Scan</button>
@@ -249,6 +251,7 @@
 
         window.onload = function() {
             loadData();
+            installWorkflowControls();
             loadCustomMedicationCatalog();
             render();
             updateStorageBadge();
@@ -295,7 +298,10 @@
         }
 
         function resizeTx(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; }
-        function loadData() { const stored = localStorage.getItem('station_v17_data'); if (stored) AppState.patients = JSON.parse(stored); }
+        function loadData() {
+            try { const stored=localStorage.getItem('station_v17_data'); if(stored) AppState.patients=StationModel.validateBackup(JSON.parse(stored)); }
+            catch(error) { alert('Gespeicherte Daten konnten nicht geladen werden. Originaldaten bleiben erhalten: '+error.message); AppState.storageReadFailed=true; }
+        }
 
         // Der localStorage ist je Browser auf wenige MB begrenzt; Laborverläufe füllen ihn am schnellsten.
         const STORAGE_LIMIT = 5 * 1024 * 1024;
@@ -322,34 +328,13 @@
             const sets = AppState.patients.reduce((sum, p) => sum + ((p.labSets || []).length), 0);
             alert(`Belegter Browserspeicher: ${(storageUsage() / 1024 / 1024).toFixed(2)} MB von etwa ${(STORAGE_LIMIT / 1024 / 1024).toFixed(0)} MB.\n\n`
                 + `${AppState.patients.length} Patienten, ${sets} gespeicherte Laborabnahmen.\n\n`
-                + `Wird es knapp, dünnt das Tool automatisch die ältesten Laborabnahmen aus. Mache vorher ein Backup, wenn du den Verlauf behalten willst.`);
+                + `Bei Speicherproblemen bleibt der vollständige Verlauf erhalten. Bitte ein Backup erstellen und nicht mehr benötigte Daten gezielt entfernen.`);
         }
         // Behält je Patient nur die neuesten Abnahmen; gibt zurück, ob etwas entfernt wurde.
-        function pruneLabSets(keepPerPatient) {
-            let removed = 0;
-            AppState.patients.forEach(p => {
-                if(!p.labSets || p.labSets.length <= keepPerPatient) return;
-                const kept = KisLabImport.sortSets(p.labSets).slice(-keepPerPatient);
-                removed += p.labSets.length - kept.length;
-                p.labSets = kept;
-            });
-            return removed;
-        }
         function saveData() {
-            const write = () => localStorage.setItem('station_v17_data', JSON.stringify(AppState.patients));
-            try {
-                write();
-            } catch (err) {
-                // Speicher voll: alte Laborabnahmen stufenweise ausdünnen, statt den Tag zu verlieren.
-                let saved = false;
-                for(const keep of [20, 10, 5, 2]) {
-                    const removed = pruneLabSets(keep);
-                    try { write(); saved = true; showToast(`Speicher voll – ${removed} alte Laborabnahmen entfernt.`, true); break; }
-                    catch (_) { /* nächste Stufe */ }
-                }
-                if(!saved) alert('Der Browserspeicher ist voll und ließ sich nicht ausreichend leeren.\n\nBitte ein Backup erstellen und nicht mehr benötigte Patienten löschen.');
-            }
-            updateStorageBadge();
+            if(AppState.storageReadFailed) { showToast('Speichern gesperrt: zuerst beschädigten Datenbestand sichern / prüfen.',true);return false; }
+            try { localStorage.setItem('station_v17_data',JSON.stringify(AppState.patients)); updateStorageBadge();return true; }
+            catch(error) { showToast('Speichern fehlgeschlagen. Daten bleiben vollständig im Arbeitsspeicher; bitte Backup erstellen.',true);return false; }
         }
 
         // --- BACKUP-ERINNERUNG ---
@@ -369,7 +354,7 @@
                     : '⚠️ Es wurde noch kein Backup erstellt. Die Daten liegen nur in diesem Browser.';
             }
         }
-        function escapeHtml(value) { const el = document.createElement('div'); el.textContent = value == null ? '' : String(value); return el.innerHTML; }
+        function escapeHtml(value) { return esc(value); }
         function loadCustomMedicationCatalog() {
             let custom = [];
             try { custom = JSON.parse(localStorage.getItem('station_v17_custom_meds') || '[]'); } catch (_) { custom = []; }
@@ -556,6 +541,7 @@
         function removeAbx(id, courseId) {
             const patient = AppState.patients.find(x => x.id === id);
             if(!patient || !confirm('Antibiose-Eintrag löschen?')) return;
+            checkpoint('Antibiose-Eintrag löschen');
             patient.abx = (patient.abx || []).filter(course => course.id !== courseId);
             saveData();
             render();
@@ -577,14 +563,6 @@
             return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" aria-hidden="true" class="inline-block align-middle"><polyline points="${coords.join(' ')}" fill="none" stroke="currentColor" stroke-width="1" opacity="0.65"/><circle cx="${lastX}" cy="${lastY}" r="1.6" fill="currentColor"/></svg>`;
         }
 
-        function formatCompactMeds(text, emptyText = 'Keine') {
-            const meds = (text || '').split(',').map(x => x.trim()).filter(Boolean);
-            if(meds.length === 0) return `<span class="opacity-50">${emptyText}</span>`;
-            const visible = meds.slice(0, 3).join(', ');
-            const suffix = meds.length > 3 ? ` <span class="opacity-60">+${meds.length - 3}</span>` : '';
-            return visible + suffix;
-        }
-
         function activateKeyboardButton(e) {
             if((e.key === 'Enter' || e.key === ' ') && e.target && e.target.getAttribute('role') === 'button') {
                 e.preventDefault();
@@ -599,9 +577,9 @@
         function addIso(id, val) { if(!val) return; const p = AppState.patients.find(x => x.id === id); if(!p.iso) p.iso = []; if(!p.iso.includes(val)) p.iso.push(val); saveData(); render(); }
         function removeIso(id, val) { const p = AppState.patients.find(x => x.id === id); p.iso = p.iso.filter(x => x !== val); saveData(); render(); }
         function addAmio(id) { let val = parseFloat(prompt("Dosis in g hinzufügen (z.B. 0.9):", "0.9")); if(!isNaN(val)) { let p = AppState.patients.find(x => x.id === id); p.amio = (p.amio || 0) + val; saveData(); render(); } }
-        function toggleTodoLine(id, idx) { const p = AppState.patients.find(x => x.id === id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines[idx].startsWith('[x] ')) { lines[idx] = lines[idx].replace('[x] ', '[ ] '); } else if(lines[idx].startsWith('[ ] ')) { lines[idx] = lines[idx].replace('[ ] ', '[x] '); } else { lines[idx] = '[x] ' + lines[idx]; } p.todo_text = lines.join('\n'); saveData(); render(); }
-        function deleteTodoLine(id, idx) { const p = AppState.patients.find(x => x.id === id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.splice(idx, 1); p.todo_text = lines.join('\n'); saveData(); render(); }
-        function addTodoLine(id, text) { if(!text.trim()) return; const p = AppState.patients.find(x => x.id === id); let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); lines.push('[ ] ' + text.trim()); p.todo_text = lines.join('\n'); saveData(); render(); }
+        function toggleTodoLine(id,index) { const p=AppState.patients.find(x=>x.id===id);if(!p)return;const tasks=todoList(p);if(!tasks[index])return;tasks[index].done=!tasks[index].done;writeTodoList(id,tasks); }
+        function deleteTodoLine(id,index) { const p=AppState.patients.find(x=>x.id===id);if(!p)return;checkpoint('Aufgabe löschen');const tasks=todoList(p);tasks.splice(index,1);writeTodoList(id,tasks); }
+        function addTodoLine(id,text) { if(!text.trim())return;const p=AppState.patients.find(x=>x.id===id);if(!p)return;const tasks=todoList(p);tasks.push({done:false,text:text.trim(),owner:'',due:''});writeTodoList(id,tasks); }
         function toggleConsult(id, c) { const p = AppState.patients.find(x => x.id === id); if(!p.consults) p.consults = {}; p.consults[c] = ((p.consults[c] || 0) + 1) % 3; saveData(); render(); }
 
         // --- RENDER LOGIC ---
@@ -627,6 +605,9 @@
                 const vol = p.vol || {ziel:'', aktuell:''};
                 const social = p.social || {reha:'', physio:'', pflegegrad:''};
                 const isos = p.iso || [];
+                const abx = p.abx || [];
+                StationModel.medications(p);
+                if(!matchesPatientFilter(p)) return;
 
                 let displayRoom = p.room ? p.room : "Gang";
                 if(displayRoom !== currentRoom) {
@@ -646,32 +627,15 @@
                 if(severity) card.style.borderLeft = `5px solid ${severity.bar}`;
                 
                 // HEADER (Zi, Name, Rhythmus, Nüchtern)
-                let rhythmSel = `
-                    <div class="flex flex-col flex-grow items-center justify-center border-x border-slate-200 px-1 mx-1 overflow-hidden min-w-0">
-                        <div class="flex items-center gap-1 w-full justify-center">
-                            <select onchange="updateFieldRender('${p.id}', 'rhythm', this.value)" class="text-[10px] font-bold outline-none bg-transparent cursor-pointer ${p.rhythm === 'VHF' || p.rhythm === 'AF' ? 'vhf-blink' : 'text-slate-500'}">
-                                <option value="SR" ${p.rhythm==='SR'?'selected':''}>[ SR ]</option>
-                                <option value="VHF" ${p.rhythm==='VHF'?'selected':''}>[ VHF ]</option>
-                                <option value="AF" ${p.rhythm==='AF'?'selected':''}>[ A-Flatt ]</option>
-                                <option value="PM/ICD" ${p.rhythm==='PM/ICD'?'selected':''}>[ PM/ICD ]</option>
-                            </select>
-                            <input type="text" value="${p.rhythm_history || ''}" onchange="updateField('${p.id}', 'rhythm_history', this.value)" class="text-[9px] text-slate-400 bg-transparent outline-none w-16 sm:w-20 placeholder-slate-300" placeholder="Zuletzt SR am...">
-                        </div>
-                        <div class="flex items-center gap-1 mt-0.5 w-full justify-center">
-                            <span class="text-[8px] text-slate-400 font-bold">LVEF:</span>
-                            <input type="text" value="${p.lvef || ''}" onchange="updateField('${p.id}', 'lvef', this.value)" class="text-[9px] w-6 bg-white border border-slate-200 rounded text-center font-bold text-slate-700 outline-none" placeholder="%">
-                            <span class="text-[8px] text-slate-400 font-bold ml-1">Klappen:</span>
-                            <input type="text" value="${p.valves || ''}" onchange="updateField('${p.id}', 'valves', this.value)" class="text-[9px] w-16 sm:w-20 bg-white border border-slate-200 rounded px-1 text-slate-700 outline-none flex-grow min-w-0" placeholder="z.B. MI II°">
-                        </div>
-                    </div>`;
+                let rhythmSel = `<div class="rhythm-fields no-print"><label>Rhythmus <select aria-label="Rhythmus" onchange="updateFieldRender('${p.id}','rhythm',this.value)"><option value="" ${!p.rhythm?'selected':''}>Ungeklärt</option>${['SR','VHF','AF','PM/ICD'].map(value=>`<option value="${value}" ${p.rhythm===value?'selected':''}>${value==='AF'?'A-Flatt':value}</option>`).join('')}</select></label><input aria-label="Rhythmusverlauf" value="${esc(p.rhythm_history||'')}" placeholder="Zuletzt SR am …" onchange="updateField('${p.id}','rhythm_history',this.value)"><label>Klappen <input aria-label="Klappenbefund" value="${esc(p.valves||'')}" onchange="updateField('${p.id}','valves',this.value)"></label><span>${esc(p.hfType&&p.hfType!=='unknown'?p.hfType:'HI ungeklärt')} · EF ${esc(p.lvef||'–')} %</span></div>`;
                 let severityBtn = `<button onclick="cycleSeverity('${p.id}')" title="Stabilität (Klick wechselt): stabil → Beobachtung → instabil" class="text-[8px] px-1 py-0.5 rounded font-bold border ${severity ? severity.tone : 'bg-white text-slate-400 border-slate-200'}">${severity ? severity.label : 'Stabilität?'}</button>`;
                 let fastBtn = p.fasting ? `<button onclick="updateFieldRender('${p.id}', 'fasting', false)" class="text-[8px] px-1 py-0.5 rounded font-bold transition-colors badge-nüchtern">⛔ Nüchtern</button>` : `<button onclick="updateFieldRender('${p.id}', 'fasting', true)" class="text-[8px] px-1 py-0.5 rounded font-bold transition-colors text-slate-400 border border-slate-200 bg-white" title="Selten benötigt: nur aktivieren, wenn relevant">Nüchtern?</button>`;
                 
-                let header = `<div class="flex justify-between items-start pb-1 border-b border-slate-100"><div class="flex items-center gap-2 w-full"><input type="text" data-pid="${p.id}" value="${esc(p.room)}" onchange="updateFieldRender('${p.id}', 'room', this.value)" class="font-bold text-xl w-12 text-center text-blue-900 bg-blue-50 rounded p-room" placeholder="#"><div class="w-full"><div class="flex items-center gap-1"><input type="text" value="${esc(p.name)}" onchange="updateFieldRender('${p.id}', 'name', this.value)" class="font-bold text-sm text-slate-900 p-name flex-grow" placeholder="Name">${rhythmSel}</div><div class="flex items-center gap-1 no-print"><input type="date" value="${p.dob}" onchange="updateFieldRender('${p.id}', 'dob', this.value)" class="text-[10px] text-slate-400 w-24 bg-transparent"><span class="text-xs font-bold">${age}</span></div></div></div><div class="flex flex-col gap-1 items-end"><div class="flex gap-1 items-center">${fastBtn}<button onclick="toggleResus('${p.id}', 'dnr')" class="resus-btn ${dnrClass}">DNR</button><button onclick="toggleResus('${p.id}', 'dni')" class="resus-btn ${dniClass}">DNI</button></div><button onclick="deletePatient('${p.id}')" aria-label="Patient löschen" title="Patient löschen" tabindex="-1" class="text-slate-300 hover:text-red-500 text-lg leading-none no-print">&times;</button></div></div>`;
-                
+                let header = `<div class="patient-heading"><div class="patient-identity"><input type="text" aria-label="Zimmer" data-pid="${p.id}" value="${esc(p.room)}" onchange="updateFieldRender('${p.id}','room',this.value)" class="p-room" placeholder="#"><div class="patient-name-block"><input type="text" value="${esc(p.name)}" onchange="updateFieldRender('${p.id}','name',this.value)" class="p-name" placeholder="Name"><div class="patient-birth no-print"><input type="date" aria-label="Geburtsdatum" value="${esc(p.dob)}" onchange="updateFieldRender('${p.id}','dob',this.value)"><span>${age}</span></div></div><button onclick="deletePatient('${p.id}')" aria-label="Patient löschen" title="Patient löschen" class="no-print">×</button></div><div class="patient-actions no-print">${severityBtn}${fastBtn}<button onclick="toggleResus('${p.id}','dnr')" aria-label="DNR" aria-pressed="${!!p.dnr}" class="resus-btn ${dnrClass}">${p.dnr?'DNR aktiv':'DNR setzen'}</button><button onclick="toggleResus('${p.id}','dni')" aria-label="DNI" aria-pressed="${!!p.dni}" class="resus-btn ${dniClass}">${p.dni?'DNI aktiv':'DNI setzen'}</button></div>${rhythmSel}</div>`;
+
                 // ISOLATION & WARNUNGEN
                 let warnColor = p.warnings ? 'bg-red-100 border-red-300 text-red-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-400 italic';
-                let isoTags = isos.map(iso => `<span class="text-[8px] bg-red-600 text-white px-1 rounded font-bold flex items-center gap-1">${iso} <button onclick="removeIso('${p.id}', '${iso}')" class="hover:text-red-200">×</button></span>`).join('');
+                let isoTags = isos.map(iso => `<span class="text-[8px] bg-red-600 text-white px-1 rounded font-bold flex items-center gap-1">${esc(iso)} <button onclick="removeIso('${p.id}', ${esc(JSON.stringify(iso))})" class="hover:text-red-200">×</button></span>`).join('');
                 let isoSel = `<select onchange="addIso('${p.id}', this.value); this.value='';" class="text-[8px] bg-red-50 text-red-700 border border-red-200 rounded outline-none w-16"><option value="">+ Keim/Iso</option><option value="MRSA">MRSA</option><option value="3MRGN">3MRGN</option><option value="4MRGN">4MRGN</option><option value="VRE">VRE</option><option value="CDAD">Clostr.</option><option value="Influenza">Influenza</option><option value="RSV">RSV</option><option value="Covid">Covid</option></select>`;
                 let warnHtml = `<div class="flex flex-wrap items-center gap-1"><input type="text" value="${esc(p.warnings || '')}" onchange="updateField('${p.id}', 'warnings', this.value)" class="flex-grow text-[10px] rounded p-1 outline-none transition-colors uppercase placeholder-slate-300 ${warnColor}" placeholder="⚠️ Allergien / Warnungen...">${isoTags}${isoSel}</div>`;
 
@@ -747,7 +711,7 @@
                             <button onclick="openLabModal('${p.id}', 'labor')" class="flex-1 text-[9px] bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded px-1 py-1 font-bold">📥 Labor importieren</button>
                             <button onclick="openLabModal('${p.id}', 'bga')" class="flex-1 text-[9px] bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border border-cyan-200 rounded px-1 py-1 font-bold">🫁 BGA importieren</button>
                         </div>
-                        ${labStamps.length ? `<div class="text-[8px] text-slate-400">${escapeHtml(labStamps.join(' · '))}</div>` : ''}
+                        ${labStamps.length ? `<div class="text-[8px] text-slate-400">${escapeHtml(labStamps.join(' · '))}<br>${escapeHtml([latestLab,latestBga].filter(Boolean).map(labContextText).join(' · '))}</div>` : ''}
                         ${abnormalLabs.length ? `<div class="flex flex-wrap gap-0.5">${labChips}</div>` : `<div class="text-[9px] text-slate-400 italic">${labStamps.length ? 'Keine Abweichung von der Norm.' : 'Noch keine Werte importiert.'}</div>`}
                     </div>
                 </details>`;
@@ -762,13 +726,13 @@
                         ? `<span class="ml-1 ${safetyHigh.length ? 'text-red-600 font-bold' : 'text-amber-700'}">${safetyHigh.length ? `${safetyHigh.length} dringend` : ''}${safetyHigh.length && safety.length > safetyHigh.length ? ' · ' : ''}${safety.length > safetyHigh.length ? `${safety.length - safetyHigh.length} Hinweis${safety.length - safetyHigh.length === 1 ? '' : 'e'}` : ''}</span>`
                         : '<span class="font-normal text-slate-400">(ohne Befund)</span>'}${egfrNow !== null ? `<span class="ml-auto text-[8px] font-normal text-slate-400">eGFR ${egfrNow}</span>` : ''}</summary>
                     <div class="mt-1 flex flex-col gap-0.5">
-                        ${safety.length ? safety.map(item => {
+                        ${safety.length ? safety.map((item, warningIndex) => {
                             const tone = item.severity === 'high' ? 'bg-red-50 border-red-300 text-red-900'
                                 : item.severity === 'medium' ? 'bg-amber-50 border-amber-300 text-amber-900'
                                 : 'bg-slate-50 border-slate-200 text-slate-600';
                             const icon = { renal: '🫘', duplicate: '⧉', combination: '⚗️', labcontext: '🧪' }[item.kind] || '•';
-                            return `<div class="text-[9px] leading-tight border rounded px-1 py-0.5 ${tone}"><strong>${icon} ${escapeHtml(item.title)}</strong>${item.text ? `: ${escapeHtml(item.text)}` : ''}${item.note ? `<br><span class="font-normal opacity-80">${escapeHtml(item.note)}</span>` : ''}</div>`;
-                        }).join('') : `<div class="text-[9px] text-slate-400 italic">${egfrNow === null ? 'Keine eGFR bekannt – Nierendosis wird nicht geprüft.' : 'Keine auffällige Kombination und keine Dosisanpassung nötig.'}</div>`}
+                            return `<div class="text-[9px] leading-tight border rounded px-1 py-0.5 ${tone}"><strong>${icon} ${escapeHtml(item.title)}</strong>${item.text ? `: ${escapeHtml(item.text)}` : ''}${item.note ? `<br><span class="font-normal opacity-80">${escapeHtml(item.note)}</span>` : ''}${warningReviewHtml(p,item,warningIndex)}</div>`;
+                        }).join('') : `<div class="text-[9px] text-slate-400 italic">${egfrNow === null ? 'Keine eGFR bekannt – Nierendosis wird nicht geprüft.' : 'Keine hinterlegte Regel ausgelöst; keine vollständige Dosisprüfung.'}</div>`}
                         <div class="text-[8px] text-slate-400">Regelbasierte Hinweise ohne Anspruch auf Vollständigkeit – ersetzen keine Prüfung im Einzelfall.</div>
                     </div>
                 </details>`;
@@ -816,9 +780,11 @@
                 let activeTasks = (typeof DAILY_TASKS !== 'undefined') ? DAILY_TASKS.filter(t => p.daily && p.daily[t.key]).map(t => t.label) : [];
                 let tasksHtml = `<details class="mb-1 no-print compact-details" ${activeTasks.length ? 'open' : ''}><summary class="compact-summary">✅ Tageschecks ${activeTasks.length ? `<span class="ml-1 text-blue-700">${activeTasks.join(', ')}</span>` : '<span class="font-normal text-slate-400">(bei Bedarf)</span>'}</summary><div class="grid grid-cols-6 gap-0.5 mt-1 daily-grid">`; if(typeof DAILY_TASKS !== 'undefined') DAILY_TASKS.forEach(t => { const cls = (p.daily && p.daily[t.key]) ? 'task-true' : 'task-false'; tasksHtml += `<button type="button" onclick="toggleDaily('${p.id}', '${t.key}')" class="task-btn ${cls} text-[9px] text-center py-0.5 rounded">${t.label}</button>`; }); tasksHtml += `</div></details>`;
                 
+                const contingencyHtml=`<label class="contingency-field">Wenn–dann / Dienstanweisung<textarea onchange="updateFieldRender('${p.id}','contingency',this.value)">${esc(p.contingency||'')}</textarea></label>`;
+                const contingencyPrint=p.contingency ? `<div class="print-alert">Wenn–dann: ${esc(p.contingency)}</div>` : '';
                 let todoHtml = `<div class="bg-yellow-50 border border-yellow-200 rounded p-1 relative group flex flex-col">`;
                 if(p.showRawTodo) { todoHtml += `<textarea onchange="updateFieldRender('${p.id}', 'todo_text', this.value); updateFieldRender('${p.id}', 'showRawTodo', false)" class="auto-expand w-full text-xs bg-white border border-yellow-300 rounded p-1 leading-tight focus:ring-2 focus:ring-yellow-500" placeholder="Freitext To-Dos...">${esc(p.todo_text || "")}</textarea><button onclick="updateFieldRender('${p.id}', 'showRawTodo', false)" class="text-[9px] text-yellow-700 bg-yellow-200 hover:bg-yellow-300 rounded px-1 mt-1 self-end">Fertig</button>`;
-                } else { let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines.length > 0) { todoHtml += `<div class="flex flex-col gap-0.5 mb-1">`; lines.forEach((line, idx) => { let isDone = line.startsWith('[x] '); let cleanLine = esc(line.replace(/^(\[x\] |\[ \] )/i, '').trim()); let icon = isDone ? '✅' : '🔲'; let strike = isDone ? 'line-through text-slate-400' : 'text-slate-800 font-medium'; todoHtml += `<div class="flex items-start justify-between gap-1 hover:bg-yellow-200 p-0.5 rounded transition"><div class="flex items-start gap-1 cursor-pointer flex-grow" onclick="toggleTodoLine('${p.id}', ${idx})"><span class="mt-0.5 text-[10px]">${icon}</span><span class="text-xs ${strike} leading-tight">${cleanLine}</span></div>`; if(isDone) { todoHtml += `<button onclick="deleteTodoLine('${p.id}', ${idx})" class="text-[9px] bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded px-1 ml-1">❌</button>`; } todoHtml += `</div>`; }); todoHtml += `</div>`; } else { todoHtml += `<span class="text-[10px] text-slate-400 italic px-1 mb-1">Keine To-Dos...</span>`; } todoHtml += `<input type="text" placeholder="+ Neues To-Do (Enter)" class="w-full text-xs bg-white border border-yellow-300 rounded p-1 outline-none focus:ring-1 focus:ring-yellow-500" onkeydown="if(event.key==='Enter'){ addTodoLine('${p.id}', this.value); this.value=''; }"><button onclick="updateFieldRender('${p.id}', 'showRawTodo', true)" class="absolute top-1 right-1 text-[10px] text-yellow-600 opacity-0 group-hover:opacity-100 transition bg-yellow-100 px-1 rounded shadow-sm">✏️ Edit</button>`; } todoHtml += `</div>`;
+                } else { let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines.length > 0) { todoHtml += `<div class="flex flex-col gap-0.5 mb-1">`; lines.forEach((line, idx) => { let isDone = line.startsWith('[x] '); let cleanLine = esc(parseTodoLine(line).text); let icon = isDone ? '✅' : '🔲'; let strike = isDone ? 'line-through text-slate-400' : 'text-slate-800 font-medium'; todoHtml += `<div class="flex items-start justify-between gap-1 hover:bg-yellow-200 p-0.5 rounded transition"><div class="flex items-start gap-1 cursor-pointer flex-grow" onclick="toggleTodoLine('${p.id}', ${idx})"><span class="mt-0.5 text-[10px]">${icon}</span><span class="text-xs ${strike} leading-tight">${cleanLine}</span></div>`; if(isDone) { todoHtml += `<button onclick="deleteTodoLine('${p.id}', ${idx})" class="text-[9px] bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded px-1 ml-1">❌</button>`; } todoHtml += `</div>`; }); todoHtml += `</div>`; } else { todoHtml += `<span class="text-[10px] text-slate-400 italic px-1 mb-1">Keine To-Dos...</span>`; } todoHtml += `<input type="text" placeholder="+ Neues To-Do (Enter)" class="w-full text-xs bg-white border border-yellow-300 rounded p-1 outline-none focus:ring-1 focus:ring-yellow-500" onkeydown="if(event.key==='Enter'){ addTodoLine('${p.id}', this.value); this.value=''; }"><button onclick="updateFieldRender('${p.id}', 'showRawTodo', true)" class="absolute top-1 right-1 text-[10px] text-yellow-600 opacity-0 group-hover:opacity-100 transition bg-yellow-100 px-1 rounded shadow-sm">✏️ Edit</button>`; } todoHtml += `</div>`;
 
                 let histTextClass = p.expHist ? "text-expanded" : (p.history && p.history.length > 100 ? "text-truncated" : "");
                 let histToggleBtn = (p.history && p.history.length > 100) ? `<button onclick="updateFieldRender('${p.id}', 'expHist', ${!p.expHist})" class="text-[8px] text-blue-500 hover:underline w-full text-right bg-slate-50 pr-1 pb-1">${p.expHist ? 'Weniger' : 'Mehr...'}</button>` : '';
@@ -826,7 +792,7 @@
                 // ANTIBIOSE MANAGER
                 let abxHtml = `<div class="mt-1 flex flex-col gap-0.5 no-print">`;
                 abxHtml += `<div class="flex justify-between items-center"><span class="text-[9px] font-bold text-purple-700 uppercase">🦠 Antibiose</span><button onclick="addAbx('${p.id}')" class="text-[8px] bg-purple-100 text-purple-700 px-1 rounded hover:bg-purple-200">+ ABx</button></div>`;
-                abx.forEach((ab, idx) => { let days = getDaysSince(ab.start); abxHtml += `<div class="flex justify-between text-[9px] bg-purple-50 p-0.5 rounded border border-purple-100"><span class="font-semibold">${esc(ab.name)} <span class="text-purple-600">(Tag ${days})</span></span> <button onclick="removeAbx('${p.id}', ${idx})" class="text-red-500 hover:bg-red-100 px-1 rounded">❌</button></div>`; });
+                abx.forEach((ab, idx) => { let days = getDaysSince(ab.start); abxHtml += `<div class="flex justify-between text-[9px] bg-purple-50 p-0.5 rounded border border-purple-100"><span class="font-semibold">${esc(ab.name)} <span class="text-purple-600">(Tag ${days})</span></span> <button onclick="removeAbx('${p.id}', '${ab.id}')" class="text-red-500 hover:bg-red-100 px-1 rounded">❌</button></div>`; });
                 abxHtml += `</div>`;
 
                 // MEDS (Current, Paused, DAPT) + AMIO
@@ -835,12 +801,16 @@
                 <div class="mt-1">
                      <div class="relative mb-1">
                         <button type="button" class="w-full text-left text-[9px] text-slate-400 font-bold uppercase hover:text-blue-600 flex items-center gap-1" onclick="openMedModal('${p.id}')">💊 Aktuell <span class="no-print opacity-50 text-[8px]">(Suchen/Edit)</span></button>
-                        <textarea readonly onclick="openMedModal('${p.id}')" class="auto-expand w-full text-[10px] bg-white border border-slate-200 rounded p-1 hover:bg-slate-50 cursor-pointer leading-tight focus:ring-2 focus:ring-blue-500">${esc(p.meds_current || "Keine Medikation")}</textarea>
+                        ${StationModel.medicationTable(p, 'current')}
+                        <button type="button" class="workflow-button" onclick="openStructuredMeds('${p.id}')">Dosen / Gaben bearbeiten</button>
+                        <button type="button" class="workflow-button" onclick="showMedicationReconciliation('${p.id}')">Aufnahme / Entlassung abgleichen</button>
+                        <button type="button" class="workflow-button" onclick="showMedicationHistory('${p.id}')">Änderungsverlauf</button>
                     </div>
                     <div class="flex gap-1 mb-1 no-print">
                         <div class="flex-1 bg-red-50 rounded border border-red-100 p-1"><label class="text-[8px] uppercase text-red-500 font-bold block mb-0.5">Pausiert ⏸️</label><input type="text" value="${esc(p.meds_paused || '')}" onchange="updateField('${p.id}', 'meds_paused', this.value)" class="w-full text-[9px] bg-transparent outline-none text-red-800" placeholder="z.B. Metformin"></div>
                         <div class="flex-1 bg-blue-50 rounded border border-blue-100 p-1"><label class="text-[8px] uppercase text-blue-600 font-bold block mb-0.5">DAPT / OAK 🩸</label><input type="text" value="${esc(p.dapt_oak || '')}" onchange="updateField('${p.id}', 'dapt_oak', this.value)" class="w-full text-[9px] bg-transparent outline-none text-blue-800" placeholder="z.B. bis 05/26"></div>
                     </div>
+                    <details><summary>Pausierte Medikamente / Bedarf</summary><h4>Pausiert</h4>${StationModel.medicationTable(p,'paused')}<h4>Bedarf</h4>${StationModel.medicationTable(p,'bedarf')}</details>
                     ${amioBtn}
                     <details class="group"><summary class="text-[9px] text-slate-400 cursor-pointer list-none hover:text-blue-500 no-print focus:outline-none focus:text-blue-600">▶ Aufnahme/Vor.D.</summary><div class="mt-1 pt-1 border-t border-slate-100"><div class="mb-1 med-hidden-print"><label class="text-[9px] text-slate-400 uppercase">Aufnahme-Med</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'meds_admission', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1" rows="1">${esc(p.meds_admission || "")}</textarea></div><div><label class="text-[9px] text-slate-400 uppercase">Vordiagnosen</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'history', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1 leading-tight outline-none border-b border-transparent focus:border-slate-300 ${histTextClass}" placeholder="Vordiagnosen...">${esc(p.history || "")}</textarea>${histToggleBtn}</div></div></details>
                 </div>`;
@@ -863,7 +833,7 @@
                 <div class="mt-1 grid grid-cols-2 gap-1 bg-green-50 border border-green-100 p-1 rounded no-print">
                     <div class="flex flex-col gap-0.5">
                         <label class="text-[8px] text-green-700 font-bold uppercase">Entlassung 🏠</label>
-                        <input type="date" value="${p.discharge_date || ''}" onchange="updateFieldRender('${p.id}', 'discharge_date', this.value)" class="text-[9px] bg-transparent outline-none text-green-900 border-b border-green-200">
+                        <input type="date" value="${esc(p.discharge_date || '')}" onchange="updateFieldRender('${p.id}', 'discharge_date', this.value)" class="text-[9px] bg-transparent outline-none text-green-900 border-b border-green-200">
                         <select onchange="updateDeepFieldRender('${p.id}', 'social', 'reha', this.value)" class="text-[8px] bg-transparent outline-none mt-0.5 text-green-800">
                             <option value="">Reha: Offen</option><option value="AHB" ${social.reha==='AHB'?'selected':''}>Reha: AHB</option><option value="Geri" ${social.reha==='Geri'?'selected':''}>Reha: Geriatrie</option><option value="Keine" ${social.reha==='Keine'?'selected':''}>Reha: Keine</option>
                         </select>
@@ -882,7 +852,7 @@
                 let footer = `<div class="flex justify-between items-center mt-1 pt-1 no-print gap-1"><button onclick="openExamModal('${p.id}')" class="text-[9px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded flex-1 border border-slate-200">📝 Notizen</button><button onclick="openScoreModal('${p.id}')" class="text-[9px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-1 rounded border border-indigo-100">🧮 Scores</button><button onclick="openEpikriseModal('${p.id}')" class="text-[9px] bg-indigo-800 hover:bg-indigo-700 text-white px-2 py-1 rounded font-bold">📄 Epikrise</button></div>`;
 
                 let extendedHtml = `<details class="mt-1 no-print compact-details"><summary class="compact-summary">🧩 Diagnostik, Konsile & Entlassung <span class="font-normal text-slate-400">(Details)</span></summary><div class="mt-1">${diagGrid}${consultHtml}${planHtml}${footer}</div></details>`;
-                card.innerHTML = header + warnHtml + diag + cvrfHtml + contingencyHtml + todoHtml + meds + safetyHtml + abxHtml + microHtml + labImportHtml + scheduleHtml + labsVolHtml + tasksHtml + extendedHtml;
+                card.innerHTML = header + patientStatusControls(p) + warnHtml + diag + cvrfHtml + contingencyHtml + todoHtml + meds + safetyHtml + abxHtml + microHtml + labImportHtml + scheduleHtml + labsVolHtml + tasksHtml + extendedHtml;
                 containerFrag.appendChild(card);
 
                 // --- PRINT VIEW ---
@@ -890,22 +860,22 @@
                 let diagPrint = mainDiagPrint + `<div class="print-diag-rest">` + esc(p.diagnosis || "").replace(/\n/g, '<br>') + `</div>`;
                 let historyPrint = p.history ? `<div class="text-[8pt] text-slate-600 mt-1 print-history">${esc(p.history).replace(/\n/g, ', ')}</div>` : '';
                 
-                let medsPausedPrint = p.meds_paused ? `<div style="color:#b91c1c; font-size:7.5pt; font-weight:bold; margin-top:2px;">⏸️ Pausiert: ${esc(p.meds_paused)}</div>` : '';
+                let medsPausedPrint = p.meds_paused ? `<div style="color:#b91c1c; font-size:7.5pt; font-weight:bold; margin-top:2px;">⏸️ Pausiert: ${StationModel.medicationTable(p,'paused')}</div>` : '';
                 let daptPrint = p.dapt_oak ? `<div style="color:#1d4ed8; font-size:7.5pt; font-weight:bold; margin-top:2px;">🩸 Gerinnung: ${esc(p.dapt_oak)}</div>` : '';
                 let amioPrint = p.amio ? `<div style="color:#4338ca; font-size:7.5pt; font-weight:bold; margin-top:2px;">💊 Amiodaron: ${p.amio}g</div>` : '';
-                let medsPrint = (p.meds_current ? `<div class="print-meds">💊 ${esc(p.meds_current)}</div>` : '') + medsPausedPrint + daptPrint + amioPrint;
+                let medsPrint = (p.meds_current ? `<div class="print-meds">💊 ${StationModel.medicationTable(p, "current")}</div>` : '') + medsPausedPrint + (p.meds_bedarf ? `<div class="print-meds">Bedarf: ${StationModel.medicationTable(p,'bedarf')}</div>` : '') + daptPrint + amioPrint;
                 
                 let todoPrint = ''; let printLines = (p.todo_text || "").split('\n').filter(l => l.trim() !== '');
-                printLines.forEach(line => { let isDone = line.startsWith('[x] '); let cleanLine = esc(line.replace(/^(\[x\] |\[ \] )/i, '').trim()); if(isDone) { todoPrint += `<div style="text-decoration: line-through; color: #888; font-size: 8pt;">☑ ${cleanLine}</div>`; } else { todoPrint += `<div style="font-size: 8pt; font-weight: 500;">☐ ${cleanLine}</div>`; } });
+                printLines.forEach(line => { let isDone = line.startsWith('[x] '); let cleanLine = esc(parseTodoLine(line).text); if(isDone) { todoPrint += `<div style="text-decoration: line-through; color: #888; font-size: 8pt;">☑ ${cleanLine}</div>`; } else { todoPrint += `<div style="font-size: 8pt; font-weight: 500;">☐ ${cleanLine}</div>`; } });
 
                 let abxPrint = abx.length > 0 ? `<div style="color:#6b21a8; font-size:7.5pt; font-weight:bold; margin-top:2px;">🦠 ABx: ` + abx.map(a => `${esc(a.name)} (T${getDaysSince(a.start)})`).join(', ') + `</div>` : '';
-                let labPrint = `<div style="font-size:7.5pt; color:#475569; margin-top:2px; border-top:1px dashed #cbd5e1; padding-top:2px;">Hb:${labs.hb||'-'} | Kr:${labs.krea||'-'} | K:${labs.k||'-'} | CRP/BNP:${labs.crp||'-'}</div>`;
+                let labPrint = `<div style="font-size:7.5pt; color:#475569; margin-top:2px; border-top:1px dashed #cbd5e1; padding-top:2px;">Hb:${esc(labs.hb||'-')} | Kr:${esc(labs.krea||'-')} | K:${esc(labs.k||'-')} | CRP/BNP:${esc(labs.crp||'-')}</div>`;
                 let eGFRPrint = (labs.egfr && labs.egfr < 30) ? `<div style="color:#c2410c; font-weight:bold; font-size:8pt;">⚠️ eGFR < 30 (${labs.egfr})</div>` : '';
                 let safetyPrint = safetyHigh.length ? `<div style="font-size:7.5pt; color:#991b1b; font-weight:bold;">💊 ` + safetyHigh.map(item => `${item.title}${item.text ? ': ' + item.text : ''}`).join('<br>💊 ') + `</div>` : '';
                 let microPrint = microPositive.length ? `<div style="font-size:7.5pt; color:#065f46; font-weight:bold;">🧫 ` + microPositive.map(item => `${item.material} ${KisLabImport.formatDate(item.date)}: ${item.result}${item.resistance ? ' (' + item.resistance + ')' : ''}`).join('<br>🧫 ') + `</div>` : '';
                 let labDeltaPrint = labDeltas.length ? `<div style="font-size:7.5pt; color:#b91c1c; font-weight:bold;">` + labDeltas.map(warning => `${warning.direction === 'down' ? '↓' : '↑'} ${warning.text}`).join('<br>') + `</div>` : '';
                 let abnormalLabPrint = abnormalLabs.length ? `<div style="font-size:7pt; color:#b91c1c; font-weight:bold;">⚠️ ` + abnormalLabs.map(entry => `${entry.label} ${entry.value}${entry.unit ? ' ' + entry.unit : ''}${entry.status === 'high' ? '↑' : '↓'}`).join(' · ') + `</div>` : '';
-                let volPrint = (vol.ziel || vol.aktuell) ? `<div style="font-size:7.5pt; color:#0369a1; font-weight:bold;">⚖️ Vol: Ziel ${vol.ziel||'-'} | Akt ${vol.aktuell||'-'}</div>` : '';
+                let volPrint = (vol.ziel || vol.aktuell) ? `<div style="font-size:7.5pt; color:#0369a1; font-weight:bold;">⚖️ Vol: Ziel ${esc(vol.ziel||'-')} | Akt ${esc(vol.aktuell||'-')}</div>` : '';
 
                 let dailyPrint = []; if(DAILY_TASKS) DAILY_TASKS.forEach(t => { if(p.daily && p.daily[t.key]) dailyPrint.push(t.label); }); let dailyStr = dailyPrint.length > 0 ? `<div class="mt-1 text-[8pt]"><b>✓:</b> ${dailyPrint.join(', ')}</div>` : '';
                 let diagPrintStr = '<div class="mt-1 text-[8pt]">'; if(DIAGNOSTICS) DIAGNOSTICS.forEach(d => { const s = (p.diag_status||{})[d]||0; const res = (p.diag_results||{})[d]||""; if(s === 1) diagPrintStr += `<span class="print-diag-item print-diag-ordered">○ ${d}</span> `; if(s === 2) diagPrintStr += `<span class="print-diag-item print-diag-done">● ${d} ${res ? '('+esc(res)+')' : ''}</span> `; }); diagPrintStr += '</div>';
@@ -913,17 +883,17 @@
                 let consultPrintStr = '<div class="mt-1 text-[8pt] color-blue-800">'; if(typeof CONSULTS !== 'undefined' && p.consults) CONSULTS.forEach(c => { const s = p.consults[c] || 0; if(s === 1) { let n = (p.consult_notes&&p.consult_notes[c]) ? ` <i>(${esc(p.consult_notes[c])})</i>`:''; consultPrintStr += `<div style="border-bottom: 1px solid orange; color: #854d0e; margin-right: 4px;">K: ${c} (Angef)${n}</div>`; } if(s === 2) consultPrintStr += `<div style="font-weight: bold; color: #166534; margin-right: 4px;">K: ${c} (OK)</div>`; }); consultPrintStr += '</div>';
 
                 let disDate = p.discharge_date ? new Date(p.discharge_date).toLocaleDateString('de-DE') : '';
-                let disPrint = (disDate || social.reha || social.pflegegrad || social.physio) ? `<div style="margin-top:4px; padding-top:2px; border-top:1px solid #22c55e; color:#166534; font-size:8pt; font-weight:bold;">🏠 Entl: ${disDate || '?'} | Reha: ${social.reha||'?'} | PG: ${social.pflegegrad||'?'} | Physio: ${social.physio||'?'}</div>` : '';
+                let disPrint = (disDate || social.reha || social.pflegegrad || social.physio) ? `<div style="margin-top:4px; padding-top:2px; border-top:1px solid #22c55e; color:#166534; font-size:8pt; font-weight:bold;">🏠 Entl: ${disDate || '?'} | Reha: ${esc(social.reha||'?')} | PG: ${esc(social.pflegegrad||'?')} | Physio: ${esc(social.physio||'?')}</div>` : '';
 
                 let cvrfPrint = []; if(CVRF_CONFIG) CVRF_CONFIG.forEach(c => { if(p.cvrf && p.cvrf.includes(c.key)) cvrfPrint.push(c.label); }); let cvrfStr = cvrfPrint.length > 0 ? `<div class="print-cvrf-box"><b>RF:</b> ${cvrfPrint.join(', ')}</div>` : '';
                 
                 let warnPrint = p.warnings ? `<span class="print-alert" style="color:red; border-color:red;">⚠️ ${esc(p.warnings)}</span> ` : '';
                 let isoPrint = isos.length > 0 ? `<span class="print-alert" style="color:white; background:red; border-color:red;">${esc(isos.join(', '))}</span> ` : '';
                 let fastPrint = p.fasting ? `<span class="print-alert" style="color:#991b1b; border-color:#f87171;">⛔ NÜCHTERN</span> ` : '';
-                let rhythmPrint = p.rhythm && p.rhythm !== 'SR' ? `<span style="color:#dc2626; font-weight:900;">[${p.rhythm}]</span> ` : '';
+                let rhythmPrint = p.rhythm && p.rhythm !== 'SR' ? `<span style="color:#dc2626; font-weight:900;">[${esc(p.rhythm)}]</span> ` : '';
 
                 let severityPrint = severity ? `<span class="print-severity print-severity-${p.severity}">${severity.label.toUpperCase()}</span> ` : '';
-                let alertStr = severityPrint + warnPrint + isoPrint + fastPrint + (p.dnr?'<span class="print-alert">DNR</span> ':'') + (p.dni?'<span class="print-alert">DNI</span> ':'');
+                let alertStr = `<span class="print-alert">${esc(StationModel.statusText(p))}</span>` + severityPrint + warnPrint + isoPrint + fastPrint;
                 let dobD = p.dob ? new Date(p.dob).toLocaleDateString('de-DE') : "";
                 
                 let fullTodoPrint = `<div class="col-todo-content">${contingencyPrint}${todoPrint}${abxPrint}${volPrint}${dailyStr}${diagPrintStr}${consultPrintStr}${disPrint}</div>`;
@@ -931,7 +901,7 @@
                 let tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td class="col-room">${p.room}</td>
-                    <td class="col-name"><span class="print-name">${p.name} ${rhythmPrint}</span><span class="print-dob"><b>* ${dobD}</b></span><span class="print-age">${age}${stayDay(p) ? ` · Tag ${stayDay(p)}` : ''}</span><div class="mt-1">${alertStr}</div>${cvrfStr}</td>
+                    <td class="col-name"><span class="print-name">${esc(p.name)} ${rhythmPrint}</span><span class="print-dob"><b>* ${dobD}</b></span><span class="print-age">${age}${stayDay(p) ? ` · Tag ${stayDay(p)}` : ''}</span><div class="mt-1">${alertStr}</div>${cvrfStr}</td>
                     <td class="col-diag"><span class="print-diag-curr">${diagPrint}${eGFRPrint}</span>${historyPrint}${medsPrint}</td>
                     <td class="col-todo">${labPrint}${labDeltaPrint}${abnormalLabPrint}${safetyPrint}${microPrint}${fullTodoPrint}</td>`;
                 printBodyFrag.appendChild(tr);
@@ -997,16 +967,14 @@
                     const note = (p.consult_notes || {})[name] || '';
                     return `${name}: ${state === 2 ? 'erfolgt' : 'angefordert'}${note ? ' – ' + note : ''}`;
                 }).filter(Boolean) : [];
-                const todos = todoList(p).map(task => `${task.done ? '☒' : '☐'} ${task.text}`
-                    + (task.owner ? ` @${task.owner}` : '') + (task.due ? ` bis ${KisLabImport.formatDate(task.due)}` : '')
-                    + (todoDueState(task) === 'overdue' ? ' (überfällig)' : ''));
+                const todos = todoList(p).map(task => `${task.done ? '☒' : '☐'} ${task.text}`);
 
                 return `<section class="patient-sheet">
                     <header class="sheet-head">
                         <div class="sheet-room">${escapeHtml(p.room || 'Gang')}</div>
                         <div class="sheet-ident">
                             <div class="sheet-name">${escapeHtml(p.name || 'ohne Namen')}</div>
-                            <div class="sheet-sub">* ${escapeHtml(dob)}${isNaN(age) ? '' : ` (${age} J.)`}${stayDay(p) ? ` · Aufnahmetag ${stayDay(p)}` : ''} · Rhythmus ${escapeHtml(p.rhythm || '–')}${p.lvef ? ` · LVEF ${escapeHtml(p.lvef)} %` : ''}${p.valves ? ` · ${escapeHtml(p.valves)}` : ''}</div>
+                            <div class="patient-status-print">${escapeHtml(StationModel.statusText(p))}</div><div class="sheet-sub">* ${escapeHtml(dob)}${isNaN(age) ? '' : ` (${age} J.)`}${stayDay(p) ? ` · Aufnahmetag ${stayDay(p)}` : ''} · Rhythmus ${escapeHtml(p.rhythm || '–')}${p.lvef ? ` · LVEF ${escapeHtml(p.lvef)} %` : ''}${p.valves ? ` · ${escapeHtml(p.valves)}` : ''}</div>
                         </div>
                         ${alerts.length ? `<div class="sheet-alerts">${alerts.map(a => `<span>${escapeHtml(a)}</span>`).join('')}</div>` : ''}
                     </header>
@@ -1017,9 +985,9 @@
                         ${printBlock('Aktuelle Diagnosen', printLines(p.diagnosis))}
                         ${printBlock('Vordiagnosen' + (cvrf.length ? ' & Risikofaktoren' : ''), [printLines(p.history), cvrf.length ? `<br><em>CVRF: ${escapeHtml(cvrf.join(', '))}</em>` : ''].filter(Boolean).join(''))}
                         ${printBlock('Anamnese bei Aufnahme', printLines(p.anamnesis), { wide: true })}
-                        ${printBlock('Medikation aktuell', printList(formatMedList(p.meds_current)), { wide: true })}
-                        ${printBlock('Pausiert', printList(formatMedList(p.meds_paused)))}
-                        ${printBlock('Bei Bedarf', printList(formatMedList(p.meds_bedarf)))}
+                        ${printBlock('Medikation aktuell', StationModel.medicationTable(p, 'current'), { wide: true })}
+                        ${printBlock('Pausiert', StationModel.medicationTable(p, 'paused'))}
+                        ${printBlock('Bei Bedarf', StationModel.medicationTable(p, 'bedarf'))}
                         ${printBlock('Antiinfektive Therapie', printList(courses.map(formatAbxCourse)))}
                         ${printBlock('Gerinnung', [getAnticoagulationStatus(p).status, p.dapt_oak].filter(Boolean).map(escapeHtml).join('<br>'))}
                         ${printBlock('Laborverlauf', trends.length ? trends.map(trend =>
@@ -1055,7 +1023,7 @@
             }).join('');
         }
         function formatMedList(text) {
-            return String(text || '').split(',').map(item => item.trim()).filter(Boolean);
+            return StationModel.splitMeds(text);
         }
 
         // --- DRUCK: LABORVERLAUF (eine Tabelle je Patient) ---
@@ -1086,7 +1054,7 @@
                 return `<section class="lab-sheet">
                     <header class="sheet-head"><div class="sheet-room">${escapeHtml(p.room || 'Gang')}</div>
                     <div class="sheet-ident"><div class="sheet-name">${escapeHtml(p.name || 'ohne Namen')}</div>
-                    <div class="sheet-sub">${p.main_diagnosis ? escapeHtml(p.main_diagnosis) : ''}</div></div></header>
+                    <div class="patient-status-print">${escapeHtml(StationModel.statusText(p))}</div><div class="sheet-sub">${p.main_diagnosis ? escapeHtml(p.main_diagnosis) : ''}</div></div></header>
                     ${table(labor, 'Laborverlauf')}
                     ${table(bga, 'Blutgasanalysen')}
                 </section>`;
@@ -1106,6 +1074,16 @@
                 return match ? `${match[3]}-${match[2]}-${match[1]}` : '';
             };
 
+            let medicoRows=[];
+            try { medicoRows=raw.includes(';') ? StationModel.parseMedico(raw) : []; }
+            catch(error){preview.textContent=error.message;document.getElementById('btnImportAction').disabled=true;document.getElementById('previewCount').innerText='0';return;}
+            if(medicoRows.length) {
+                AppState.parsedPatients=medicoRows;
+                preview.innerHTML=medicoRows.map(row=>'<div class="import-row">'+StationModel.escape(row.name+' · '+row.dob+' · Zi '+row.room+' / Bett '+row.bed+' · '+StationModel.matchPatient(AppState.patients,row).kind)+'</div>').join('');
+                document.getElementById('previewCount').innerText=medicoRows.length;
+                document.getElementById('btnImportAction').disabled=false;return;
+            }
+            if(raw.includes(';')) {preview.textContent='Keine gültigen Medico-Zeilen gefunden. Format / Datum prüfen.';document.getElementById('btnImportAction').disabled=true;document.getElementById('previewCount').innerText='0';return;}
             const uniqueLines = raw.replace(/\r/g, '\n').split(/\n|\\n/).map(line => line.trim()).filter(Boolean);
             const headerLine = uniqueLines.find(line => line.includes('Fallnummer') && line.includes('Geburtsdatum'));
             const hasTabularInput = !!headerLine && uniqueLines.some(line => line.includes('\t'));
@@ -1182,43 +1160,42 @@
             document.getElementById('previewCount').innerText = AppState.parsedPatients.length;
             document.getElementById('btnImportAction').disabled = AppState.parsedPatients.length === 0;
         }
-        function executeImport() { if(AppState.parsedPatients.length===0) return; let count=0; AppState.parsedPatients.forEach(imp => { const exists = AppState.patients.some(p => p.name === imp.name); if(!exists) { const id = Date.now().toString() + Math.random().toString().slice(2,5); AppState.patients.push({id, room: imp.room, name: imp.name, dob: imp.dob, diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", meds_bedarf: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''}, labSets: [], epi: {}, anamnesis: "", micro: [], severity: "", contingency: "", admission_date: "" }); count++; } }); saveData(); render(); document.getElementById('importModal').style.display='none'; alert(`${count} Patienten importiert.`); }
-
-        function exportData() { const d = JSON.stringify(AppState.patients, null, 2); const b = new Blob([d], {type: "application/json"}); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = `station_backup_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
-        function exportAnonData() {
-            const anon = AppState.patients.map(p => {
-                return {
-                    ...p,
-                    name: "Patient, Anonym",
-                    dob: "1900-01-01",
-                    room: "??",
-                    diagnosis: "REDACTED",
-                    main_diagnosis: "REDACTED",
-                    history: "REDACTED",
-                    meds_current: "REDACTED",
-                    meds_paused: "REDACTED",
-                    dapt_oak: "REDACTED",
-                    todo_text: "REDACTED",
-                    warnings: "REDACTED",
-                    exam_text: "REDACTED",
-                    consult_notes: {}
-                };
+        function executeImport() {
+            if(!AppState.parsedPatients.length)return;
+            const changes=AppState.parsedPatients.map(incoming=>({incoming,match:StationModel.matchPatient(AppState.patients,incoming)}));
+            if(changes.some(x=>x.match.kind==='ambiguous')) { alert('Mehrdeutige Patientenzuordnung. Bitte bestehende Dubletten prüfen.');return; }
+            const descriptions=changes.map(({incoming,match})=> {
+                if(match.kind==='new')return 'NEU: '+incoming.name+' · '+incoming.dob+' · Zi '+incoming.room;
+                const moved=['room','bed','station','specialty','sex','roomNote','infectious'].filter(k=>incoming[k]!==undefined&&incoming[k]!==match.patient[k]);
+                return (moved.length?'ÄNDERUNG ('+moved.map(k=>k+': '+String(match.patient[k]??'–')+' → '+String(incoming[k])).join(', ')+')':'UNVERÄNDERT')+': '+incoming.name;
             });
-            const d = JSON.stringify(anon, null, 2);
-            const b = new Blob([d], {type: "application/json"});
-            const u = URL.createObjectURL(b);
-            const a = document.createElement('a');
-            a.href = u;
-            a.download = `station_anon_backup_${new Date().toISOString().slice(0,10)}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            showToast("Anonymisiertes Backup erstellt.");
+            if(!confirm('Importvergleich:\n'+descriptions.join('\n')+'\n\nÜbernehmen? Klinische Dokumentation bleibt erhalten.'))return;
+            checkpoint('KIS-Patientenimport');
+            for(const {incoming,match} of changes) {
+                if(match.kind==='new')AppState.patients.push(StationModel.createPatient(incoming));
+                else for(const key of ['room','bed','station','specialty','sex','roomNote','infectious']) if(incoming[key]!==undefined)match.patient[key]=incoming[key];
+            }
+            saveData();render();document.getElementById('importModal').style.display='none';
         }
-        function importData(i) { const f = i.files[0]; if(!f)return; const r = new FileReader(); r.onload=function(e){try{const d=JSON.parse(e.target.result);if(Array.isArray(d)){if(confirm(`Backup mit ${d.length} Patienten laden?`)){AppState.patients=d;saveData();render();alert("Geladen!");}}}catch(err){alert("Fehler!");}};r.readAsText(f);i.value=''; }
-        function addNewPatient() { const id = Date.now().toString(); AppState.patients.push({id, room: "", name: "", dob: "", diagnosis: "", main_diagnosis: "", history: "", cvrf: [], meds_current: "", meds_paused: "", meds_bedarf: "", dapt_oak: "", discharge_date: "", daily: {}, diag_status: {}, diag_results: {}, dnr: false, dni: false, exam_text: "", warnings: "", showRawTodo: false, consults: {}, amio: 0, fasting: false, rhythm: 'SR', iso: [], abx: [], consult_notes: {}, social: {reha:'', physio:'', pflegegrad:''}, labs: {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''}, vol: {ziel:'', aktuell:''}, labSets: [], epi: {}, anamnesis: "", micro: [], severity: "", contingency: "", admission_date: "" }); saveData(); render(); setTimeout(()=>{const i=document.querySelector(`input[data-pid="${id}"]`);if(i)i.focus();},100); }
-        function updateField(id, f, v) { const p = AppState.patients.find(x => x.id === id); if(p){p[f]=v;saveData();} }
-        function updateFieldRender(id, f, v) { const p = AppState.patients.find(x => x.id === id); if(p){p[f]=v;saveData();render();} }
+
+        function exportData() { downloadBackup(StationModel.backup(AppState.patients),'station_backup');markBackupDone(); }
+        function exportAnonData() {
+            if(!confirm('Datenschutzexport: Freitexte und Datumsangaben werden konservativ redigiert. Für die Weitergabe zusätzlich prüfen. Export erstellen?'))return;
+            downloadBackup(StationModel.anonymousBackup(AppState.patients),'station_anon');
+        }
+        function importData(input) {
+            const file=input.files[0];if(!file)return;
+            if(file.size>25*1024*1024){alert('Backup ist größer als 25 MB.');input.value='';return;}
+            const reader=new FileReader();reader.onload=event=>{try{
+                const patients=StationModel.validateBackup(JSON.parse(event.target.result));
+                if(confirm('Geprüftes Backup mit '+patients.length+' Patienten laden? Aktuelle Liste wird ersetzt; Rückgängig ist möglich.')){
+                    checkpoint('Backup importieren');AppState.patients=patients;AppState.storageReadFailed=false;saveData();render();
+                }
+            }catch(error){alert('Backup nicht übernommen: '+error.message);}};reader.onerror=()=>alert('Backup konnte nicht gelesen werden.');reader.readAsText(file);input.value='';
+        }
+        function addNewPatient() { checkpoint('Patient anlegen'); const patient=StationModel.createPatient(); AppState.patients.push(patient);saveData();render();setTimeout(()=>document.querySelector('input[data-pid="'+patient.id+'"]')?.focus(),100); }
+        function updateField(id,field,value) { const patient=AppState.patients.find(p=>p.id===id);if(!patient)return;patient[field]=value;if(field==='dnr'||field==='dni')patient.resusReviewed=true;saveData(); }
+        function updateFieldRender(id,field,value) { updateField(id,field,value);render(); }
         function getAge(d) { if(!d) return ""; const a=getAgeNum(d); return isNaN(a)?"":`(${a}J)`; }
         
         function openMedModal(id) {
@@ -1244,11 +1221,11 @@
     }
 
 
-    const cm = p.meds_current ? p.meds_current.split(',').map(s=>s.trim()) : [];
+    const cm = StationModel.medications(p).filter(m=>m.status==='current').map(StationModel.medicationText);
     cm.forEach(m=>{if(m)AppState.tempSelectedMeds.add(m);});
-    const pm = p.meds_paused ? p.meds_paused.split(',').map(s=>s.trim()) : [];
+    const pm = StationModel.medications(p).filter(m=>m.status==='paused').map(StationModel.medicationText);
     pm.forEach(m=>{if(m)AppState.tempPausedMeds.add(m);});
-    const bm = p.meds_bedarf ? p.meds_bedarf.split(',').map(s=>s.trim()) : [];
+    const bm = StationModel.medications(p).filter(m=>m.status==='bedarf').map(StationModel.medicationText);
     bm.forEach(m=>{if(m)AppState.tempBedarfMeds.add(m);});
 
     renderMedList("");
@@ -1385,17 +1362,29 @@
             rememberCustomMedications(unknown);
             renderMedList('');
             closeKisMedModal();
+            const importBefore=StationModel.clone(StationModel.medications(patient));
+            const importHistoryLength=patient.medicationHistory.length;
             saveMeds();
+            state.medications.forEach((med,index)=>{
+                if(!state.selection[index])return;
+                const formatted=state.parser.formatMedication(med);
+                const record=patient.medications.find(m=>m.raw===formatted||StationModel.medicationText(m)===formatted);
+                if(record){record.strength=med.strength||'';record.dose=med.dose||record.dose;record.route=med.route||record.route;record.source=state.source;record.importedAt=new Date().toISOString();record.originalImport=StationModel.clone(med);}
+            });
+            StationModel.syncMedicationText(patient);
+            const importEvent={at:new Date().toISOString(),reason:'Import '+state.source,before:importBefore,after:StationModel.clone(patient.medications)};
+            if(patient.medicationHistory.length>importHistoryLength)patient.medicationHistory[patient.medicationHistory.length-1]=importEvent;
+            else if(JSON.stringify(importBefore)!==JSON.stringify(patient.medications))patient.medicationHistory.push(importEvent);
+            saveData();render();
             showToast(`${count} Medikamente übernommen (${unknown.length} neu erkannt).`);
         }
 
         function openBmpModal() {
             if(!AppState.patients.length) { alert("Bitte lege zuerst einen Patienten an oder wähle einen aus."); return; }
-            if(!AppState.currentEditingId) {
-                // Try to use the first patient if none selected, or prompt user to select
-                AppState.currentEditingId = AppState.patients[0].id;
-                showToast("Erster Patient ausgewählt für Import.", false);
-            }
+            const choice=prompt('BMP-Zielpatient auswählen (Nummer):\n'+AppState.patients.map((p,i)=>(i+1)+': '+p.name+' · '+p.dob+' · Zi '+p.room).join('\n'));
+            if(choice===null)return;
+            const selected=AppState.patients[Number(choice)-1];if(!selected){alert('Ungültige Auswahl.');return;}
+            AppState.currentEditingId=selected.id;
             document.getElementById('bmp-input').value = "";
             document.getElementById('bmpModal').style.display = "block";
             setTimeout(()=>document.getElementById('bmp-input').focus(), 100);
@@ -1417,11 +1406,14 @@
                 const p = AppState.patients.find(x => x.id === AppState.currentEditingId);
                 if(!p) { alert("Kein Patient ausgewählt."); return; }
 
+                checkpoint('BMP importieren');
+                const bmpBefore=StationModel.clone(StationModel.medications(p));
+                const bmpHistoryLength=p.medicationHistory.length;
                 let addedMeds = 0;
                 let addedBedarf = 0;
 
-                const sCur = p.meds_current ? p.meds_current.split(',').map(s=>s.trim()).filter(Boolean) : [];
-                const sBed = p.meds_bedarf ? p.meds_bedarf.split(',').map(s=>s.trim()).filter(Boolean) : [];
+                const sCur = p.meds_current ? StationModel.splitMeds(p.meds_current) : [];
+                const sBed = p.meds_bedarf ? StationModel.splitMeds(p.meds_bedarf) : [];
 
                 const pEl = doc.getElementsByTagName("P")[0];
                 if (pEl) {
@@ -1455,6 +1447,8 @@
 
                         if(!medName) continue;
 
+                        const rawAttributes=Array.from(mEl.attributes).filter(a=>!['a','r','p','t','x'].includes(a.name)).map(a=>a.name+'='+a.value).join('; ');
+                        medName = [medName, dosageT, rawAttributes?'BMP-Attribute: '+rawAttributes:''].filter(Boolean).join(' · ');
                         const isBedarf = sectionBedarf || bedarfX !== "" || dosageT.toLowerCase().includes("bedarf");
 
                         if(isBedarf) {
@@ -1474,6 +1468,10 @@
                 p.meds_current = sCur.join(", ");
                 p.meds_bedarf = sBed.join(", ");
 
+                StationModel.medications(p);
+                const bmpEvent={at:new Date().toISOString(),reason:'BMP importiert',before:bmpBefore,after:StationModel.clone(p.medications)};
+                if(p.medicationHistory.length>bmpHistoryLength)p.medicationHistory[p.medicationHistory.length-1]=bmpEvent;
+                else if(JSON.stringify(bmpBefore)!==JSON.stringify(p.medications))p.medicationHistory.push(bmpEvent);
                 saveData();
                 render();
                 closeBmpModal();
@@ -1503,7 +1501,7 @@
         const mm = m.filter(x=>x.toLowerCase().includes(s));
         if(s&&mm.length===0)continue;
         const open=s?"open":"";
-        let h=`<details ${open} class="group bg-slate-50 border border-slate-200 rounded"><summary class="cursor-pointer p-2 font-bold text-sm text-slate-700 hover:bg-slate-100 select-none flex justify-between items-center"><span>${g}</span><span class="text-xs text-slate-400">▼</span></summary><div class="p-2 bg-white border-t border-slate-100 grid grid-cols-1 xl:grid-cols-2 gap-2">`;
+        let h=`<details ${open} class="group bg-slate-50 border border-slate-200 rounded"><summary class="cursor-pointer p-2 font-bold text-sm text-slate-700 hover:bg-slate-100 select-none flex justify-between items-center"><span>${esc(g)}</span><span class="text-xs text-slate-400">▼</span></summary><div class="p-2 bg-white border-t border-slate-100 grid grid-cols-1 xl:grid-cols-2 gap-2">`;
         mm.forEach(x=>{
             const isCur = AppState.tempSelectedMeds.has(x);
             const isPau = AppState.tempPausedMeds.has(x);
@@ -1512,19 +1510,19 @@
             const safeX = x.replace(/[^a-zA-Z0-9]/g, '_');
 
             h+=`<div class="flex flex-col sm:flex-row sm:items-center justify-between text-xs hover:bg-blue-50 p-1 rounded border border-transparent hover:border-blue-100 gap-1">
-                <span class="font-medium text-slate-700 sm:w-1/2 truncate pr-2" title="${x}">${x}</span>
+                <span class="font-medium text-slate-700 sm:w-1/2 truncate pr-2" title="${esc(x)}">${esc(x)}</span>
                 <div class="flex gap-1 text-[10px] whitespace-nowrap overflow-x-auto pb-1 sm:pb-0">
                     <label class="cursor-pointer px-1.5 py-1 rounded hover:opacity-80 bg-slate-200 text-slate-600 has-[:checked]:bg-green-600 has-[:checked]:text-white has-[:checked]:font-bold transition-colors">
-                        <input type="radio" name="med_${safeX}" value="current" class="peer mr-1" ${isCur ? 'checked' : ''} onchange="toggleTempMed('${x}', 'current')"> Aktuell
+                        <input type="radio" name="med_${safeX}" value="current" class="peer mr-1" ${isCur ? 'checked' : ''} onchange="toggleTempMed(${esc(JSON.stringify(x))}, 'current')"> Aktuell
                     </label>
                     <label class="cursor-pointer px-1.5 py-1 rounded hover:opacity-80 bg-slate-200 text-slate-600 has-[:checked]:bg-orange-500 has-[:checked]:text-white has-[:checked]:font-bold transition-colors">
-                        <input type="radio" name="med_${safeX}" value="paused" class="peer mr-1" ${isPau ? 'checked' : ''} onchange="toggleTempMed('${x}', 'paused')"> Pause
+                        <input type="radio" name="med_${safeX}" value="paused" class="peer mr-1" ${isPau ? 'checked' : ''} onchange="toggleTempMed(${esc(JSON.stringify(x))}, 'paused')"> Pause
                     </label>
                     <label class="cursor-pointer px-1.5 py-1 rounded hover:opacity-80 bg-slate-200 text-slate-600 has-[:checked]:bg-purple-600 has-[:checked]:text-white has-[:checked]:font-bold transition-colors">
-                        <input type="radio" name="med_${safeX}" value="bedarf" class="peer mr-1" ${isBed ? 'checked' : ''} onchange="toggleTempMed('${x}', 'bedarf')"> Bedarf
+                        <input type="radio" name="med_${safeX}" value="bedarf" class="peer mr-1" ${isBed ? 'checked' : ''} onchange="toggleTempMed(${esc(JSON.stringify(x))}, 'bedarf')"> Bedarf
                     </label>
                     <label class="cursor-pointer px-1.5 py-1 rounded hover:opacity-80 bg-slate-200 text-slate-600 has-[:checked]:bg-slate-400 has-[:checked]:text-white has-[:checked]:font-bold transition-colors">
-                        <input type="radio" name="med_${safeX}" value="none" class="peer mr-1" ${noneSel ? 'checked' : ''} onchange="toggleTempMed('${x}', 'none')"> Aus
+                        <input type="radio" name="med_${safeX}" value="none" class="peer mr-1" ${noneSel ? 'checked' : ''} onchange="toggleTempMed(${esc(JSON.stringify(x))}, 'none')"> Aus
                     </label>
                 </div>
             </div>`;
@@ -1536,7 +1534,7 @@
 }
         function saveMeds() {
     const p = AppState.patients.find(x => x.id === AppState.currentEditingId);
-
+    checkpoint('Medikation ändern');
     const sCur = Array.from(AppState.tempSelectedMeds);
     const sPau = Array.from(AppState.tempPausedMeds);
     const sBed = Array.from(AppState.tempBedarfMeds);
@@ -1553,10 +1551,14 @@
     sPau.sort();
     sBed.sort();
 
-    p.meds_current = sCur.join(", ");
-    p.meds_paused = sPau.join(", ");
-    p.meds_bedarf = sBed.join(", ");
-
+    const before=StationModel.clone(StationModel.medications(p));
+    p.medications=before.filter(m=>m.status==='admission');
+    for(const [status,items] of [['current',sCur],['paused',sPau],['bedarf',sBed]]) for(const raw of items) {
+        const existing=before.find(m=>StationModel.medicationText(m)===raw);
+        p.medications.push(existing?{...existing,status}:StationModel.parseMedication(raw,status));
+    }
+    StationModel.syncMedicationText(p);
+    if(JSON.stringify(before)!==JSON.stringify(p.medications))p.medicationHistory.push({at:new Date().toISOString(),reason:'Medikamentenauswahl / Import',before,after:StationModel.clone(p.medications)});
     saveData();
     render();
     closeMedModal();
@@ -1564,9 +1566,9 @@
 
         function toggleDiag(e, id, d) { e.preventDefault(); const p = AppState.patients.find(x => x.id === id); if(!p.diag_status) p.diag_status={}; p.diag_status[d] = ((p.diag_status[d]||0)+1)%3; if(e.type==='contextmenu'){ const r = prompt(`Befund ${d}:`, (p.diag_results||{})[d]||""); if(r!==null){ if(!p.diag_results)p.diag_results={}; p.diag_results[d]=r; if(r)p.diag_status[d]=2; }} saveData(); render(); setTimeout(()=>{const b=document.getElementById(`btn-diag-${id}-${d}`);if(b)b.focus();},50); }
         function toggleCVRF(id, k) { const p = AppState.patients.find(x => x.id === id); if(!p.cvrf) p.cvrf=[]; if(p.cvrf.includes(k)) p.cvrf=p.cvrf.filter(x=>x!==k); else p.cvrf.push(k); saveData(); render(); }
-        function toggleResus(id, t) { const p = AppState.patients.find(x => x.id === id); if(p){p[t]=!p[t];saveData();render();} }
+        function toggleResus(id, t) { const p = AppState.patients.find(x => x.id === id); if(p){p[t]=!p[t];p.resusReviewed=true;saveData();render();} }
         function toggleDaily(id, k) { const p = AppState.patients.find(x => x.id === id); if(!p.daily) p.daily={}; p.daily[k]=!p.daily[k]; saveData(); render(); }
-        function deletePatient(id) { if(confirm("Löschen?")) { AppState.patients=AppState.patients.filter(x=>x.id!==id); saveData(); render(); } }
+        function deletePatient(id) { if(confirm('Patient löschen? Rückgängig ist möglich.')){checkpoint('Patient löschen');AppState.patients=AppState.patients.filter(p=>p.id!==id);saveData();render();} }
         function startNewDay() { if(confirm("Neuer Tag?")) { AppState.patients.forEach(p=>p.daily={}); saveData(); render(); } }
         
         function setupExamBuilder() { const c = document.getElementById('status-builder'); if(typeof EXAM_CONFIG === 'undefined') return; let fullHtml = ""; for(const [k, d] of Object.entries(EXAM_CONFIG)) { let h=`<div class="border rounded bg-slate-50 p-2"><div class="font-bold text-xs text-slate-500 uppercase mb-1">${k}</div><div class="flex flex-wrap gap-1">`; d.options.forEach(o => { h+=`<button class="px-2 py-1 bg-white hover:bg-blue-100 border border-slate-200 rounded text-xs transition" onclick="insertExamText('${k}', '${o}')">${o}</button>`; }); h+=`</div></div>`; fullHtml += h; } c.innerHTML = fullHtml; }
@@ -1617,23 +1619,10 @@
             saveData();
             render();
         }
-        function updateTodoField(id, index, field, value) {
-            const tasks = todoList(AppState.patients.find(x => x.id === id) || {});
-            if(!tasks[index]) return;
-            tasks[index][field] = value;
-            writeTodoList(id, tasks);
-        }
-        function todoDueState(task) {
-            if(!task.due || task.done) return '';
-            const today = todayIso();
-            if(task.due < today) return 'overdue';
-            if(task.due === today) return 'today';
-            return 'future';
-        }
         function openTodoCount(p) {
             const tasks = todoList(p);
             return { open: tasks.filter(task => !task.done).length,
-                overdue: tasks.filter(task => todoDueState(task) === 'overdue').length };
+                overdue: 0 };
         }
 
         // Tagesprofil: feste Uhrzeiten stehen in den Dosierangaben aus ID PHARMA.
@@ -1644,7 +1633,7 @@
                 if(!slots[time].includes(label)) slots[time].push(label);
             };
             [['meds_current', ''], ['meds_bedarf', ' (b. Bedarf)']].forEach(([field, suffix]) => {
-                (p[field] || '').split(',').map(item => item.trim()).filter(Boolean).forEach(item => {
+                StationModel.splitMeds(p[field]).forEach(item => {
                     const name = item.split('·')[0].trim();
                     const times = item.match(/\b([01]?\d|2[0-3]):[0-5]\d\b/g) || [];
                     times.forEach(time => add(time.padStart(5, '0'), name + suffix));
@@ -1762,7 +1751,7 @@
                 <div class="flex items-start gap-3 mb-3">
                     <div class="text-4xl font-black text-blue-900 bg-blue-50 rounded px-3 py-1 flex-shrink-0">${escapeHtml(p.room || 'Gang')}</div>
                     <div class="flex-grow min-w-0">
-                        <div class="text-2xl font-bold leading-tight">${escapeHtml(p.name || 'ohne Namen')}</div>
+                        <div class="patient-status-print">${escapeHtml(StationModel.statusText(p))}</div><div class="text-2xl font-bold leading-tight">${escapeHtml(p.name || 'ohne Namen')}</div>
                         <div class="text-xs text-slate-500">${isNaN(age) ? '' : `${age} Jahre · `}${stayDay(p) ? `Aufnahmetag ${stayDay(p)} · ` : ''}Rhythmus ${escapeHtml(p.rhythm || '–')}${p.lvef ? ` · LVEF ${escapeHtml(p.lvef)} %` : ''}</div>
                     </div>
                     <div class="flex flex-col items-end gap-1 flex-shrink-0">
@@ -1781,7 +1770,7 @@
                     </div>
                     <div>
                         ${handoverSection(`Offene Aufgaben (${open.length})`, printList(open.map(task =>
-                            `${task.text}${task.owner ? ` @${task.owner}` : ''}${task.due ? ` bis ${KisLabImport.formatDate(task.due)}` : ''}${todoDueState(task) === 'overdue' ? ' ⚠ überfällig' : ''}`)), { tone: 'text-amber-700', size: 'text-base' })}
+                            `${task.text}`)), { tone: 'text-amber-700', size: 'text-base' })}
                         <section class="mb-3">
                             <h3 class="text-[11px] font-bold uppercase tracking-wide text-sky-700 border-b border-slate-200 mb-1">Wenn–dann (Dienstanweisung)</h3>
                             <textarea oninput="updateField('${p.id}', 'contingency', this.value)" class="w-full border-2 ${p.contingency ? 'border-sky-400 bg-sky-50' : 'border-slate-200'} rounded p-2 text-sm h-20" placeholder="z. B. Bei RR syst. < 90 → Arzt rufen">${escapeHtml(p.contingency || '')}</textarea>
@@ -2091,6 +2080,7 @@
         }
 
         function executeLabImport() {
+            checkpoint('Labor importieren');
             const result = AppState.parsedLabImport;
             const p = AppState.patients.find(x => x.id === AppState.currentEditingId);
             if(!result || !p) return;
@@ -2130,7 +2120,7 @@
                 if(existing >= 0) { set.id = p.labSets[existing].id; p.labSets[existing] = set; }
                 else p.labSets.push(set);
             });
-            p.labSets = KisLabImport.sortSets(p.labSets).slice(-80);
+            p.labSets = KisLabImport.sortSets(p.labSets);
             const lastLab = sets.filter(set => set.type === 'labor').pop();
             if(lastLab) applyQuickLabs(p, lastLab.entries);
             saveData();
@@ -2172,6 +2162,7 @@
         }
 
         function deleteLabSet(setId) {
+            checkpoint('Laborabnahme löschen');
             const p = AppState.patients.find(x => x.id === AppState.currentEditingId);
             if(!p || !confirm('Diese Abnahme löschen?')) return;
             p.labSets = (p.labSets || []).filter(set => set.id !== setId);
@@ -2187,13 +2178,16 @@
             const cardio = [
                 p.rhythm ? `Rhythmus: ${p.rhythm}${p.rhythm_history ? ` (${p.rhythm_history})` : ''}` : '',
                 p.lvef ? `LVEF: ${p.lvef} %` : '',
-                p.valves ? `Klappen: ${p.valves}` : ''
+                p.valves ? `Klappen: ${p.valves}` : '',
+                p.hfType && p.hfType!=='unknown' ? `Dokumentierter HI-Phänotyp: ${p.hfType}` : '',
+                p.efDate ? `EF-Befund: ${p.efDate} (${p.efSource||'Quelle nicht dokumentiert'})` : ''
             ].filter(Boolean);
             const meds = [
-                p.meds_current ? `Aktuell:\n${p.meds_current}` : '',
-                p.meds_paused ? `Pausiert:\n${p.meds_paused}` : '',
-                p.meds_bedarf ? `Bei Bedarf:\n${p.meds_bedarf}` : '',
-                p.meds_admission ? `Aufnahmemedikation:\n${p.meds_admission}` : '',
+                p.meds_current ? `Aktuell:\n${StationModel.medicationExport(p, "current")}` : '',
+                p.meds_paused ? `Pausiert:\n${StationModel.medicationExport(p, "paused")}` : '',
+                p.meds_bedarf ? `Bei Bedarf:\n${StationModel.medicationExport(p, "bedarf")}` : '',
+                p.meds_admission ? `Aufnahmemedikation:\n${StationModel.medicationExport(p, "admission")}` : '',
+                p.dischargeMedication ? `Entlassmedikation (Entwurf):\n${p.dischargeMedication.map(StationModel.medicationText).join('\n')}\n${p.dischargeMedicationNotes||''}` : '',
                 p.dapt_oak ? `Antikoagulation / TAH: ${p.dapt_oak}` : ''
             ].filter(Boolean).join('\n\n');
             const consults = Object.entries(p.consult_notes || {}).filter(([, value]) => value && String(value).trim()).map(([key, value]) => `Konsil ${key}: ${value}`);

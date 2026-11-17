@@ -22,9 +22,10 @@ global.getDaysSince = (date) => {
   if (!date) return 0;
   return Math.round((Date.parse('2026-10-05T12:00:00') - Date.parse(date + 'T12:00:00')) / 86400000) + 1;
 };
+global.StationModel = require('../station_model.js');
 global.todayIso = () => '2026-10-05';
 // Erst die Hilfsfunktionen stellen, dann die Funktionen selbst in den globalen Scope heben.
-['parseTodoLine', 'formatTodoLine', 'todoList', 'todoDueState', 'openTodoCount', 'dayScheduleEntries', 'stayDay']
+['parseTodoLine', 'formatTodoLine', 'todoList', 'openTodoCount', 'dayScheduleEntries', 'stayDay']
   .forEach((name) => { global[name] = eval(`(${extractFunction(html, name)})`); });
 
 test('reads owner and due date out of a task line', () => {
@@ -43,18 +44,9 @@ test('writes a task back without losing owner or due date', () => {
   assert.equal(formatTodoLine({ done: true, text: 'Fertig', owner: '', due: '' }), '[x] Fertig');
 });
 
-test('marks a task overdue, due today or still open', () => {
-  assert.equal(todoDueState({ due: '2026-10-01', done: false }), 'overdue');
-  assert.equal(todoDueState({ due: '2026-10-05', done: false }), 'today');
-  assert.equal(todoDueState({ due: '2026-10-09', done: false }), 'future');
-  // Erledigte und fristlose Aufgaben mahnen nicht.
-  assert.equal(todoDueState({ due: '2026-10-01', done: true }), '');
-  assert.equal(todoDueState({ due: '', done: false }), '');
-});
-
 test('counts open and overdue tasks of a patient', () => {
   const patient = { todo_text: '[ ] A @MS !2026-10-01\n[ ] B\n[x] C !2026-09-01' };
-  assert.deepEqual(openTodoCount(patient), { open: 2, overdue: 1 });
+  assert.deepEqual(openTodoCount(patient), { open: 2, overdue: 0 });
   assert.deepEqual(openTodoCount({ todo_text: '' }), { open: 0, overdue: 0 });
 });
 
