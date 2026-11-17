@@ -14,6 +14,8 @@
     <script src="med_safety.js"></script>
     <script src="epikrise_export.js"></script>
     <script src="station_model.js"></script>
+    <script src="station_labs.js"></script>
+    <script src="hf_guidance.js"></script>
     <script src="station_workflow.js"></script>
     <script src="config_exam.js"></script> 
     <script src="config_scores.js"></script> 
@@ -584,6 +586,7 @@
 
         // --- RENDER LOGIC ---
         function render() {
+            rememberCardDetails();
             const container = document.getElementById('patient-list');
             const printBody = document.getElementById('print-table-body');
             const empty = document.getElementById('empty-state');
@@ -627,11 +630,10 @@
                 if(severity) card.style.borderLeft = `5px solid ${severity.bar}`;
                 
                 // HEADER (Zi, Name, Rhythmus, Nüchtern)
-                let rhythmSel = `<div class="rhythm-fields no-print"><label>Rhythmus <select aria-label="Rhythmus" onchange="updateFieldRender('${p.id}','rhythm',this.value)"><option value="" ${!p.rhythm?'selected':''}>Ungeklärt</option>${['SR','VHF','AF','PM/ICD'].map(value=>`<option value="${value}" ${p.rhythm===value?'selected':''}>${value==='AF'?'A-Flatt':value}</option>`).join('')}</select></label><input aria-label="Rhythmusverlauf" value="${esc(p.rhythm_history||'')}" placeholder="Zuletzt SR am …" onchange="updateField('${p.id}','rhythm_history',this.value)"><label>Klappen <input aria-label="Klappenbefund" value="${esc(p.valves||'')}" onchange="updateField('${p.id}','valves',this.value)"></label><span>${esc(p.hfType&&p.hfType!=='unknown'?p.hfType:'HI ungeklärt')} · EF ${esc(p.lvef||'–')} %</span></div>`;
                 let severityBtn = `<button onclick="cycleSeverity('${p.id}')" title="Stabilität (Klick wechselt): stabil → Beobachtung → instabil" class="text-[8px] px-1 py-0.5 rounded font-bold border ${severity ? severity.tone : 'bg-white text-slate-400 border-slate-200'}">${severity ? severity.label : 'Stabilität?'}</button>`;
                 let fastBtn = p.fasting ? `<button onclick="updateFieldRender('${p.id}', 'fasting', false)" class="text-[8px] px-1 py-0.5 rounded font-bold transition-colors badge-nüchtern">⛔ Nüchtern</button>` : `<button onclick="updateFieldRender('${p.id}', 'fasting', true)" class="text-[8px] px-1 py-0.5 rounded font-bold transition-colors text-slate-400 border border-slate-200 bg-white" title="Selten benötigt: nur aktivieren, wenn relevant">Nüchtern?</button>`;
                 
-                let header = `<div class="patient-heading"><div class="patient-identity"><input type="text" aria-label="Zimmer" data-pid="${p.id}" value="${esc(p.room)}" onchange="updateFieldRender('${p.id}','room',this.value)" class="p-room" placeholder="#"><div class="patient-name-block"><input type="text" value="${esc(p.name)}" onchange="updateFieldRender('${p.id}','name',this.value)" class="p-name" placeholder="Name"><div class="patient-birth no-print"><input type="date" aria-label="Geburtsdatum" value="${esc(p.dob)}" onchange="updateFieldRender('${p.id}','dob',this.value)"><span>${age}</span></div></div><button onclick="deletePatient('${p.id}')" aria-label="Patient löschen" title="Patient löschen" class="no-print">×</button></div><div class="patient-actions no-print">${severityBtn}${fastBtn}<button onclick="toggleResus('${p.id}','dnr')" aria-label="DNR" aria-pressed="${!!p.dnr}" class="resus-btn ${dnrClass}">${p.dnr?'DNR aktiv':'DNR setzen'}</button><button onclick="toggleResus('${p.id}','dni')" aria-label="DNI" aria-pressed="${!!p.dni}" class="resus-btn ${dniClass}">${p.dni?'DNI aktiv':'DNI setzen'}</button></div>${rhythmSel}</div>`;
+                let header = `<div class="patient-heading"><div class="patient-identity"><input type="text" aria-label="Zimmer" data-pid="${p.id}" value="${esc(p.room)}" onchange="updateFieldRender('${p.id}','room',this.value)" class="p-room" placeholder="#"><div class="patient-name-block"><input type="text" value="${esc(p.name)}" onchange="updateFieldRender('${p.id}','name',this.value)" class="p-name" placeholder="Name"><div class="patient-birth no-print"><input type="date" aria-label="Geburtsdatum" value="${esc(p.dob)}" onchange="updateFieldRender('${p.id}','dob',this.value)"><span>${age}</span></div></div><div class="patient-heading-actions">${severityBtn}${fastBtn}<button onclick="deletePatient('${p.id}')" aria-label="Patient löschen" title="Patient löschen" class="patient-delete no-print">×</button></div></div><div class="admission-line no-print"><label>Aufn. <input type="date" aria-label="Aufnahmedatum" value="${esc(p.admission_date||'')}" onchange="updateFieldRender('${p.id}','admission_date',this.value)"></label>${stayDay(p)?`<span>Tag ${stayDay(p)}</span>`:''}</div></div>`;
 
                 // ISOLATION & WARNUNGEN
                 let warnColor = p.warnings ? 'bg-red-100 border-red-300 text-red-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-400 italic';
@@ -675,22 +677,9 @@
                 const labStamps = [latestLab ? `Labor ${labSetStamp(latestLab)}` : '', latestBga ? `BGA ${labSetStamp(latestBga)}` : ''].filter(Boolean);
                 const labSetsAll = p.labSets || [];
                 const labDeltas = (typeof LAB_DELTA_RULES !== 'undefined') ? KisLabImport.checkDeltas(labSetsAll, LAB_DELTA_RULES) : [];
-                const labTrends = (typeof LAB_TRENDS !== 'undefined') ? KisLabImport.buildTrends(labSetsAll, LAB_TRENDS) : [];
                 let labDeltaHtml = labDeltas.map(warning => {
                     const tone = warning.severity === 'high' ? 'bg-red-50 border-red-300 text-red-800' : 'bg-amber-50 border-amber-300 text-amber-900';
                     return `<div class="text-[9px] leading-tight border rounded px-1 py-0.5 font-bold ${tone}">${warning.direction === 'down' ? '↓' : '↑'} ${escapeHtml(warning.text)}${warning.note ? ` <span class="font-normal">– ${escapeHtml(warning.note)}</span>` : ''}</div>`;
-                }).join('');
-                let labTrendHtml = labTrends.map(trend => {
-                    const tone = trend.last.status === 'high' ? 'text-red-700' : trend.last.status === 'low' ? 'text-sky-700' : 'text-slate-700';
-                    const arrow = trend.direction === 'up' ? '↗' : trend.direction === 'down' ? '↘' : '→';
-                    const since = trend.previous ? `${trend.previous.value}${trend.days ? ` vor ${trend.days}d` : ''}` : 'erster Wert';
-                    return `<div class="flex items-center gap-1 text-[9px] leading-tight" title="${escapeHtml(trend.points.map(point => `${KisLabImport.formatDate(point.date)} ${point.value}`).join(' · '))}">
-                        <span class="w-11 flex-shrink-0 font-bold text-slate-500 truncate">${escapeHtml(trend.label)}</span>
-                        <span class="text-slate-400 flex-shrink-0">${sparkline(trend.points)}</span>
-                        <span class="font-bold ${tone} flex-shrink-0">${escapeHtml(trend.last.value)}${trend.last.preliminary ? '<span title="vorläufiges Ergebnis">*</span>' : ''}</span>
-                        <span class="text-slate-400 flex-shrink-0">${arrow}</span>
-                        <span class="text-slate-400 truncate">${escapeHtml(since)}</span>
-                    </div>`;
                 }).join('');
                 let labChips = abnormalLabs.map(entry => {
                     const tone = entry.status === 'high' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-sky-50 border-sky-200 text-sky-800';
@@ -702,11 +691,11 @@
                     abnormalLabs.length ? `<span class="ml-1 text-rose-600">${abnormalLabs.length} auffällig</span>` : ''
                 ].filter(Boolean).join(' ·');
                 let labImportHtml = `
-                <details class="mt-1 no-print compact-details" ${abnormalLabs.length || labDeltas.length ? 'open' : ''}>
+                <details data-detail-key="lab" class="lab-panel mt-1 no-print compact-details" ${abnormalLabs.length || labDeltas.length ? 'open' : ''}>
                     <summary class="compact-summary text-rose-800">🧪 Labor & BGA ${labSummaryBits || (labStamps.length ? '<span class="font-normal text-slate-400">(alles im Normbereich)</span>' : '<span class="font-normal text-slate-400">(noch kein Import)</span>')}</summary>
                     <div class="mt-1 flex flex-col gap-1">
                         ${labDeltaHtml ? `<div class="flex flex-col gap-0.5">${labDeltaHtml}</div>` : ''}
-                        ${labTrendHtml ? `<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-0.5 border-y border-slate-100 py-1">${labTrendHtml}</div>${labTrends.some(trend => trend.last.preliminary) ? '<div class="text-[8px] text-slate-400">* vorläufiges Ergebnis</div>' : ''}` : ''}
+                        ${labTrendCards(p)}
                         <div class="flex gap-1">
                             <button onclick="openLabModal('${p.id}', 'labor')" class="flex-1 text-[9px] bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded px-1 py-1 font-bold">📥 Labor importieren</button>
                             <button onclick="openLabModal('${p.id}', 'bga')" class="flex-1 text-[9px] bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border border-cyan-200 rounded px-1 py-1 font-bold">🫁 BGA importieren</button>
@@ -780,11 +769,9 @@
                 let activeTasks = (typeof DAILY_TASKS !== 'undefined') ? DAILY_TASKS.filter(t => p.daily && p.daily[t.key]).map(t => t.label) : [];
                 let tasksHtml = `<details class="mb-1 no-print compact-details" ${activeTasks.length ? 'open' : ''}><summary class="compact-summary">✅ Tageschecks ${activeTasks.length ? `<span class="ml-1 text-blue-700">${activeTasks.join(', ')}</span>` : '<span class="font-normal text-slate-400">(bei Bedarf)</span>'}</summary><div class="grid grid-cols-6 gap-0.5 mt-1 daily-grid">`; if(typeof DAILY_TASKS !== 'undefined') DAILY_TASKS.forEach(t => { const cls = (p.daily && p.daily[t.key]) ? 'task-true' : 'task-false'; tasksHtml += `<button type="button" onclick="toggleDaily('${p.id}', '${t.key}')" class="task-btn ${cls} text-[9px] text-center py-0.5 rounded">${t.label}</button>`; }); tasksHtml += `</div></details>`;
                 
-                const contingencyHtml=`<label class="contingency-field">Wenn–dann / Dienstanweisung<textarea onchange="updateFieldRender('${p.id}','contingency',this.value)">${esc(p.contingency||'')}</textarea></label>`;
-                const contingencyPrint=p.contingency ? `<div class="print-alert">Wenn–dann: ${esc(p.contingency)}</div>` : '';
-                let todoHtml = `<div class="bg-yellow-50 border border-yellow-200 rounded p-1 relative group flex flex-col">`;
-                if(p.showRawTodo) { todoHtml += `<textarea onchange="updateFieldRender('${p.id}', 'todo_text', this.value); updateFieldRender('${p.id}', 'showRawTodo', false)" class="auto-expand w-full text-xs bg-white border border-yellow-300 rounded p-1 leading-tight focus:ring-2 focus:ring-yellow-500" placeholder="Freitext To-Dos...">${esc(p.todo_text || "")}</textarea><button onclick="updateFieldRender('${p.id}', 'showRawTodo', false)" class="text-[9px] text-yellow-700 bg-yellow-200 hover:bg-yellow-300 rounded px-1 mt-1 self-end">Fertig</button>`;
-                } else { let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines.length > 0) { todoHtml += `<div class="flex flex-col gap-0.5 mb-1">`; lines.forEach((line, idx) => { let isDone = line.startsWith('[x] '); let cleanLine = esc(parseTodoLine(line).text); let icon = isDone ? '✅' : '🔲'; let strike = isDone ? 'line-through text-slate-400' : 'text-slate-800 font-medium'; todoHtml += `<div class="flex items-start justify-between gap-1 hover:bg-yellow-200 p-0.5 rounded transition"><div class="flex items-start gap-1 cursor-pointer flex-grow" onclick="toggleTodoLine('${p.id}', ${idx})"><span class="mt-0.5 text-[10px]">${icon}</span><span class="text-xs ${strike} leading-tight">${cleanLine}</span></div>`; if(isDone) { todoHtml += `<button onclick="deleteTodoLine('${p.id}', ${idx})" class="text-[9px] bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded px-1 ml-1">❌</button>`; } todoHtml += `</div>`; }); todoHtml += `</div>`; } else { todoHtml += `<span class="text-[10px] text-slate-400 italic px-1 mb-1">Keine To-Dos...</span>`; } todoHtml += `<input type="text" placeholder="+ Neues To-Do (Enter)" class="w-full text-xs bg-white border border-yellow-300 rounded p-1 outline-none focus:ring-1 focus:ring-yellow-500" onkeydown="if(event.key==='Enter'){ addTodoLine('${p.id}', this.value); this.value=''; }"><button onclick="updateFieldRender('${p.id}', 'showRawTodo', true)" class="absolute top-1 right-1 text-[10px] text-yellow-600 opacity-0 group-hover:opacity-100 transition bg-yellow-100 px-1 rounded shadow-sm">✏️ Edit</button>`; } todoHtml += `</div>`;
+                const contingencyHtml=`<label class="contingency-field">Wenn–dann / Dienstanweisung / Notizen<textarea aria-label="Dienstanweisung / Notizen" placeholder="Wenn–dann, Notizen oder Gedächtnisstütze …" onchange="updateFieldRender('${p.id}','contingency',this.value)">${esc(p.contingency||'')}</textarea></label>`;
+                const contingencyPrint=p.contingency ? `<div class="print-alert">Wenn–dann / Notizen: ${esc(p.contingency)}</div>` : '';
+                const todoHtml=renderTodoPanel(p);
 
                 let histTextClass = p.expHist ? "text-expanded" : (p.history && p.history.length > 100 ? "text-truncated" : "");
                 let histToggleBtn = (p.history && p.history.length > 100) ? `<button onclick="updateFieldRender('${p.id}', 'expHist', ${!p.expHist})" class="text-[8px] text-blue-500 hover:underline w-full text-right bg-slate-50 pr-1 pb-1">${p.expHist ? 'Weniger' : 'Mehr...'}</button>` : '';
@@ -802,17 +789,13 @@
                      <div class="relative mb-1">
                         <button type="button" class="w-full text-left text-[9px] text-slate-400 font-bold uppercase hover:text-blue-600 flex items-center gap-1" onclick="openMedModal('${p.id}')">💊 Aktuell <span class="no-print opacity-50 text-[8px]">(Suchen/Edit)</span></button>
                         ${StationModel.medicationTable(p, 'current')}
-                        <button type="button" class="workflow-button" onclick="openStructuredMeds('${p.id}')">Dosen / Gaben bearbeiten</button>
+                        <div class="med-actions no-print"><button type="button" class="workflow-button" onclick="openStructuredMeds('${p.id}')">Dosen / Gaben bearbeiten</button>
                         <button type="button" class="workflow-button" onclick="showMedicationReconciliation('${p.id}')">Aufnahme / Entlassung abgleichen</button>
-                        <button type="button" class="workflow-button" onclick="showMedicationHistory('${p.id}')">Änderungsverlauf</button>
+                        <button type="button" class="workflow-button" onclick="showMedicationHistory('${p.id}')">Änderungsverlauf</button></div>
                     </div>
-                    <div class="flex gap-1 mb-1 no-print">
-                        <div class="flex-1 bg-red-50 rounded border border-red-100 p-1"><label class="text-[8px] uppercase text-red-500 font-bold block mb-0.5">Pausiert ⏸️</label><input type="text" value="${esc(p.meds_paused || '')}" onchange="updateField('${p.id}', 'meds_paused', this.value)" class="w-full text-[9px] bg-transparent outline-none text-red-800" placeholder="z.B. Metformin"></div>
-                        <div class="flex-1 bg-blue-50 rounded border border-blue-100 p-1"><label class="text-[8px] uppercase text-blue-600 font-bold block mb-0.5">DAPT / OAK 🩸</label><input type="text" value="${esc(p.dapt_oak || '')}" onchange="updateField('${p.id}', 'dapt_oak', this.value)" class="w-full text-[9px] bg-transparent outline-none text-blue-800" placeholder="z.B. bis 05/26"></div>
-                    </div>
-                    <details><summary>Pausierte Medikamente / Bedarf</summary><h4>Pausiert</h4>${StationModel.medicationTable(p,'paused')}<h4>Bedarf</h4>${StationModel.medicationTable(p,'bedarf')}</details>
+                    <div class="med-secondary no-print"><section class="med-paused"><h4>Pausiert ⏸</h4>${StationModel.medicationTable(p,'paused',{compact:true})}<button type="button" class="workflow-button" onclick="openStructuredMeds('${p.id}')">Bearbeiten</button></section><section class="med-prn"><h4>Bedarf</h4>${StationModel.medicationTable(p,'bedarf',{compact:true})}<button type="button" class="workflow-button" onclick="openStructuredMeds('${p.id}')">Bearbeiten</button></section><section class="med-anticoag"><h4>Antikoagulation / TAH</h4><strong>${esc(getAnticoagulationStatus(p).status)}</strong><input aria-label="Antikoagulation Indikation / Dauer" value="${esc(p.dapt_oak||'')}" onchange="updateField('${p.id}','dapt_oak',this.value)" placeholder="Indikation / Dauer"></section></div>
                     ${amioBtn}
-                    <details class="group"><summary class="text-[9px] text-slate-400 cursor-pointer list-none hover:text-blue-500 no-print focus:outline-none focus:text-blue-600">▶ Aufnahme/Vor.D.</summary><div class="mt-1 pt-1 border-t border-slate-100"><div class="mb-1 med-hidden-print"><label class="text-[9px] text-slate-400 uppercase">Aufnahme-Med</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'meds_admission', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1" rows="1">${esc(p.meds_admission || "")}</textarea></div><div><label class="text-[9px] text-slate-400 uppercase">Vordiagnosen</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'history', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1 leading-tight outline-none border-b border-transparent focus:border-slate-300 ${histTextClass}" placeholder="Vordiagnosen...">${esc(p.history || "")}</textarea>${histToggleBtn}</div></div></details>
+                    <details data-detail-key="admission" class="group"><summary class="text-[9px] text-slate-400 cursor-pointer list-none hover:text-blue-500 no-print focus:outline-none focus:text-blue-600">▶ Aufnahme: Anamnese, Medikation, Vordiagnosen</summary><div class="mt-1 pt-1 border-t border-slate-100"><label class="section-caption">Aufnahmeanamnese<textarea aria-label="Aufnahmeanamnese" class="auto-expand" oninput="resizeTx(this);updateField('${p.id}','anamnesis',this.value)">${esc(p.anamnesis||'')}</textarea></label><div class="mb-1 med-hidden-print"><label class="text-[9px] text-slate-400 uppercase">Aufnahme-Med</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'meds_admission', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1" rows="1">${esc(p.meds_admission || "")}</textarea></div><div><label class="text-[9px] text-slate-400 uppercase">Vordiagnosen</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'history', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1 leading-tight outline-none border-b border-transparent focus:border-slate-300 ${histTextClass}" placeholder="Vordiagnosen...">${esc(p.history || "")}</textarea>${histToggleBtn}</div></div></details>
                 </div>`;
                 
                 let diagGrid = `<div class="grid grid-cols-4 gap-1 mt-1 diag-grid">`; if(typeof DIAGNOSTICS !== 'undefined') DIAGNOSTICS.forEach(d => { const s = (p.diag_status||{})[d]||0; const res = (p.diag_results||{})[d]||""; const hasRes = res ? 'has-result' : ''; diagGrid += `<button type="button" id="btn-diag-${p.id}-${d}" onclick="toggleDiag(event,'${p.id}','${d}')" oncontextmenu="toggleDiag(event,'${p.id}','${d}')" class="state-btn diag-${s} ${hasRes} py-0.5 rounded text-[9px]" title="${esc(res)}">${d} <span class="print-result ml-1">(${esc(res)})</span></button>`; }); diagGrid += `</div>`;
@@ -852,7 +835,7 @@
                 let footer = `<div class="flex justify-between items-center mt-1 pt-1 no-print gap-1"><button onclick="openExamModal('${p.id}')" class="text-[9px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded flex-1 border border-slate-200">📝 Notizen</button><button onclick="openScoreModal('${p.id}')" class="text-[9px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-1 rounded border border-indigo-100">🧮 Scores</button><button onclick="openEpikriseModal('${p.id}')" class="text-[9px] bg-indigo-800 hover:bg-indigo-700 text-white px-2 py-1 rounded font-bold">📄 Epikrise</button></div>`;
 
                 let extendedHtml = `<details class="mt-1 no-print compact-details"><summary class="compact-summary">🧩 Diagnostik, Konsile & Entlassung <span class="font-normal text-slate-400">(Details)</span></summary><div class="mt-1">${diagGrid}${consultHtml}${planHtml}${footer}</div></details>`;
-                card.innerHTML = header + patientStatusControls(p) + warnHtml + diag + cvrfHtml + contingencyHtml + todoHtml + meds + safetyHtml + abxHtml + microHtml + labImportHtml + scheduleHtml + labsVolHtml + tasksHtml + extendedHtml;
+                card.innerHTML = header + patientStatusControls(p) + warnHtml + diag + cvrfHtml + cardiacFields(p) + heartFailurePanel(p) + contingencyHtml + todoHtml + meds + safetyHtml + abxHtml + microHtml + labImportHtml + scheduleHtml + labsVolHtml + tasksHtml + extendedHtml;
                 containerFrag.appendChild(card);
 
                 // --- PRINT VIEW ---
@@ -907,6 +890,7 @@
                 printBodyFrag.appendChild(tr);
             });
             container.appendChild(containerFrag);
+            restoreCardDetails();
             printBody.appendChild(printBodyFrag);
             buildDetailPrint();
             buildLabPrint();
@@ -974,12 +958,12 @@
                         <div class="sheet-room">${escapeHtml(p.room || 'Gang')}</div>
                         <div class="sheet-ident">
                             <div class="sheet-name">${escapeHtml(p.name || 'ohne Namen')}</div>
-                            <div class="patient-status-print">${escapeHtml(StationModel.statusText(p))}</div><div class="sheet-sub">* ${escapeHtml(dob)}${isNaN(age) ? '' : ` (${age} J.)`}${stayDay(p) ? ` · Aufnahmetag ${stayDay(p)}` : ''} · Rhythmus ${escapeHtml(p.rhythm || '–')}${p.lvef ? ` · LVEF ${escapeHtml(p.lvef)} %` : ''}${p.valves ? ` · ${escapeHtml(p.valves)}` : ''}</div>
+                            <div class="patient-status-print">${escapeHtml(StationModel.statusText(p))}</div><div class="sheet-sub">* ${escapeHtml(dob)}${isNaN(age) ? '' : ` (${age} J.)`}${stayDay(p) ? ` · Aufnahmetag ${stayDay(p)}` : ''} · Rhythmus ${escapeHtml(p.rhythm || '–')}${p.lvef ? ` · LVEF ${escapeHtml(p.lvef)} %` : ''}${p.valves ? ` · ${escapeHtml(p.valves)}` : ''}${p.nyha ? ` · NYHA ${escapeHtml(p.nyha)}` : ''}${p.ehra ? ` · EHRA ${escapeHtml(p.ehra)}` : ''}</div>
                         </div>
                         ${alerts.length ? `<div class="sheet-alerts">${alerts.map(a => `<span>${escapeHtml(a)}</span>`).join('')}</div>` : ''}
                     </header>
                     ${level ? `<div class="sheet-severity sheet-severity-${p.severity}">Zustand: ${escapeHtml(level.label)}</div>` : ''}
-                    ${p.contingency ? `<div class="sheet-contingency"><strong>Wenn–dann:</strong> ${escapeHtml(p.contingency)}</div>` : ''}
+                    ${p.contingency ? `<div class="sheet-contingency"><strong>Wenn–dann / Notizen:</strong> ${escapeHtml(p.contingency)}</div>` : ''}
                     ${p.main_diagnosis ? `<div class="sheet-maindiag">${escapeHtml(p.main_diagnosis)}</div>` : ''}
                     <div class="sheet-grid">
                         ${printBlock('Aktuelle Diagnosen', printLines(p.diagnosis))}
@@ -1194,7 +1178,7 @@
             }catch(error){alert('Backup nicht übernommen: '+error.message);}};reader.onerror=()=>alert('Backup konnte nicht gelesen werden.');reader.readAsText(file);input.value='';
         }
         function addNewPatient() { checkpoint('Patient anlegen'); const patient=StationModel.createPatient(); AppState.patients.push(patient);saveData();render();setTimeout(()=>document.querySelector('input[data-pid="'+patient.id+'"]')?.focus(),100); }
-        function updateField(id,field,value) { const patient=AppState.patients.find(p=>p.id===id);if(!patient)return;patient[field]=value;if(field==='dnr'||field==='dni')patient.resusReviewed=true;saveData(); }
+        function updateField(id,field,value) { const patient=AppState.patients.find(p=>p.id===id);if(!patient)return;patient[field]=value;saveData(); }
         function updateFieldRender(id,field,value) { updateField(id,field,value);render(); }
         function getAge(d) { if(!d) return ""; const a=getAgeNum(d); return isNaN(a)?"":`(${a}J)`; }
         
@@ -1566,7 +1550,7 @@
 
         function toggleDiag(e, id, d) { e.preventDefault(); const p = AppState.patients.find(x => x.id === id); if(!p.diag_status) p.diag_status={}; p.diag_status[d] = ((p.diag_status[d]||0)+1)%3; if(e.type==='contextmenu'){ const r = prompt(`Befund ${d}:`, (p.diag_results||{})[d]||""); if(r!==null){ if(!p.diag_results)p.diag_results={}; p.diag_results[d]=r; if(r)p.diag_status[d]=2; }} saveData(); render(); setTimeout(()=>{const b=document.getElementById(`btn-diag-${id}-${d}`);if(b)b.focus();},50); }
         function toggleCVRF(id, k) { const p = AppState.patients.find(x => x.id === id); if(!p.cvrf) p.cvrf=[]; if(p.cvrf.includes(k)) p.cvrf=p.cvrf.filter(x=>x!==k); else p.cvrf.push(k); saveData(); render(); }
-        function toggleResus(id, t) { const p = AppState.patients.find(x => x.id === id); if(p){p[t]=!p[t];p.resusReviewed=true;saveData();render();} }
+        function toggleResus(id, t) { const p = AppState.patients.find(x => x.id === id); if(p){p[t]=!p[t];saveData();render();} }
         function toggleDaily(id, k) { const p = AppState.patients.find(x => x.id === id); if(!p.daily) p.daily={}; p.daily[k]=!p.daily[k]; saveData(); render(); }
         function deletePatient(id) { if(confirm('Patient löschen? Rückgängig ist möglich.')){checkpoint('Patient löschen');AppState.patients=AppState.patients.filter(p=>p.id!==id);saveData();render();} }
         function startNewDay() { if(confirm("Neuer Tag?")) { AppState.patients.forEach(p=>p.daily={}); saveData(); render(); } }
@@ -1772,7 +1756,7 @@
                         ${handoverSection(`Offene Aufgaben (${open.length})`, printList(open.map(task =>
                             `${task.text}`)), { tone: 'text-amber-700', size: 'text-base' })}
                         <section class="mb-3">
-                            <h3 class="text-[11px] font-bold uppercase tracking-wide text-sky-700 border-b border-slate-200 mb-1">Wenn–dann (Dienstanweisung)</h3>
+                            <h3 class="text-[11px] font-bold uppercase tracking-wide text-sky-700 border-b border-slate-200 mb-1">Wenn–dann / Dienstanweisung / Notizen</h3>
                             <textarea oninput="updateField('${p.id}', 'contingency', this.value)" class="w-full border-2 ${p.contingency ? 'border-sky-400 bg-sky-50' : 'border-slate-200'} rounded p-2 text-sm h-20" placeholder="z. B. Bei RR syst. < 90 → Arzt rufen">${escapeHtml(p.contingency || '')}</textarea>
                         </section>
                         ${handoverSection('Entlassung', printList([
@@ -2179,6 +2163,8 @@
                 p.rhythm ? `Rhythmus: ${p.rhythm}${p.rhythm_history ? ` (${p.rhythm_history})` : ''}` : '',
                 p.lvef ? `LVEF: ${p.lvef} %` : '',
                 p.valves ? `Klappen: ${p.valves}` : '',
+                p.nyha ? `NYHA: ${p.nyha}` : '',
+                p.ehra ? `EHRA: ${p.ehra}` : '',
                 p.hfType && p.hfType!=='unknown' ? `Dokumentierter HI-Phänotyp: ${p.hfType}` : '',
                 p.efDate ? `EF-Befund: ${p.efDate} (${p.efSource||'Quelle nicht dokumentiert'})` : ''
             ].filter(Boolean);
@@ -2195,6 +2181,7 @@
             const safety = safetyWarnings(p);
             const micro = microFindings(p).filter(item => !item.negative && !item.pending);
             const sonstiges = [
+                p.contingency ? `Dienstanweisung / Notizen: ${p.contingency}` : '',
                 p.warnings ? `CAVE / Allergien: ${p.warnings}` : '',
                 micro.length ? `Mikrobiologie:\n${micro.map(item => `- ${KisLabImport.formatDate(item.date)} ${item.material}: ${item.result}${item.resistance ? ` (${item.resistance})` : ''}`).join('\n')}` : '',
                 safety.length ? `Hinweise aus dem Medikationscheck:\n${safety.map(item => `- ${item.title}${item.text ? ': ' + item.text : ''}`).join('\n')}` : '',

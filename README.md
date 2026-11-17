@@ -188,14 +188,7 @@ Ein eigenes Feld für die Anweisung an den Nacht- und Wochenenddienst, zum Beisp
 
 ### To-Do
 
-Über der Liste steht, wie viele Aufgaben **offen** und wie viele **überfällig** sind.
-
-Eine neue Aufgabe wird unten eingetippt und mit Enter angelegt. Zwei Zusätze sind möglich:
-
-- `@Name` – wer zuständig ist, zum Beispiel `Echo anmelden @MS`
-- `!2026-10-07` – bis wann, zum Beispiel `Echo anmelden @MS !2026-10-07`
-
-Beides lässt sich auch nachträglich in den beiden kleinen Feldern neben jeder Aufgabe eintragen. Eine überfällige Frist wird rot, eine heute fällige gelb. Ein Klick auf eine Aufgabe hakt sie ab, erledigte lassen sich mit ❌ entfernen. Über ✏️ Edit kann die ganze Liste als Freitext bearbeitet werden.
+Über der Liste steht die Zahl der offenen Aufgaben. Neue Aufgaben werden unten eingegeben und mit Enter angelegt. Ein Klick auf eine Aufgabe schaltet sie zwischen offen und erledigt um; das rote × entfernt den Eintrag. **✎ Edit** steht in einer eigenen Kopfzeile und öffnet die Freitextbearbeitung. Zuständigkeit und Frist sind auf Wunsch aus der Bedienung entfernt; alte Metadaten bleiben in den gespeicherten Altzeilen erhalten.
 
 ### Medikation
 
@@ -610,7 +603,7 @@ kis_lab_import.js     Labor und BGA, Verlauf, Warnungen, Mikrobiologie
 med_safety.js         Wirkstoffklassen und Medikationscheck-Regeln
 epikrise_export.js    Epikrisen-Prompt samt Entfernung von Name und Geburtsdatum
 
-tests/                100 Tests (node --test tests/*.test.js)
+tests/                Node- und Browsertests (node --test tests/*.test.js)
 build_single_file.js  Erzeugt die Einzeldatei-Fassungen neu
 build_tailwind.sh     Erzeugt tailwind.css neu – nur bei neuen Tailwind-Klassen nötig
 ```
@@ -656,4 +649,6 @@ Die neuen Statusfelder, das strukturierte Medikamentenmodell, der Medico-CSV-Imp
 
 Der neue Datenschutzexport redigiert Freitexte konservativ und ersetzt kein vollständiges klinisches Backup. Für vollständige Datensicherung den regulären Backup-Knopf verwenden. Bei Speicherfehlern werden Laborabnahmen nicht mehr automatisch entfernt.
 
-Der [Stand der Leitlinienrecherche](docs/LEITLINIEN_RECHERCHE.md) ist gesondert dokumentiert. Neue automatische Therapiealgorithmen sind noch nicht aktiviert.
+Der [Stand der Leitlinienrecherche](docs/LEITLINIEN_RECHERCHE.md) ist gesondert dokumentiert. Der Basistherapieabgleich nutzt das vom Benutzer bereitgestellte ESC-2026-PDF. Gelesene Quellenstellen und der begrenzte Implementierungsumfang stehen im Recherchebericht; es erfolgen keine automatischen Medikamenten- oder Dosisänderungen.
+
+Die überarbeitete kompakte Karte enthält Aufnahmedatum, NYHA/EHRA und einen gemeinsamen DNR?/DNI?-/Versicherungs-/Telemetrie-Bereich. Im Laborbereich öffnen **Werte auswählen** und **Alle Werte & Verläufe** die anpassbare Kurvenauswahl bzw. die vollständigen Werteverläufe.

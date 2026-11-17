@@ -55,7 +55,7 @@
         return p.medications;
     }
     function createPatient(data={}) {
-        const p={id:uid(),room:'',name:'',dob:'',diagnosis:'',main_diagnosis:'',history:'',cvrf:[],meds_current:'',meds_paused:'',meds_bedarf:'',meds_admission:'',dapt_oak:'',discharge_date:'',daily:{},diag_status:{},diag_results:{},dnr:false,dni:false,exam_text:'',warnings:'',showRawTodo:false,consults:{},amio:0,fasting:false,rhythm:'',iso:[],abx:[],consult_notes:{},social:{reha:'',physio:'',pflegegrad:''},labs:{hb:'',krea:'',egfr:'',k:'',bnp:'',crp:''},vol:{ziel:'',aktuell:''},labSets:[],epi:{},anamnesis:'',micro:[],severity:'',contingency:'',admission_date:'',insurance:'unknown',insuranceNote:'',telemetry:'none',resusReviewed:false,hfType:'unknown',lvef:'',efDate:'',efSource:'',medicationHistory:[],warningReviews:{},...data};
+        const p={id:uid(),room:'',name:'',dob:'',diagnosis:'',main_diagnosis:'',history:'',cvrf:[],meds_current:'',meds_paused:'',meds_bedarf:'',meds_admission:'',dapt_oak:'',discharge_date:'',daily:{},diag_status:{},diag_results:{},dnr:false,dni:false,exam_text:'',warnings:'',showRawTodo:false,consults:{},amio:0,fasting:false,rhythm:'',iso:[],abx:[],consult_notes:{},social:{reha:'',physio:'',pflegegrad:''},labs:{hb:'',krea:'',egfr:'',k:'',bnp:'',crp:''},vol:{ziel:'',aktuell:''},labSets:[],epi:{},anamnesis:'',micro:[],severity:'',contingency:'',admission_date:'',insurance:'unknown',insuranceNote:'',telemetry:'none',hfType:'unknown',lvef:'',efDate:'',efSource:'',medicationHistory:[],warningReviews:{},...data};
         for(const key of ['abx','iso','micro','labSets','cvrf','medicationHistory'])if(p[key]==null)p[key]=[];
         for(const key of ['labs','vol','social','daily','diag_status','diag_results','epi','consults','consult_notes','warningReviews'])if(p[key]==null)p[key]={};
         medications(p); return p;
@@ -71,7 +71,7 @@
             const check=value=>{ if(value && typeof value==='object') for(const [k,v] of Object.entries(value)) {if(forbidden.has(k)) throw Error('Unzulässiger Schlüssel im Backup.'); check(v);} };
             check(p);
             for(const key of ['name','room','dob','meds_current','meds_paused','meds_bedarf','todo_text']) if(p[key]!=null && typeof p[key]!=='string') throw Error('Ungültiges Textfeld: '+key);
-            for(const key of ['labSets','abx','iso','micro','medications','cvrf','medicationHistory','dischargeMedication']) if(p[key]!=null && !Array.isArray(p[key])) throw Error('Ungültige Liste: '+key);
+            for(const key of ['labSets','abx','iso','micro','medications','cvrf','medicationHistory','dischargeMedication','labTrendSelection']) if(p[key]!=null && !Array.isArray(p[key])) throw Error('Ungültige Liste: '+key);
             for(const key of ['labs','vol','social','daily','diag_status','diag_results','epi','consults','consult_notes','warningReviews']) if(p[key]!=null && (typeof p[key]!=='object'||Array.isArray(p[key]))) throw Error('Ungültiges Objekt: '+key);
             for(const key of ['dnr','dni','fasting']) if(p[key]!=null && typeof p[key]!=='boolean') throw Error('Ungültiger Status: '+key);
             for(const key of ['abx','micro','labSets','medications','dischargeMedication']) for(const item of p[key]||[]) {
@@ -134,12 +134,24 @@
     }
     function statusText(p) {
         const insurance={unknown:'Versicherung ungeklärt',public:'Gesetzlich',private:'Privat',other:'Sonstiges'}[p.insurance||'unknown'];
-        return [insurance+(p.insurance==='other'&&p.insuranceNote?' – '+p.insuranceNote:''),{none:'Keine Telemetrie',active:'Telemetrie',joker:'Telemetrie · JOKER'}[p.telemetry||'none'],p.dnr?'DNR':'',p.dni?'DNI':'',!p.resusReviewed&&!p.dnr&&!p.dni?'Reanimationsstatus ungeklärt':''].filter(Boolean).join(' · ');
+        return [insurance+(p.insurance==='other'&&p.insuranceNote?' – '+p.insuranceNote:''),{none:'Keine Telemetrie',active:'Telemetrie',joker:'Telemetrie · JOKER'}[p.telemetry||'none'],p.dnr?'DNR':'',p.dni?'DNI':'',''].filter(Boolean).join(' · ');
     }
-    function medicationTable(p,status) {
+    function medicationStrength(med) {
+        if(med.strength)return med.strength;
+        if(typeof med.originalImport?.strength==='string'&&med.originalImport.strength)return med.originalImport.strength;
+        // Ausschließlich ausdrücklich genannte Präparatestärken, keine Ableitung aus Einzeldosen.
+        const name=String(med.originalImport?.rawName||med.name||'');
+        const match=name.match(/\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)*\s*(?:µg|μg|mcg|mg|g|I\.?E\.?|mmol|%)(?:\s*\/\s*(?:\d+(?:[.,]\d+)?\s*)?(?:µg|μg|mg|g|ml|l))?/i);
+        return match?match[0]:'';
+    }
+    function medicationTable(p,status,options={}) {
         const meds=medications(p).filter(m=>m.status===status);
-        if(!meds.length)return '<span>Keine dokumentiert</span>';
-        return '<table class="med-table"><thead><tr><th>Medikament / Stärke</th><th>Dosis</th><th>Gaben / Weg</th></tr></thead><tbody>'+meds.map(m=>'<tr><td>'+escape([m.name,m.strength].filter(Boolean).join(' '))+'</td><td>'+escape(m.dose||'nicht erfasst')+'</td><td>'+escape([m.schedule,m.route].filter(Boolean).join(' · ')||'nicht erfasst')+'</td></tr>').join('')+'</tbody></table>';
+        if(!meds.length)return '<span class="med-empty">Keine dokumentiert</span>';
+        const dose=m=>[m.dose,m.schedule].filter(Boolean).join(' · ');
+        const strength=m=>medicationStrength(m);
+        const displayName=m=>{const value=strength(m);return value&&m.name.includes(value)?m.name.replace(value,'').replace(/\s{2,}/g,' ').trim():m.name;};
+        if(options.compact)return '<ul class="med-mini-list">'+meds.map(m=>'<li title="'+escape(m.route||'')+'"><strong>'+escape(displayName(m))+'</strong>'+ (strength(m)?' <span>'+escape(strength(m))+'</span>':'')+'<small>'+escape(dose(m)||'Dosierung offen')+(m.route?' · '+escape(m.route):'')+'</small></li>').join('')+'</ul>';
+        return '<table class="med-table"><thead><tr><th>Medikament</th><th>Stärke</th><th>Dosis / Schema</th></tr></thead><tbody>'+meds.map(m=>'<tr><td title="'+escape(m.route||'')+'">'+escape(displayName(m))+(m.route?'<small class="med-route">'+escape(m.route)+'</small>':'')+'</td><td title="'+(strength(m)?'':'Stärke nicht dokumentiert')+'">'+escape(strength(m)||'—')+'</td><td>'+escape(dose(m)||'—')+'</td></tr>').join('')+'</tbody></table>';
     }
     function medicationExport(p,status) {return medications(p).filter(m=>m.status===status).map(m=>'- '+medicationText(m)).join('\n');}
     function reconcile(p) {
@@ -147,5 +159,5 @@
         const key=m=>m.name.toLocaleLowerCase('de').trim();
         return {added:active.filter(m=>!admitted.some(a=>key(a)===key(m))),removed:admitted.filter(m=>!active.some(a=>key(a)===key(m))),changed:active.filter(m=>admitted.some(a=>key(a)===key(m)&&medicationText(a)!==medicationText(m)))};
     }
-    return {VERSION,fields,uid,clone,escape,splitMeds,parseMedication,medicationText,syncMedicationText,medications,createPatient,validateBackup,backup,anonymousBackup,parseDelimited,parseMedico,matchPatient,statusText,medicationTable,medicationExport,reconcile};
+    return {VERSION,fields,uid,clone,escape,splitMeds,parseMedication,medicationText,syncMedicationText,medications,createPatient,validateBackup,backup,anonymousBackup,parseDelimited,parseMedico,matchPatient,statusText,medicationStrength,medicationTable,medicationExport,reconcile};
 });

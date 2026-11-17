@@ -1843,7 +1843,7 @@ const MED_GROUPS = {
         return p.medications;
     }
     function createPatient(data={}) {
-        const p={id:uid(),room:'',name:'',dob:'',diagnosis:'',main_diagnosis:'',history:'',cvrf:[],meds_current:'',meds_paused:'',meds_bedarf:'',meds_admission:'',dapt_oak:'',discharge_date:'',daily:{},diag_status:{},diag_results:{},dnr:false,dni:false,exam_text:'',warnings:'',showRawTodo:false,consults:{},amio:0,fasting:false,rhythm:'',iso:[],abx:[],consult_notes:{},social:{reha:'',physio:'',pflegegrad:''},labs:{hb:'',krea:'',egfr:'',k:'',bnp:'',crp:''},vol:{ziel:'',aktuell:''},labSets:[],epi:{},anamnesis:'',micro:[],severity:'',contingency:'',admission_date:'',insurance:'unknown',insuranceNote:'',telemetry:'none',resusReviewed:false,hfType:'unknown',lvef:'',efDate:'',efSource:'',medicationHistory:[],warningReviews:{},...data};
+        const p={id:uid(),room:'',name:'',dob:'',diagnosis:'',main_diagnosis:'',history:'',cvrf:[],meds_current:'',meds_paused:'',meds_bedarf:'',meds_admission:'',dapt_oak:'',discharge_date:'',daily:{},diag_status:{},diag_results:{},dnr:false,dni:false,exam_text:'',warnings:'',showRawTodo:false,consults:{},amio:0,fasting:false,rhythm:'',iso:[],abx:[],consult_notes:{},social:{reha:'',physio:'',pflegegrad:''},labs:{hb:'',krea:'',egfr:'',k:'',bnp:'',crp:''},vol:{ziel:'',aktuell:''},labSets:[],epi:{},anamnesis:'',micro:[],severity:'',contingency:'',admission_date:'',insurance:'unknown',insuranceNote:'',telemetry:'none',hfType:'unknown',lvef:'',efDate:'',efSource:'',medicationHistory:[],warningReviews:{},...data};
         for(const key of ['abx','iso','micro','labSets','cvrf','medicationHistory'])if(p[key]==null)p[key]=[];
         for(const key of ['labs','vol','social','daily','diag_status','diag_results','epi','consults','consult_notes','warningReviews'])if(p[key]==null)p[key]={};
         medications(p); return p;
@@ -1859,7 +1859,7 @@ const MED_GROUPS = {
             const check=value=>{ if(value && typeof value==='object') for(const [k,v] of Object.entries(value)) {if(forbidden.has(k)) throw Error('Unzulässiger Schlüssel im Backup.'); check(v);} };
             check(p);
             for(const key of ['name','room','dob','meds_current','meds_paused','meds_bedarf','todo_text']) if(p[key]!=null && typeof p[key]!=='string') throw Error('Ungültiges Textfeld: '+key);
-            for(const key of ['labSets','abx','iso','micro','medications','cvrf','medicationHistory','dischargeMedication']) if(p[key]!=null && !Array.isArray(p[key])) throw Error('Ungültige Liste: '+key);
+            for(const key of ['labSets','abx','iso','micro','medications','cvrf','medicationHistory','dischargeMedication','labTrendSelection']) if(p[key]!=null && !Array.isArray(p[key])) throw Error('Ungültige Liste: '+key);
             for(const key of ['labs','vol','social','daily','diag_status','diag_results','epi','consults','consult_notes','warningReviews']) if(p[key]!=null && (typeof p[key]!=='object'||Array.isArray(p[key]))) throw Error('Ungültiges Objekt: '+key);
             for(const key of ['dnr','dni','fasting']) if(p[key]!=null && typeof p[key]!=='boolean') throw Error('Ungültiger Status: '+key);
             for(const key of ['abx','micro','labSets','medications','dischargeMedication']) for(const item of p[key]||[]) {
@@ -1922,12 +1922,24 @@ const MED_GROUPS = {
     }
     function statusText(p) {
         const insurance={unknown:'Versicherung ungeklärt',public:'Gesetzlich',private:'Privat',other:'Sonstiges'}[p.insurance||'unknown'];
-        return [insurance+(p.insurance==='other'&&p.insuranceNote?' – '+p.insuranceNote:''),{none:'Keine Telemetrie',active:'Telemetrie',joker:'Telemetrie · JOKER'}[p.telemetry||'none'],p.dnr?'DNR':'',p.dni?'DNI':'',!p.resusReviewed&&!p.dnr&&!p.dni?'Reanimationsstatus ungeklärt':''].filter(Boolean).join(' · ');
+        return [insurance+(p.insurance==='other'&&p.insuranceNote?' – '+p.insuranceNote:''),{none:'Keine Telemetrie',active:'Telemetrie',joker:'Telemetrie · JOKER'}[p.telemetry||'none'],p.dnr?'DNR':'',p.dni?'DNI':'',''].filter(Boolean).join(' · ');
     }
-    function medicationTable(p,status) {
+    function medicationStrength(med) {
+        if(med.strength)return med.strength;
+        if(typeof med.originalImport?.strength==='string'&&med.originalImport.strength)return med.originalImport.strength;
+        // Ausschließlich ausdrücklich genannte Präparatestärken, keine Ableitung aus Einzeldosen.
+        const name=String(med.originalImport?.rawName||med.name||'');
+        const match=name.match(/\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)*\s*(?:µg|μg|mcg|mg|g|I\.?E\.?|mmol|%)(?:\s*\/\s*(?:\d+(?:[.,]\d+)?\s*)?(?:µg|μg|mg|g|ml|l))?/i);
+        return match?match[0]:'';
+    }
+    function medicationTable(p,status,options={}) {
         const meds=medications(p).filter(m=>m.status===status);
-        if(!meds.length)return '<span>Keine dokumentiert</span>';
-        return '<table class="med-table"><thead><tr><th>Medikament / Stärke</th><th>Dosis</th><th>Gaben / Weg</th></tr></thead><tbody>'+meds.map(m=>'<tr><td>'+escape([m.name,m.strength].filter(Boolean).join(' '))+'</td><td>'+escape(m.dose||'nicht erfasst')+'</td><td>'+escape([m.schedule,m.route].filter(Boolean).join(' · ')||'nicht erfasst')+'</td></tr>').join('')+'</tbody></table>';
+        if(!meds.length)return '<span class="med-empty">Keine dokumentiert</span>';
+        const dose=m=>[m.dose,m.schedule].filter(Boolean).join(' · ');
+        const strength=m=>medicationStrength(m);
+        const displayName=m=>{const value=strength(m);return value&&m.name.includes(value)?m.name.replace(value,'').replace(/\s{2,}/g,' ').trim():m.name;};
+        if(options.compact)return '<ul class="med-mini-list">'+meds.map(m=>'<li title="'+escape(m.route||'')+'"><strong>'+escape(displayName(m))+'</strong>'+ (strength(m)?' <span>'+escape(strength(m))+'</span>':'')+'<small>'+escape(dose(m)||'Dosierung offen')+(m.route?' · '+escape(m.route):'')+'</small></li>').join('')+'</ul>';
+        return '<table class="med-table"><thead><tr><th>Medikament</th><th>Stärke</th><th>Dosis / Schema</th></tr></thead><tbody>'+meds.map(m=>'<tr><td title="'+escape(m.route||'')+'">'+escape(displayName(m))+(m.route?'<small class="med-route">'+escape(m.route)+'</small>':'')+'</td><td title="'+(strength(m)?'':'Stärke nicht dokumentiert')+'">'+escape(strength(m)||'—')+'</td><td>'+escape(dose(m)||'—')+'</td></tr>').join('')+'</tbody></table>';
     }
     function medicationExport(p,status) {return medications(p).filter(m=>m.status===status).map(m=>'- '+medicationText(m)).join('\n');}
     function reconcile(p) {
@@ -1935,7 +1947,126 @@ const MED_GROUPS = {
         const key=m=>m.name.toLocaleLowerCase('de').trim();
         return {added:active.filter(m=>!admitted.some(a=>key(a)===key(m))),removed:admitted.filter(m=>!active.some(a=>key(a)===key(m))),changed:active.filter(m=>admitted.some(a=>key(a)===key(m)&&medicationText(a)!==medicationText(m)))};
     }
-    return {VERSION,fields,uid,clone,escape,splitMeds,parseMedication,medicationText,syncMedicationText,medications,createPatient,validateBackup,backup,anonymousBackup,parseDelimited,parseMedico,matchPatient,statusText,medicationTable,medicationExport,reconcile};
+    return {VERSION,fields,uid,clone,escape,splitMeds,parseMedication,medicationText,syncMedicationText,medications,createPatient,validateBackup,backup,anonymousBackup,parseDelimited,parseMedico,matchPatient,statusText,medicationStrength,medicationTable,medicationExport,reconcile};
+});
+
+    </script>
+    <script>/* station_labs.js */
+/* Einheiten- und materialgetrennte Laborauswahl; keine Umrechnung / Diagnose. */
+(function(root,factory){
+    const api=factory(typeof module==='object'&&module.exports?require('./kis_lab_import.js'):root.KisLabImport);
+    if(typeof module==='object'&&module.exports)module.exports=api;
+    root.StationLabs=api;
+})(typeof globalThis!=='undefined'?globalThis:this,function(Kis){
+    'use strict';
+    function catalog(patient) {
+        const groups=new Map();
+        for(const set of Kis.sortSets(patient.labSets||[]))for(const entry of set.entries) {
+            const sample=String(set.material||set.sampleType||(set.type==='bga'?(set.label||'').match(/arteriell|venös|kapillär/i)?.[0]:'')||'').toLocaleLowerCase('de');
+            const key=JSON.stringify([set.type||'labor',entry.code||entry.label||'',entry.unit||'',sample]);
+            if(!groups.has(key))groups.set(key,{key,sample,type:set.type||'labor',code:entry.code||'',label:entry.label||entry.code||'Parameter',unit:entry.unit||'',values:[]});
+            const num=entry.num==null?Kis.toNumber(entry.value):entry.num;
+            groups.get(key).values.push({...entry,date:set.date||'',time:set.time||'',setLabel:set.label||'',
+                // Grenzwerte sind keine exakten Messpunkte.
+                num: entry.unreliable||/^[<>≤≥]/.test(String(entry.value).trim())||!Number.isFinite(num)?null:num});
+        }
+        return [...groups.values()].sort((a,b)=>a.type.localeCompare(b.type)||a.label.localeCompare(b.label,'de')||a.unit.localeCompare(b.unit));
+    }
+    function selected(patient,defaults) {
+        const all=catalog(patient);
+        if(Array.isArray(patient.labTrendSelection))return all.filter(item=>patient.labTrendSelection.includes(item.key));
+        const rank=item=>(defaults||[]).findIndex(rule=>Kis.matchesParameter({code:item.code,label:item.label},rule));
+        return all.filter(item=>rank(item)!==-1).sort((a,b)=>rank(a)-rank(b));
+    }
+    function points(item) { return item.values.filter(v=>v.num!==null); }
+    return {catalog,selected,points};
+});
+
+    </script>
+    <script>/* hf_guidance.js */
+/* ESC 2026: quellengebundener Dokumentationsabgleich, keine Verordnung. */
+(function(root,factory){
+    const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;root.HfGuidance=api;
+})(typeof globalThis!=='undefined'?globalThis:this,function(){
+    'use strict';
+    const SOURCE={title:'2026 ESC Guidelines for the management of heart failure',doi:'10.1093/eurheartj/ehag100',url:'https://doi.org/10.1093/eurheartj/ehag100',origin:'Vom Nutzer bereitgestelltes PDF ehag100.pdf; Webfassung nicht unabhängig abgerufen',version:'ESC 2026'};
+    const REF={classification:'Tabelle 4 / Abschn. 3.2 / 5.2, S. 5356 / 5361 / 5369–5370',fmt:'Empfehlungstabelle 5, S. 5382–5383',mra:'Abschn. 6.1.2.2, S. 5377',raas:'Abschn. 6.1.4.1, S. 5378',continuation:'Abschn. 6.1.8 und Empfehlungstabelle 5, S. 5381–5383',doses:'Tabelle 11, S. 5381–5382'};
+    const aliases={
+        sglt2:['dapagliflozin','empagliflozin','forxiga','jardiance'],
+        steroidalMra:['spironolacton','spironolactone','eplerenon','eplerenone','aldactone','inspra'],
+        nsMra:['finerenon','finerenone','kerendia'],
+        beta:['bisoprolol','carvedilol','nebivolol','metoprololsuccinat','metoprolol succinate','metoprolol succinat','beloc-zok'],
+        arni:['sacubitril','entresto'],
+        ace:['captopril','enalapril','lisinopril','ramipril','trandolapril'],
+        arb:['candesartan','losartan','valsartan'],
+        loop:['furosemid','furosemide','torasemid','torasemide','bumetanid','bumetanide']
+    };
+    function mentions(text,term){const escaped=term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');return new RegExp('(^|[^\\p{L}])'+escaped+'(?![\\p{L}])','iu').test(text);}
+    function classify(meds) {
+        const result=Object.fromEntries(Object.keys(aliases).map(key=>[key,[]]));
+        for(const med of meds||[]) {
+            if(med.status!=='current'||/\b(?:pause|pausiert|abgesetzt)\b/i.test([med.dose,med.schedule].join(' ')))continue;
+            const text=[med.name,med.originalImport?.generic,med.originalImport?.rawName].filter(Boolean).join(' ');
+            for(const [key,list] of Object.entries(aliases))if(list.some(term=>mentions(text,term)))result[key].push(med.name);
+            // Valsartan im ARNI ist kein zusätzlicher ARB.
+            if(result.arni.includes(med.name))result.arb=result.arb.filter(name=>name!==med.name);
+        }
+        return result;
+    }
+    function evaluate(p,meds,context={}) {
+        const notes=[],checks=[],found=classify(meds);
+        const ef=p.lvef===''||p.lvef==null?null:Number(String(p.lvef).replace(/\s*%\s*$/,'').replace(',','.'));
+        const previous=p.hfPreviousEf===''||p.hfPreviousEf==null?null:Number(String(p.hfPreviousEf).replace(',','.'));
+        const validEf=ef!==null&&Number.isFinite(ef)&&ef>=0&&ef<=100;
+        const improved=validEf&&ef>=50&&previous!==null&&Number.isFinite(previous)&&previous<50&&previous>=0;
+        const add=(text,ref,tone='info')=>notes.push({text,ref,tone});
+        if(p.hfType==='none')return {notes,checks,found,ef,improved};
+        if(['HFmrEF','HFimpEF'].includes(p.hfType))add('Altangabe '+p.hfType+': nach ESC 2026 ärztlich neu zuordnen; frühere EF und Diagnose bleiben erhalten.',REF.classification,'review');
+        if(!validEf&&p.lvef!==''&&p.lvef!=null)add('EF nicht eindeutig als Zahl von 0 bis 100 % auswertbar. Alttext / Bereichsangabe bleibt erhalten und muss ärztlich geprüft werden.',REF.classification,'review');
+        if(!['HFrEF','HFpEF'].includes(p.hfType)) {
+            if(validEf)add('EF '+ef+' %: bei bestätigter Herzinsuffizienz '+(ef<50?'HFrEF-Kriterium (<50 %)':'HFpEF nur mit weiteren Kriterien und ohne frühere EF <50 %')+'. EF allein stellt keine Diagnose.',REF.classification);
+            return {notes,checks,found,ef,improved};
+        }
+        if(!validEf){add('EF fehlt / ist ungültig. Phänotypabgleich nicht möglich.',REF.classification,'review');return {notes,checks,found,ef,improved};}
+        if((p.hfType==='HFrEF'&&ef>=50&&!improved)||(p.hfType==='HFpEF'&&(ef<50||improved))){
+            add('Dokumentierter Phänotyp und aktueller / früherer EF-Verlauf passen nicht zusammen. Diagnose ärztlich prüfen; keine automatische Umklassifikation.',REF.classification,'review');return {notes,checks,found,ef,improved};
+        }
+        if(p.hfType==='HFpEF'&&(p.hfObjectiveEvidence!=='yes'||p.hfNoPreviousReduced!=='yes')){
+            add('Für HFpEF fehlen bestätigte objektive Befunde der diastolischen Dysfunktion / erhöhten Füllungsdrücke; frühere EF <50 % ausschließen.',REF.classification,'review');return {notes,checks,found,ef,improved};
+        }
+        if(p.hfSymptoms!=='yes'){
+            add(p.hfSymptoms==='no'?'Bekannte HF aktuell asymptomatisch: bestehende FMT nicht allein wegen Beschwerdefreiheit oder EF-Besserung absetzen. Neue Therapie hier nicht automatisch ableiten.':'Aktuelle / frühere HF-Symptome oder -Zeichen bestätigen, bevor Therapiehinweise abgeleitet werden.',p.hfSymptoms==='no'?REF.continuation:REF.classification,'review');
+            return {notes,checks,found,ef,improved};
+        }
+        const check=(key,label,names,text)=>{
+            const deferred=(p.hfDeferrals||{})[key];
+            const reviewContext=JSON.stringify([p.hfType,p.lvef,p.hfSymptoms,p.hfStable,context.egfr,context.potassium]);
+            const stale=deferred&&(typeof deferred==='string'||deferred.context!==reviewContext);
+            const reason=typeof deferred==='string'?deferred:deferred?.reason;
+            checks.push({key,label,names,state:deferred?(stale?'deferred-review':'deferred'):names.length?'documented':'review',text:deferred?(stale?'Frühere Zurückstellung erneut prüfen: ':'Ärztlich zurückgestellt: ')+reason:names.length?'Aktiv dokumentiert; Indikation und Dosis weiter prüfen.':text,ref:REF.fmt});
+        };
+        check('sglt2','SGLT2-Hemmer',found.sglt2,'Dapagliflozin / Empagliflozin bei symptomatischer HF unabhängig von der EF prüfen (I A).');
+        check('mra',p.hfType==='HFrEF'?'Steroidaler MRA':'MRA',p.hfType==='HFrEF'?found.steroidalMra:[...found.steroidalMra,...found.nsMra],p.hfType==='HFrEF'?'Spironolacton / Eplerenon prüfen (I A); Finerenon zählt hier nicht als belegter Ersatz.':'Steroidalen / nichtsteroidalen MRA prüfen (I A); Zulassung und Fachinformation gesondert prüfen.');
+        if(p.hfType==='HFrEF') {
+            if(p.hfStable==='yes')check('beta','Betablocker',found.beta,'Leitlinien-Betablocker bei stabiler symptomatischer HFrEF prüfen (I A).');
+            else add('Betablocker-Neubeginn erst bei bestätigter Stabilität beurteilen; Euvolämie vor Beginn beachten. Vorhandene Therapie wird hierdurch nicht zum Absetzen empfohlen.',REF.fmt+'; Abschn. 6.1.6, S. 5380','review');
+            check('raas','ACE-Hemmer / ARNI', [...found.ace,...found.arni,...found.arb], 'ACE-Hemmer oder ARNI prüfen (I A); ARB ist Alternative bei Unverträglichkeit von ACE-Hemmer / ARNI.');
+            if(found.arb.length&&!found.arni.length&&!found.ace.length&&!p.hfRaasIntolerance)add('ARB dokumentiert: Grund der ACE-Hemmer-/ARNI-Unverträglichkeit dokumentieren; keine zusätzliche RAAS-Substanz automatisch ergänzen.',REF.fmt,'review');
+            if(found.arni.length&&(found.ace.length||found.arb.length))add('Mehrere RAAS-Substanzen aktiv dokumentiert: Kombination / Umstellung ärztlich abgleichen. Nach ACE-Hemmer sind vor ARNI mindestens 36 Stunden Abstand erforderlich.',REF.raas,'review');
+            if((found.ace.length||found.arb.length)&&!found.arni.length&&!p.hfRaasIntolerance&&!p.hfDeferrals?.raas)add('Bei weiter symptomatischer HFrEF Wechsel von ACE-Hemmer / ARB auf ARNI prüfen (I B1). Nach ACE-Hemmer mindestens 36 Stunden Auswaschzeit; Blutdruck, Organfunktion und Fachinformation prüfen.',REF.fmt+'; '+REF.raas);
+            if(ef>=41&&ef<50)add('EF 41–49 % gehört 2026 zu HFrEF. Tabelle 5 weist für Betablocker und ACE-Hemmer/ARNI/ARB auf fehlende große prospektive RCTs ausschließlich in dieser EF-Gruppe hin.',REF.fmt+', Fußnote e');
+            if(found.nsMra.length&&!found.steroidalMra.length)add('Finerenon dokumentiert; HFrEF-MRA-Evidenz in Tabelle 5 beruht auf Spironolacton / Eplerenon. Nicht als erfüllte steroidale MRA-Säule gewertet.',REF.fmt+', Fußnote c','review');
+        }
+        if(p.hfCongestion==='yes')check('loop','Entstauung',found.loop,'Schleifendiuretische Therapie bei Stauungszeichen individuell nach Volumenstatus prüfen (I A).');
+        if(context.egfr==null||context.potassium==null)add('Aktuelle Nierenfunktion / Kalium unvollständig: Verträglichkeit und Einsatzvoraussetzungen können nicht beurteilt werden.',REF.mra,'review');
+        else add('Nieren-/Kaliumwerte sind dokumentiert. Abnahmezeit, Verlauf und Fachinformation vor Änderungen prüfen; dies bestätigt keine Therapiefähigkeit.',REF.mra);
+        if(context.potassium!=null&&context.potassium>=5)add('Kalium ≥5,0 mmol/l: besondere Vorsicht bei MRA-Neubeginn; aktuellen Wert und Verlauf ärztlich prüfen.',REF.mra,'review');
+        if(context.egfr!=null&&context.egfr<25)add('eGFR <25 ml/min/1,73 m²: eingeschränkte Studienbasis für MRA in Abschn. 6.1.2.2; keine automatische Startempfehlung.',REF.mra,'review');
+        if(improved)add('Gebesserte EF nach früherer EF <50 %: FMT grundsätzlich in höchster verträglicher Dosierung fortführen; keine automatische Umstellung auf HFpEF.',REF.continuation);
+        add('Aufdosierung der FMT alle 1–2 Wochen unter Symptomen, Vitalwerten und Labor prüfen (I C). Keine automatische Dosiserhöhung; Ziel- / maximal verträgliche Dosis ärztlich bestimmen.',REF.fmt+'; '+REF.doses);
+        return {notes,checks,found,ef,improved};
+    }
+    return {SOURCE,REF,classify,evaluate};
 });
 
     </script>
@@ -1968,17 +2099,29 @@ function matchesPatientFilter(p) {
     const counts=document.getElementById('telemetry-count');if(counts)counts.textContent='Telemetrie: '+AppState.patients.filter(x=>x.telemetry==='active'||x.telemetry==='joker').length+' · davon Joker: '+AppState.patients.filter(x=>x.telemetry==='joker').length;
     return filter==='all'||filter==='telemetry'&&['active','joker'].includes(p.telemetry)||filter==='joker'&&p.telemetry==='joker'||filter==='isolation'&&((p.iso||[]).length||p.infectious)||filter==='discharge'&&!!p.discharge_date||filter==='todo'&&openTodoCount(p).open>0;
 }
+function selectOptions(values,selected) {
+    return Object.entries(values).map(([key,text])=>'<option value="'+StationModel.escape(key)+'"'+(key===selected?' selected':'')+'>'+StationModel.escape(text)+'</option>').join('');
+}
 function patientStatusControls(p) {
     const e=StationModel.escape;
-    const options=(values,selected)=>Object.entries(values).map(([key,text])=>'<option value="'+key+'"'+(key===selected?' selected':'')+'>'+text+'</option>').join('');
-    return `<div class="patient-status"><strong>${e(StationModel.statusText(p))}</strong><div class="status-controls no-print">
-    <label>Versicherung <select aria-label="Versicherungsstatus" onchange="updateFieldRender('${p.id}','insurance',this.value)">${options({unknown:'Unbekannt',public:'Gesetzlich',private:'Privat',other:'Sonstiges'},p.insurance||'unknown')}</select></label>
-    ${p.insurance==='other'?`<input aria-label="Versicherungs-Sonderfall" placeholder="Sonderfall" value="${e(p.insuranceNote)}" onchange="updateFieldRender('${p.id}','insuranceNote',this.value)">`:''}
-    <label>Monitoring <select aria-label="Telemetrie" onchange="updateFieldRender('${p.id}','telemetry',this.value)">${options({none:'Keine Telemetrie',active:'Telemetrie',joker:'Telemetrie · Joker'},p.telemetry||'none')}</select></label>
-    <label><input type="checkbox" ${p.resusReviewed?'checked':''} onchange="updateFieldRender('${p.id}','resusReviewed',this.checked)">Reanimationsstatus geprüft</label></div>
-    <details class="no-print"><summary>Herzinsuffizienz / EF dokumentieren</summary><label>Dokumentierter Phänotyp <select aria-label="Herzinsuffizienztyp" onchange="updateFieldRender('${p.id}','hfType',this.value)">${options({unknown:'Unklar / nicht dokumentiert',HFrEF:'HFrEF',HFmrEF:'HFmrEF',HFpEF:'HFpEF',HFimpEF:'HFimpEF',none:'Keine dokumentiert'},p.hfType||'unknown')}</select></label>
-    <label>EF (%) <input type="number" min="0" max="100" step="1" value="${e(p.lvef)}" onchange="if(this.checkValidity())updateFieldRender('${p.id}','lvef',this.value)"></label><label>Befunddatum <input type="date" value="${e(p.efDate)}" onchange="updateFieldRender('${p.id}','efDate',this.value)"></label><label>Quelle <input value="${e(p.efSource)}" onchange="updateFieldRender('${p.id}','efSource',this.value)"></label>
-    <p>Leitlinienabgleich noch nicht aktiviert; Quellenprüfung und fachliche Freigabe ausstehend.</p></details></div>`;
+    return `<div class="patient-status no-print">
+    <button type="button" aria-label="DNR" aria-pressed="${!!p.dnr}" onclick="toggleResus('${p.id}','dnr')" class="resus-btn ${p.dnr?'resus-active':''}">${p.dnr?'DNR':'DNR?'}</button>
+    <button type="button" aria-label="DNI" aria-pressed="${!!p.dni}" onclick="toggleResus('${p.id}','dni')" class="resus-btn ${p.dni?'resus-active':''}">${p.dni?'DNI':'DNI?'}</button>
+    <select aria-label="Versicherungsstatus" title="Versicherungsstatus" onchange="updateFieldRender('${p.id}','insurance',this.value)">${selectOptions({unknown:'Versicherung?',public:'Gesetzlich',private:'Privat',other:'Sonderfall'},p.insurance||'unknown')}</select>
+    <select aria-label="Telemetrie" title="Telemetrie / Joker" onchange="updateFieldRender('${p.id}','telemetry',this.value)">${selectOptions({none:'Keine Telemetrie',active:'Telemetrie',joker:'Telemetrie · Joker'},p.telemetry||'none')}</select>
+    ${p.insurance==='other'?`<input class="insurance-note" aria-label="Versicherungs-Sonderfall" placeholder="Sonderfall …" value="${e(p.insuranceNote)}" onchange="updateFieldRender('${p.id}','insuranceNote',this.value)">`:''}</div>`;
+}
+function cardiacFields(p) {
+    const e=StationModel.escape;
+    return `<div class="cardiac-fields no-print"><div class="cardiac-row"><label>Rhythmus <select aria-label="Rhythmus" onchange="updateFieldRender('${p.id}','rhythm',this.value)">${selectOptions({'':'—',SR:'SR',VHF:'VHF',AF:'A-Flatt','PM/ICD':'PM/ICD'},p.rhythm||'')}</select></label><input aria-label="Rhythmusverlauf" placeholder="Zuletzt SR am …" value="${e(p.rhythm_history||'')}" onchange="updateField('${p.id}','rhythm_history',this.value)"></div>
+    <div class="cardiac-row"><label>EF <input aria-label="EF (%)" type="text" inputmode="decimal" value="${e(p.lvef||'')}" placeholder="%" onchange="updateFieldRender('${p.id}','lvef',this.value)"></label><label class="valves-field">Klappen <input aria-label="Klappenbefund" placeholder="z. B. MI II°" value="${e(p.valves||'')}" onchange="updateField('${p.id}','valves',this.value)"></label><select aria-label="NYHA" onchange="updateFieldRender('${p.id}','nyha',this.value)">${selectOptions({'':'NYHA —',I:'NYHA I',II:'NYHA II',III:'NYHA III',IV:'NYHA IV'},p.nyha||'')}</select><select aria-label="EHRA" onchange="updateFieldRender('${p.id}','ehra',this.value)">${selectOptions({'':'EHRA —',I:'EHRA I',IIa:'EHRA IIa',IIb:'EHRA IIb',III:'EHRA III',IV:'EHRA IV'},p.ehra||'')}</select></div></div>`;
+}
+function renderTodoPanel(p) {
+    const e=StationModel.escape,tasks=todoList(p),count=tasks.filter(t=>!t.done).length;
+    const header=`<div class="todo-header"><span>To-do <b>${count} offen</b></span><button type="button" aria-label="To-dos bearbeiten" onclick="updateFieldRender('${p.id}','showRawTodo',${!p.showRawTodo})">${p.showRawTodo?'Fertig':'✎ Edit'}</button></div>`;
+    const body=p.showRawTodo?`<textarea aria-label="To-do-Freitext" class="todo-editor" onchange="updateFieldRender('${p.id}','todo_text',this.value)">${e(p.todo_text||'')}</textarea>`:
+        tasks.map((task,i)=>`<div class="todo-row"><button type="button" class="todo-check ${task.done?'is-done':''}" aria-label="Aufgabe ${i+1} ${task.done?'öffnen':'erledigen'}" onclick="toggleTodoLine('${p.id}',${i})"><span>${task.done?'☑':'☐'}</span><span>${e(task.text)}</span></button><button class="todo-delete" type="button" aria-label="Aufgabe ${i+1} löschen" onclick="deleteTodoLine('${p.id}',${i})">×</button></div>`).join('')+(tasks.length?'':'<p class="med-empty">Keine offenen Einträge</p>');
+    return `<section class="todo-panel">${header}${body}<input aria-label="Neues To-do" placeholder="+ Neues To-do (Enter)" onkeydown="if(event.key==='Enter'){addTodoLine('${p.id}',this.value);this.value='';}"></section>`;
 }
 function openWorkflowDialog(title,body) {
     const dialog=document.getElementById('workflow-dialog');dialog.innerHTML='<header><h2>'+StationModel.escape(title)+'</h2><button type="button" onclick="document.getElementById(\'workflow-dialog\').close()">Schließen</button></header>'+body;dialog.showModal();return dialog;
@@ -2043,6 +2186,93 @@ function labContextText(set) {
     const age=ageHours<0?'Abnahme liegt in der Zukunft – Datum prüfen':set.time?ageHours+' Stunden seit Abnahme':Math.floor(ageHours/24)+' Tage seit Abnahmedatum; Uhrzeit fehlt';
     return 'KIS-Import · '+age;
 }
+
+function hfContext(p) {
+    const latest=latestLabSet(p,'labor');
+    const potassium=(latest?.entries||[]).find(entry=>KisLabImport.matchesParameter(entry,{code:'V_K'})&&/^mmol\s*\/\s*l$/i.test(entry.unit||''));
+    return {egfr:currentEgfr(p),potassium:potassium&&!potassium.unreliable&&!/^[<>≤≥]/.test(String(potassium.value).trim())?(Number.isFinite(potassium.num)?potassium.num:KisLabImport.toNumber(potassium.value)):null};
+}
+function heartFailurePanel(p) {
+    const e=StationModel.escape,result=HfGuidance.evaluate(p,StationModel.medications(p),hfContext(p));
+    const legacy=['HFmrEF','HFimpEF'].includes(p.hfType)?`<option value="${e(p.hfType)}" selected disabled>Altangabe ${e(p.hfType)} – prüfen</option>`:'';
+    const choose=(field,label,values)=>`<label>${label}<select aria-label="${label}" onchange="updateFieldRender('${p.id}','${field}',this.value)">${selectOptions(values,p[field]||'unknown')}</select></label>`;
+    const rows=result.checks.map(check=>`<div class="hf-check hf-${check.state}"><strong>${e(check.label)}</strong><span>${e(check.names.join(', ')||'Kein passender aktiver Eintrag erkannt')}</span><p>${e(check.text)} <small>ESC 2026 · ${e(check.ref)}</small></p><button type="button" class="workflow-button" onclick="setHfDeferral('${p.id}','${check.key}')">Begründung / Ausnahme</button></div>`).join('');
+    return `<details data-detail-key="hf" class="compact-details hf-panel no-print"><summary class="compact-summary">♡ Herzinsuffizienz <span>${e(p.hfType&&p.hfType!=='unknown'?p.hfType:'Zuordnung offen')} · EF ${e(p.lvef||'—')} %</span><small>ESC 2026</small></summary><div class="hf-fields">
+    <label>Herzinsuffizienztyp<select aria-label="Herzinsuffizienztyp" onchange="updateFieldRender('${p.id}','hfType',this.value)">${legacy}${selectOptions({unknown:'Unklar / nicht bestätigt',HFrEF:'HFrEF (<50 %)',HFpEF:'HFpEF (≥50 %)',none:'Keine dokumentiert'},p.hfType||'unknown')}</select></label>
+    ${choose('hfSymptoms','HF-Symptome / -Zeichen',{unknown:'Noch nicht bestätigt',yes:'Aktuell symptomatisch',no:'Bekannte HF, aktuell asymptomatisch'})}
+    ${choose('hfStable','Klinisch stabil / euvoläm',{unknown:'Noch nicht bestätigt',yes:'Ja',no:'Nein'})}
+    ${choose('hfCongestion','Stauungszeichen',{unknown:'Unbekannt',yes:'Ja',no:'Nein'})}
+    ${p.hfType==='HFpEF'?choose('hfObjectiveEvidence','Objektive HFpEF-Befunde',{unknown:'Noch nicht bestätigt',yes:'Ärztlich bestätigt',no:'Nicht nachgewiesen'})+choose('hfNoPreviousReduced','Nie zuvor EF unter 50 %',{unknown:'Verlauf unklar',yes:'Anhand Vorbefunden bestätigt',no:'Frühere EF unter 50 %'}):''}
+    <label>Bisher niedrigste EF (%)<input aria-label="Frühere EF (%)" type="number" min="0" max="100" step="0.1" value="${e(p.hfPreviousEf??'')}" onchange="if(this.checkValidity())updateFieldRender('${p.id}','hfPreviousEf',this.value)"></label>
+    <label>EF-Befunddatum<input aria-label="EF-Befunddatum" type="date" value="${e(p.efDate||'')}" onchange="updateFieldRender('${p.id}','efDate',this.value)"></label>
+    <label>EF-Quelle<input aria-label="EF-Quelle" value="${e(p.efSource||'')}" onchange="updateFieldRender('${p.id}','efSource',this.value)"></label>
+    <label>ACE-Hemmer-/ARNI-Unverträglichkeit<input aria-label="ACE-Hemmer-/ARNI-Unverträglichkeit" value="${e(p.hfRaasIntolerance||'')}" onchange="updateFieldRender('${p.id}','hfRaasIntolerance',this.value)"></label></div>
+    <div class="hf-checks">${rows}</div>${result.notes.map(note=>`<p class="hf-note hf-${note.tone}">${e(note.text)} <small>ESC 2026 · ${e(note.ref)}</small></p>`).join('')}
+    <p class="hf-source">Dokumentationsabgleich, keine Verordnung oder vollständige Kontraindikations-/Dosisprüfung. Grundlage: bereitgestelltes PDF, <a href="${HfGuidance.SOURCE.url}" target="_blank" rel="noopener noreferrer">ESC 2026 · ehag100</a>. Dosen und Zulassung vor Änderungen prüfen.</p></details>`;
+}
+function setHfDeferral(id,key) {
+    const p=AppState.patients.find(x=>x.id===id);if(!p)return;
+    const reason=prompt('Ärztliche Begründung / Kontraindikation (leer = Ausnahme aufheben):',typeof (p.hfDeferrals||{})[key]==='string'?p.hfDeferrals[key]:p.hfDeferrals?.[key]?.reason||'');
+    if(reason===null)return;p.hfDeferrals=p.hfDeferrals||{};if(reason.trim())p.hfDeferrals[key]={reason:reason.trim(),at:new Date().toISOString(),context:JSON.stringify([p.hfType,p.lvef,p.hfSymptoms,p.hfStable,hfContext(p).egfr,hfContext(p).potassium])};else delete p.hfDeferrals[key];saveData();render();
+}
+function labTrendCards(p) {
+    const all=StationLabs.catalog(p),items=StationLabs.selected(p,typeof LAB_TRENDS!=='undefined'?LAB_TRENDS:[]),e=StationModel.escape;
+    return `<div class="lab-view-actions"><button type="button" onclick="openLabTrendSettings('${p.id}')">⚙ Werte auswählen</button><button type="button" onclick="showAllLabTrends('${p.id}')">Alle Werte & Verläufe (${all.length})</button></div><div class="lab-trend-grid">`+items.map(item=>{
+        const last=item.values.at(-1),index=all.findIndex(a=>a.key===item.key),points=StationLabs.points(item);
+        return `<button type="button" class="lab-trend-card lab-${labStatus(last.status)}" onclick="showLabParameter('${p.id}',${index})" title="${e(item.label+' · '+item.type+' · '+item.unit+' · '+item.sample)}"><span>${e(item.label)}${item.type==='bga'?' (BGA)':''}</span><strong>${e(last.value??'—')}${last.unreliable?' (!)':''}${last.preliminary?'*':''} <small>${e(item.unit)}</small></strong><span class="lab-mini-plot">${labPlot(item,false)}</span><small>${points.length>1?points.length+' Messpunkte':points.length===1?'Einzelwert':'Qualitativer Befund'} · ${e(last.date||'Datum fehlt')}</small></button>`;
+    }).join('')+`</div>${items.length?'':'<p class="med-empty">Keine Verläufe ausgewählt / vorhanden.</p>'}`;
+}
+function labPlot(item,large) {
+    const values=StationLabs.points(item),width=large?420:96,height=large?90:24;
+    if(!values.length)return '<span class="med-empty">Keine quantifizierbare Kurve</span>';
+    const min=Math.min(...values.map(v=>v.num)),max=Math.max(...values.map(v=>v.num)),span=max-min||1;
+    const coords=values.map((v,i)=>[values.length===1?width/2:6+i*(width-12)/(values.length-1),height-6-(v.num-min)*(height-12)/span]);
+    return `<svg class="lab-plot" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${StationModel.escape(item.label+' in '+item.unit+'; Messfolge, keine zeitproportionale Achse')}"><title>${StationModel.escape(values.map(v=>(v.date||'undatiert')+' '+v.time+': '+v.value+' '+item.unit).join(' · '))}</title><path d="M6 ${height-5}H${width-6}" stroke="currentColor" opacity=".12"/>${coords.length>1?`<polyline points="${coords.map(c=>c.join(',')).join(' ')}" fill="none" stroke="currentColor" stroke-width="${large?2:1.5}"/>`:''}${coords.map(c=>`<circle cx="${c[0]}" cy="${c[1]}" r="${large?2.5:1.8}" fill="currentColor"/>`).join('')}</svg>`;
+}
+function openLabTrendSettings(id) {
+    const p=AppState.patients.find(x=>x.id===id),all=StationLabs.catalog(p),selected=StationLabs.selected(p,typeof LAB_TRENDS!=='undefined'?LAB_TRENDS:[]),e=StationModel.escape;
+    openWorkflowDialog('Laborverläufe auswählen',`<p>Auswahl je Patient. Verschiedene Probenarten und Einheiten bleiben getrennt. Die vollständigen Befunde bleiben erhalten.</p><input aria-label="Laborparameter suchen" placeholder="Parameter suchen …" oninput="filterLabChoices(this.value)"><div class="lab-choice-actions"><button onclick="setLabChoiceChecks(true)">Alle auswählen</button><button onclick="setLabChoiceChecks(false)">Keine</button></div><div id="lab-choices">${all.map((item,i)=>`<label class="lab-choice"><input type="checkbox" data-lab-index="${i}" ${selected.some(x=>x.key===item.key)?'checked':''}>${e(item.label)} <small>${e(item.unit)} · ${e((item.type==='bga'?'BGA':'Labor')+(item.sample?' / '+item.sample:''))} · ${e(item.code)}</small></label>`).join('')}</div><button class="workflow-primary" onclick="saveLabTrendSelection('${id}')">Auswahl speichern</button><button onclick="resetLabTrendSelection('${id}')">Standardwerte wiederherstellen</button>`);
+}
+function filterLabChoices(text) {
+    document.querySelectorAll('#lab-choices .lab-choice').forEach(label=>{label.hidden=!label.textContent.toLocaleLowerCase('de').includes(text.toLocaleLowerCase('de'));});
+}
+function setLabChoiceChecks(checked) {document.querySelectorAll('#lab-choices input').forEach(input=>{input.checked=checked;});}
+function saveLabTrendSelection(id) {
+    const p=AppState.patients.find(x=>x.id===id),all=StationLabs.catalog(p);
+    p.labTrendSelection=[...document.querySelectorAll('#lab-choices input:checked')].map(input=>all[Number(input.dataset.labIndex)]?.key).filter(Boolean);
+    saveData();render();document.getElementById('workflow-dialog').close();
+}
+function resetLabTrendSelection(id) {
+    const p=AppState.patients.find(x=>x.id===id);delete p.labTrendSelection;saveData();render();document.getElementById('workflow-dialog').close();
+}
+function labParameterDetail(item) {
+    const e=StationModel.escape;
+    return `<section class="lab-parameter-detail"><h3>${e(item.label)} <small>${e(item.unit)} · ${e((item.type==='bga'?'BGA':'Labor')+(item.sample?' / '+item.sample:''))}</small></h3>${labPlot(item,true)}<p class="lab-axis-note">X: Messfolge (Datum / Uhrzeit siehe Tabelle) · Y: ${e(item.unit||'Originaleinheit fehlt')}. Grenzwertangaben werden nicht als exakte Punkte gezeichnet.</p><table class="med-table"><thead><tr><th>Abnahme</th><th>Wert</th><th>Referenz</th><th>Hinweis</th></tr></thead><tbody>${item.values.map(v=>`<tr class="lab-${labStatus(v.status)}"><td>${e([v.date,v.time].filter(Boolean).join(' ')||'Datum fehlt')}</td><td>${e(v.value)} ${e(item.unit)}${v.preliminary?' (vorläufig)':''}</td><td>${e(v.ref||'—')}</td><td>${e([v.unreliable?'Als unzuverlässig markiert':'',v.comment||''].filter(Boolean).join(' · '))}</td></tr>`).join('')}</tbody></table></section>`;
+}
+function showLabParameter(id,index) {
+    const p=AppState.patients.find(x=>x.id===id),item=StationLabs.catalog(p)[index];if(!item)return;
+    openWorkflowDialog('Laborverlauf · '+item.label,labParameterDetail(item));
+}
+function showAllLabTrends(id) {
+    const p=AppState.patients.find(x=>x.id===id),all=StationLabs.catalog(p);
+    openWorkflowDialog('Alle Laborwerte und Verläufe',all.length?'<div class="lab-all-grid">'+all.map(labParameterDetail).join('')+'</div>':'<p>Noch keine Befunde importiert.</p>');
+}
+
+function rememberCardDetails() {
+    AppState.detailsOpen=AppState.detailsOpen||{};
+    document.querySelectorAll('.patient-card').forEach(card=>{
+        const id=card.querySelector('input[data-pid]')?.dataset.pid;if(!id)return;
+        card.querySelectorAll('details[data-detail-key]').forEach(detail=>{AppState.detailsOpen[id+':'+detail.dataset.detailKey]=detail.open;});
+    });
+}
+function restoreCardDetails() {
+    document.querySelectorAll('.patient-card').forEach(card=>{
+        const id=card.querySelector('input[data-pid]')?.dataset.pid;if(!id)return;
+        card.querySelectorAll('details[data-detail-key]').forEach(detail=>{const key=id+':'+detail.dataset.detailKey;if(Object.hasOwn(AppState.detailsOpen||{},key))detail.open=AppState.detailsOpen[key];});
+    });
+}
+
+function labStatus(status) { return status==='high'||status==='low'?status:'normal'; }
 
     </script>
     <script>/* config_exam.js */
@@ -2263,43 +2493,85 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 .compact-summary:hover { color: #2563eb; background: #eff6ff; }
 .compact-summary:focus-visible, .focus-ring:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15); }
 
-/* Gemeinsame Status- und Medikamentendarstellung */
-.workflow-toolbar,.status-controls {display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;padding:.4rem;}
-.workflow-toolbar button,.workflow-toolbar select,.workflow-button,.workflow-dialog button {border:1px solid #94a3b8;border-radius:4px;padding:.25rem .5rem;background:#f1f5f9;color:#0f172a;}
-.patient-status {border:1px solid #64748b;padding:.35rem;margin:.3rem 0;font-size:11px;background:#f1f5f9;}
-.patient-status strong,.patient-status-print {display:block;font-weight:700;}
-.patient-status input,.patient-status select {max-width:100%;border:1px solid #94a3b8;background:white;color:#0f172a;padding:2px;}
-.med-table {width:100%;border-collapse:collapse;table-layout:auto;font-size:11px;font-style:normal;}
-.med-table th,.med-table td {border:1px solid #cbd5e1;padding:4px;vertical-align:top;text-align:left;overflow-wrap:anywhere;}
-.med-table th {background:#e2e8f0;font-weight:700;}
-.workflow-dialog {width:min(1200px,95vw);max-height:90vh;padding:1rem;border:2px solid #334155;border-radius:8px;overflow:auto;}
-.workflow-dialog::backdrop {background:#0008;}
-.workflow-dialog header {display:flex;justify-content:space-between;gap:1rem;margin-bottom:.75rem;}
-.workflow-dialog h2 {font-size:1.2rem;font-weight:700;}
-.workflow-dialog h3 {font-weight:700;margin-top:1rem;}
-.workflow-dialog label {display:block;margin:.5rem 0;}
-.workflow-dialog input,.workflow-dialog textarea,.workflow-dialog select {border:1px solid #64748b;padding:4px;max-width:100%;}
-.workflow-dialog textarea {display:block;width:100%;min-height:5rem;}
-.table-scroll {overflow-x:auto;}.editor input {width:100%;min-width:90px;}.import-row {padding:.4rem;border-bottom:1px solid #cbd5e1;}
+/* Einheitliche kompakte Stationskarten: gleiche Schrift, Konturen und Bedienelemente. */
+:root {--station-ink:#1e3a5f;--station-muted:#64748b;--station-line:#dbe5f0;--station-soft:#f8fafc;--station-blue:#2563eb;}
+.patient-card {font-size:11px;line-height:1.35;border-radius:8px;min-width:0;}
+.patient-card button,.patient-card input,.patient-card select,.patient-card textarea {font-family:inherit;}
+.patient-card input,.patient-card select,.patient-card textarea {min-width:0;max-width:100%;}
+.patient-card .compact-summary {font-size:11px;padding:5px 7px;gap:5px;}
+.patient-card .compact-details {border-radius:6px;}
+.workflow-toolbar {display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 2px;color:var(--station-muted);font-size:11px;}
+.workflow-toolbar button,.workflow-toolbar select,.workflow-button,.workflow-dialog button,.lab-view-actions button {border:1px solid var(--station-line);border-radius:4px;background:#fff;color:var(--station-ink);padding:3px 6px;font-size:11px;line-height:1.35;cursor:pointer;}
+.workflow-toolbar button:hover,.workflow-button:hover,.workflow-dialog button:hover,.lab-view-actions button:hover {background:#eff6ff;border-color:#93c5fd;}
+.workflow-toolbar button:disabled {opacity:.4;cursor:default;}
+.patient-heading {min-width:0;padding-bottom:2px;}
+.patient-identity {display:grid;grid-template-columns:44px minmax(0,1fr) 82px;gap:5px;align-items:start;}
+.patient-identity .p-room {width:100%;font-weight:750;font-size:17px;color:#1e40af;background:#eff6ff;text-align:center;border-radius:4px;padding:2px;}
+.patient-name-block {min-width:0;}.patient-name-block .p-name {width:100%;font-size:12px;font-weight:700;color:#0f2948;}
+.patient-birth {display:flex;gap:3px;align-items:center;color:var(--station-muted);font-size:10px;}.patient-birth input {width:105px;font-size:10px;background:transparent;}
+.patient-heading-actions {display:flex;gap:3px;justify-content:flex-end;flex-wrap:wrap;align-items:center;}
+.patient-heading-actions button {font-size:9px;line-height:1.25;padding:2px 3px;}
+.patient-heading-actions .patient-delete {font-size:16px;line-height:1;color:#94a3b8;}
+.admission-line {display:flex;align-items:center;gap:6px;margin:3px 0 2px 49px;font-size:10px;color:var(--station-muted);}
+.admission-line label {display:flex;align-items:center;gap:3px;}.admission-line input {font-size:10px;width:112px;background:transparent;}.admission-line span {color:#1e40af;font-weight:600;}
+.patient-status {display:grid;grid-template-columns:auto auto minmax(76px,.9fr) minmax(100px,1.3fr);gap:4px;align-items:center;margin:1px 0 4px;padding:5px 0;border-top:1px solid var(--station-line);border-bottom:1px solid var(--station-line);}
+.patient-status select,.patient-status input,.cardiac-fields input,.cardiac-fields select {border:1px solid var(--station-line);border-radius:3px;background:#fff;padding:2px 3px;color:var(--station-ink);font-size:10px;line-height:1.3;width:100%;}
+.patient-status .insurance-note {grid-column:1/-1;}
+.patient-status .resus-btn {font-size:10px;padding:3px 4px;color:var(--station-muted);border-color:var(--station-line);white-space:nowrap;}
+.patient-status .resus-active {background:#dc2626;border-color:#b91c1c;color:#fff;font-weight:700;}
+.cardiac-fields {background:var(--station-soft);border:1px solid var(--station-line);border-radius:5px;padding:4px;margin-bottom:3px;}
+.cardiac-row {display:flex;gap:5px;align-items:center;font-size:9px;color:var(--station-muted);}.cardiac-row + .cardiac-row {margin-top:3px;}
+.cardiac-row label {display:flex;align-items:center;gap:3px;flex-shrink:0;}.cardiac-row>input {flex:1;width:80px;}
+.cardiac-row input[aria-label="EF (%)"] {width:43px;}.cardiac-row .valves-field {flex:1;min-width:0;flex-shrink:1;}.valves-field input {width:100%;}
+.cardiac-row>select {width:70px;flex-shrink:1;}
+.contingency-field {display:block;border:1px solid #bae6fd;background:#f0f9ff;border-radius:5px;padding:4px 5px;font-size:9px;font-weight:650;color:#0369a1;}
+.contingency-field textarea {display:block;width:100%;min-height:36px;resize:vertical;font-size:11px;font-weight:400;background:transparent;outline:none;color:#334155;padding-top:3px;}
+.section-caption {display:block;font-size:9px;color:var(--station-muted);}.section-caption textarea {display:block;width:100%;font-size:11px;background:var(--station-soft);padding:4px;border-radius:4px;}
+.todo-panel {padding:4px 5px;border:1px solid #facc15;border-radius:5px;background:#fefce8;}
+.todo-header {display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:3px;font-size:9px;color:#a16207;text-transform:uppercase;}
+.todo-header b {border-radius:3px;background:#fef08a;padding:1px 4px;}.todo-header button {font-size:10px;border-radius:3px;padding:2px 4px;background:#fef9c3;color:#854d0e;}
+.todo-row {display:flex;align-items:flex-start;gap:4px;padding:3px 0;}.todo-check {display:flex;gap:5px;flex:1;min-width:0;text-align:left;font-size:11px;line-height:1.4;overflow-wrap:anywhere;}.todo-check.is-done {text-decoration:line-through;color:#94a3b8;}
+.todo-delete {flex-shrink:0;background:#fee2e2;border:1px solid #fecaca;color:#dc2626;border-radius:3px;font-size:13px;font-weight:700;line-height:16px;width:18px;}
+.todo-panel>input {width:100%;font-size:11px;border-top:1px solid #fde68a;background:#fffef7;padding:4px 2px;}.todo-editor {width:100%;min-height:80px;font-size:11px;border:1px solid #fde68a;background:#fff;padding:4px;}
+.med-table {width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:10px;font-style:normal;border:1px solid var(--station-line);border-radius:5px;overflow:hidden;margin:3px 0;}
+.med-table th,.med-table td {padding:5px 6px;vertical-align:top;text-align:left;overflow-wrap:anywhere;line-height:1.4;}
+.med-table th {background:#f1f5f9;font-size:9px;color:#475569;font-weight:650;border-bottom:1px solid var(--station-line);}
+.med-table th:nth-child(1) {width:40%;}.med-table th:nth-child(2) {width:20%;}.med-table th:nth-child(3) {width:40%;}
+.med-table tbody tr:nth-child(even) {background:#f8fafc;}.med-table tbody tr+tr td {border-top:1px solid #edf2f7;}
+.med-route {display:inline;font-size:9px;color:var(--station-muted);margin-left:4px;}.med-empty {display:block;font-size:10px;font-style:italic;color:#94a3b8;padding:3px 0;}
+.med-actions {display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 6px;}.patient-card .workflow-button {font-size:9px;padding:2px 5px;border-color:#dbeafe;color:#1d4ed8;background:#f8fbff;}
+.med-secondary {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.15fr);gap:4px;margin:4px 0;}
+.med-secondary section {border:1px solid;border-radius:5px;padding:4px;min-width:0;overflow-wrap:anywhere;font-size:9px;}
+.med-secondary h4 {font-size:9px;font-weight:650;margin-bottom:3px;}.med-paused {background:#fff7f7;border-color:#fee2e2!important;color:#b91c1c;}.med-prn {background:#faf5ff;border-color:#e9d5ff!important;color:#7e22ce;}.med-anticoag {background:#eff6ff;border-color:#bfdbfe!important;color:#1e40af;}
+.med-mini-list {list-style:none;margin:0;padding:0;}.med-mini-list li+li {border-top:1px solid #0000000a;margin-top:4px;padding-top:4px;}.med-mini-list strong {font-weight:600;}.med-mini-list small {display:block;font-size:9px;line-height:1.35;}
+.med-secondary input {font-size:9px;width:100%;background:#ffffffb3;border-radius:3px;margin-top:4px;padding:3px;}.med-anticoag>strong {font-weight:600;display:block;}.med-secondary .med-empty {font-size:9px;}
+.workflow-dialog {width:min(1100px,96vw);max-height:90vh;padding:18px;border:1px solid #cbd5e1;border-radius:10px;overflow:auto;color:#334155;box-shadow:0 18px 65px #0f172a30;font-size:13px;}
+.workflow-dialog::backdrop {background:#0f172a66;}.workflow-dialog header {display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:12px;border-bottom:1px solid var(--station-line);padding-bottom:10px;}
+.workflow-dialog h2 {font-size:17px;font-weight:650;color:#0f2948;}.workflow-dialog h3 {font-weight:650;margin:12px 0 6px;}.workflow-dialog p {margin:6px 0;}.workflow-dialog label {display:block;margin:8px 0;}
+.workflow-dialog input,.workflow-dialog textarea,.workflow-dialog select {border:1px solid #cbd5e1;border-radius:4px;padding:5px 6px;max-width:100%;font-size:12px;}.workflow-dialog textarea {display:block;width:100%;min-height:5rem;}
+.workflow-dialog .workflow-primary {background:#1d4ed8;color:#fff;border-color:#1d4ed8;}.workflow-dialog button {margin:3px;}.table-scroll {overflow-x:auto;}.editor {min-width:800px;table-layout:auto;}.editor th {width:auto!important;}.editor input {width:100%;min-width:80px;}
+.import-row {padding:5px;border-bottom:1px solid var(--station-line);}
+.lab-view-actions {display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap;padding:2px 1px;}.lab-view-actions button {font-size:9px;padding:2px 5px;}
+.lab-trend-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;}.lab-trend-card {display:grid;grid-template-columns:minmax(0,1fr) auto 45px;gap:2px 4px;border:1px solid var(--station-line);border-radius:4px;background:#fff;padding:4px;text-align:left;font-size:10px;color:#334155;min-width:0;}
+.lab-trend-card:hover {background:#eff6ff;border-color:#93c5fd;}.lab-trend-card>span:first-child {font-size:9px;overflow-wrap:anywhere;}.lab-trend-card>strong {font-size:10px;}.lab-trend-card>strong small {font-size:8px;font-weight:400;}.lab-mini-plot {grid-column:3;grid-row:1/3;align-self:center;min-width:0;color:#64748b;}.lab-trend-card>small {grid-column:1/3;color:#94a3b8;font-size:8px;}.lab-plot {display:block;max-width:100%;height:auto;}
+.lab-high strong,.lab-high td:nth-child(2) {color:#b91c1c;}.lab-low strong,.lab-low td:nth-child(2) {color:#0369a1;}
+.lab-choice-actions {display:flex;gap:5px;margin:6px 0;}#lab-choices {display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:3px;max-height:50vh;overflow:auto;}
+.workflow-dialog label.lab-choice {display:flex;gap:7px;align-items:center;margin:0;padding:7px;background:#f8fafc;border-radius:4px;font-size:12px;}.lab-choice small {color:#64748b;font-size:10px;}.lab-choice[hidden] {display:none!important;}
+.lab-all-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:14px;align-items:start;}.lab-parameter-detail {border:1px solid var(--station-line);border-radius:7px;padding:10px;min-width:0;}.lab-parameter-detail h3 {margin-top:0;}.lab-parameter-detail h3 small {font-size:11px;color:var(--station-muted);font-weight:400;}.lab-axis-note {font-size:10px;color:var(--station-muted);}
+.hf-panel .compact-summary {justify-content:space-between;}.hf-panel summary>span {font-weight:400;font-size:9px;}.hf-panel summary small {font-size:8px;white-space:nowrap;color:#64748b;}
+.hf-fields {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;padding:6px;}.hf-fields label {font-size:9px;color:#64748b;}.hf-fields select,.hf-fields input {display:block;width:100%;font-size:10px;border:1px solid var(--station-line);border-radius:3px;padding:3px;background:#fff;color:#334155;}
+.hf-checks {padding:0 6px;}.hf-check {margin:5px 0;border:1px solid #e2e8f0;border-radius:4px;padding:5px;background:#fff;}.hf-check>strong {font-size:10px;display:block;}.hf-check>span {font-size:10px;color:#475569;}.hf-check p,.hf-note {font-size:10px;line-height:1.4;}.hf-check p small,.hf-note small {font-size:8px;color:#64748b;}.hf-note {margin:5px 6px;padding:5px;border-radius:4px;background:#f1f5f9;}.hf-review {border-left:3px solid #eab308;background:#fffbeb;}.hf-deferred {background:#f8fafc;border-left:3px solid #94a3b8;}.hf-source {font-size:9px;color:#64748b;padding:6px;}.hf-source a {color:#1d4ed8;text-decoration:underline;}
+.station-nav {gap:8px;flex-wrap:wrap;}.station-nav>div {flex-wrap:wrap;}.station-nav h1 {flex-shrink:0;}
 @media print {
- .workflow-dialog,.workflow-toolbar,.workflow-button {display:none!important;}
- .med-table {font-size:8pt!important;font-style:normal!important;}
+ .workflow-dialog,.workflow-toolbar,.workflow-button,.lab-view-actions {display:none!important;}
+ .med-table {font-size:8pt!important;font-style:normal!important;table-layout:auto;border-collapse:collapse;}
  .med-table th,.med-table td {padding:2px!important;border:1px solid #555!important;}
  .med-table thead {display:table-header-group;}.med-table tr {break-inside:avoid;}
- .patient-status-print {border:2px solid black;padding:2px;font-size:8pt;color:black;}
+ .patient-status-print {display:block;font-weight:700;border:2px solid black;padding:2px;font-size:8pt;color:black;}
  body.print-mode-visite .print-meds,body.print-mode-pocket .print-meds {display:block!important;}
  .print-meds {font-style:normal;}
 }
-.contingency-field {display:block;font-size:11px;color:#075985;font-weight:bold;}.contingency-field textarea {display:block;width:100%;border:1px solid #7dd3fc;padding:4px;background:#f0f9ff;font-weight:normal;}
-.patient-heading {border-bottom:1px solid #e2e8f0;padding-bottom:5px;min-width:0;}
-.patient-identity {display:grid;grid-template-columns:48px minmax(0,1fr) 22px;gap:6px;align-items:start;}
-.patient-identity .p-room {width:100%;font-weight:bold;font-size:18px;background:#eff6ff;text-align:center;}
-.patient-name-block {min-width:0;}.patient-name-block .p-name {width:100%;min-width:0;font-size:13px;font-weight:bold;}
-.patient-birth {display:flex;gap:4px;align-items:center;font-size:11px;}.patient-birth input {width:110px;min-width:0;}
-.patient-actions {display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;}.patient-actions button {font-size:11px;padding:3px 5px;}
-.rhythm-fields {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px;margin-top:5px;font-size:11px;}
-.rhythm-fields input,.rhythm-fields select {min-width:0;max-width:100%;width:100%;border:1px solid #cbd5e1;}
-.station-nav {gap:8px;flex-wrap:wrap;}.station-nav > div {flex-wrap:wrap;}.station-nav h1 {flex-shrink:0;}
+.hf-deferred-review {border-left:3px solid #eab308;background:#fffbeb;}
 
     </style>
 <style>
@@ -2308,7 +2580,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     </style>
     <style id="print-orientation"></style>
     <!-- Einzeldatei-Fassung, erzeugt am 2026-11-17
-         aus Station.html und 13 Zusatzdateien. Zum Ändern die Einzeldateien
+         aus Station.html und 15 Zusatzdateien. Zum Ändern die Einzeldateien
          bearbeiten und "node build_single_file.js" ausführen. -->
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen pb-24" id="main-body">
@@ -2871,6 +3143,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 
         // --- RENDER LOGIC ---
         function render() {
+            rememberCardDetails();
             const container = document.getElementById('patient-list');
             const printBody = document.getElementById('print-table-body');
             const empty = document.getElementById('empty-state');
@@ -2914,11 +3187,10 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                 if(severity) card.style.borderLeft = `5px solid ${severity.bar}`;
                 
                 // HEADER (Zi, Name, Rhythmus, Nüchtern)
-                let rhythmSel = `<div class="rhythm-fields no-print"><label>Rhythmus <select aria-label="Rhythmus" onchange="updateFieldRender('${p.id}','rhythm',this.value)"><option value="" ${!p.rhythm?'selected':''}>Ungeklärt</option>${['SR','VHF','AF','PM/ICD'].map(value=>`<option value="${value}" ${p.rhythm===value?'selected':''}>${value==='AF'?'A-Flatt':value}</option>`).join('')}</select></label><input aria-label="Rhythmusverlauf" value="${esc(p.rhythm_history||'')}" placeholder="Zuletzt SR am …" onchange="updateField('${p.id}','rhythm_history',this.value)"><label>Klappen <input aria-label="Klappenbefund" value="${esc(p.valves||'')}" onchange="updateField('${p.id}','valves',this.value)"></label><span>${esc(p.hfType&&p.hfType!=='unknown'?p.hfType:'HI ungeklärt')} · EF ${esc(p.lvef||'–')} %</span></div>`;
                 let severityBtn = `<button onclick="cycleSeverity('${p.id}')" title="Stabilität (Klick wechselt): stabil → Beobachtung → instabil" class="text-[8px] px-1 py-0.5 rounded font-bold border ${severity ? severity.tone : 'bg-white text-slate-400 border-slate-200'}">${severity ? severity.label : 'Stabilität?'}</button>`;
                 let fastBtn = p.fasting ? `<button onclick="updateFieldRender('${p.id}', 'fasting', false)" class="text-[8px] px-1 py-0.5 rounded font-bold transition-colors badge-nüchtern">⛔ Nüchtern</button>` : `<button onclick="updateFieldRender('${p.id}', 'fasting', true)" class="text-[8px] px-1 py-0.5 rounded font-bold transition-colors text-slate-400 border border-slate-200 bg-white" title="Selten benötigt: nur aktivieren, wenn relevant">Nüchtern?</button>`;
                 
-                let header = `<div class="patient-heading"><div class="patient-identity"><input type="text" aria-label="Zimmer" data-pid="${p.id}" value="${esc(p.room)}" onchange="updateFieldRender('${p.id}','room',this.value)" class="p-room" placeholder="#"><div class="patient-name-block"><input type="text" value="${esc(p.name)}" onchange="updateFieldRender('${p.id}','name',this.value)" class="p-name" placeholder="Name"><div class="patient-birth no-print"><input type="date" aria-label="Geburtsdatum" value="${esc(p.dob)}" onchange="updateFieldRender('${p.id}','dob',this.value)"><span>${age}</span></div></div><button onclick="deletePatient('${p.id}')" aria-label="Patient löschen" title="Patient löschen" class="no-print">×</button></div><div class="patient-actions no-print">${severityBtn}${fastBtn}<button onclick="toggleResus('${p.id}','dnr')" aria-label="DNR" aria-pressed="${!!p.dnr}" class="resus-btn ${dnrClass}">${p.dnr?'DNR aktiv':'DNR setzen'}</button><button onclick="toggleResus('${p.id}','dni')" aria-label="DNI" aria-pressed="${!!p.dni}" class="resus-btn ${dniClass}">${p.dni?'DNI aktiv':'DNI setzen'}</button></div>${rhythmSel}</div>`;
+                let header = `<div class="patient-heading"><div class="patient-identity"><input type="text" aria-label="Zimmer" data-pid="${p.id}" value="${esc(p.room)}" onchange="updateFieldRender('${p.id}','room',this.value)" class="p-room" placeholder="#"><div class="patient-name-block"><input type="text" value="${esc(p.name)}" onchange="updateFieldRender('${p.id}','name',this.value)" class="p-name" placeholder="Name"><div class="patient-birth no-print"><input type="date" aria-label="Geburtsdatum" value="${esc(p.dob)}" onchange="updateFieldRender('${p.id}','dob',this.value)"><span>${age}</span></div></div><div class="patient-heading-actions">${severityBtn}${fastBtn}<button onclick="deletePatient('${p.id}')" aria-label="Patient löschen" title="Patient löschen" class="patient-delete no-print">×</button></div></div><div class="admission-line no-print"><label>Aufn. <input type="date" aria-label="Aufnahmedatum" value="${esc(p.admission_date||'')}" onchange="updateFieldRender('${p.id}','admission_date',this.value)"></label>${stayDay(p)?`<span>Tag ${stayDay(p)}</span>`:''}</div></div>`;
 
                 // ISOLATION & WARNUNGEN
                 let warnColor = p.warnings ? 'bg-red-100 border-red-300 text-red-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-400 italic';
@@ -2962,22 +3234,9 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                 const labStamps = [latestLab ? `Labor ${labSetStamp(latestLab)}` : '', latestBga ? `BGA ${labSetStamp(latestBga)}` : ''].filter(Boolean);
                 const labSetsAll = p.labSets || [];
                 const labDeltas = (typeof LAB_DELTA_RULES !== 'undefined') ? KisLabImport.checkDeltas(labSetsAll, LAB_DELTA_RULES) : [];
-                const labTrends = (typeof LAB_TRENDS !== 'undefined') ? KisLabImport.buildTrends(labSetsAll, LAB_TRENDS) : [];
                 let labDeltaHtml = labDeltas.map(warning => {
                     const tone = warning.severity === 'high' ? 'bg-red-50 border-red-300 text-red-800' : 'bg-amber-50 border-amber-300 text-amber-900';
                     return `<div class="text-[9px] leading-tight border rounded px-1 py-0.5 font-bold ${tone}">${warning.direction === 'down' ? '↓' : '↑'} ${escapeHtml(warning.text)}${warning.note ? ` <span class="font-normal">– ${escapeHtml(warning.note)}</span>` : ''}</div>`;
-                }).join('');
-                let labTrendHtml = labTrends.map(trend => {
-                    const tone = trend.last.status === 'high' ? 'text-red-700' : trend.last.status === 'low' ? 'text-sky-700' : 'text-slate-700';
-                    const arrow = trend.direction === 'up' ? '↗' : trend.direction === 'down' ? '↘' : '→';
-                    const since = trend.previous ? `${trend.previous.value}${trend.days ? ` vor ${trend.days}d` : ''}` : 'erster Wert';
-                    return `<div class="flex items-center gap-1 text-[9px] leading-tight" title="${escapeHtml(trend.points.map(point => `${KisLabImport.formatDate(point.date)} ${point.value}`).join(' · '))}">
-                        <span class="w-11 flex-shrink-0 font-bold text-slate-500 truncate">${escapeHtml(trend.label)}</span>
-                        <span class="text-slate-400 flex-shrink-0">${sparkline(trend.points)}</span>
-                        <span class="font-bold ${tone} flex-shrink-0">${escapeHtml(trend.last.value)}${trend.last.preliminary ? '<span title="vorläufiges Ergebnis">*</span>' : ''}</span>
-                        <span class="text-slate-400 flex-shrink-0">${arrow}</span>
-                        <span class="text-slate-400 truncate">${escapeHtml(since)}</span>
-                    </div>`;
                 }).join('');
                 let labChips = abnormalLabs.map(entry => {
                     const tone = entry.status === 'high' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-sky-50 border-sky-200 text-sky-800';
@@ -2989,11 +3248,11 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                     abnormalLabs.length ? `<span class="ml-1 text-rose-600">${abnormalLabs.length} auffällig</span>` : ''
                 ].filter(Boolean).join(' ·');
                 let labImportHtml = `
-                <details class="mt-1 no-print compact-details" ${abnormalLabs.length || labDeltas.length ? 'open' : ''}>
+                <details data-detail-key="lab" class="lab-panel mt-1 no-print compact-details" ${abnormalLabs.length || labDeltas.length ? 'open' : ''}>
                     <summary class="compact-summary text-rose-800">🧪 Labor & BGA ${labSummaryBits || (labStamps.length ? '<span class="font-normal text-slate-400">(alles im Normbereich)</span>' : '<span class="font-normal text-slate-400">(noch kein Import)</span>')}</summary>
                     <div class="mt-1 flex flex-col gap-1">
                         ${labDeltaHtml ? `<div class="flex flex-col gap-0.5">${labDeltaHtml}</div>` : ''}
-                        ${labTrendHtml ? `<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-0.5 border-y border-slate-100 py-1">${labTrendHtml}</div>${labTrends.some(trend => trend.last.preliminary) ? '<div class="text-[8px] text-slate-400">* vorläufiges Ergebnis</div>' : ''}` : ''}
+                        ${labTrendCards(p)}
                         <div class="flex gap-1">
                             <button onclick="openLabModal('${p.id}', 'labor')" class="flex-1 text-[9px] bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded px-1 py-1 font-bold">📥 Labor importieren</button>
                             <button onclick="openLabModal('${p.id}', 'bga')" class="flex-1 text-[9px] bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border border-cyan-200 rounded px-1 py-1 font-bold">🫁 BGA importieren</button>
@@ -3067,11 +3326,9 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                 let activeTasks = (typeof DAILY_TASKS !== 'undefined') ? DAILY_TASKS.filter(t => p.daily && p.daily[t.key]).map(t => t.label) : [];
                 let tasksHtml = `<details class="mb-1 no-print compact-details" ${activeTasks.length ? 'open' : ''}><summary class="compact-summary">✅ Tageschecks ${activeTasks.length ? `<span class="ml-1 text-blue-700">${activeTasks.join(', ')}</span>` : '<span class="font-normal text-slate-400">(bei Bedarf)</span>'}</summary><div class="grid grid-cols-6 gap-0.5 mt-1 daily-grid">`; if(typeof DAILY_TASKS !== 'undefined') DAILY_TASKS.forEach(t => { const cls = (p.daily && p.daily[t.key]) ? 'task-true' : 'task-false'; tasksHtml += `<button type="button" onclick="toggleDaily('${p.id}', '${t.key}')" class="task-btn ${cls} text-[9px] text-center py-0.5 rounded">${t.label}</button>`; }); tasksHtml += `</div></details>`;
                 
-                const contingencyHtml=`<label class="contingency-field">Wenn–dann / Dienstanweisung<textarea onchange="updateFieldRender('${p.id}','contingency',this.value)">${esc(p.contingency||'')}</textarea></label>`;
-                const contingencyPrint=p.contingency ? `<div class="print-alert">Wenn–dann: ${esc(p.contingency)}</div>` : '';
-                let todoHtml = `<div class="bg-yellow-50 border border-yellow-200 rounded p-1 relative group flex flex-col">`;
-                if(p.showRawTodo) { todoHtml += `<textarea onchange="updateFieldRender('${p.id}', 'todo_text', this.value); updateFieldRender('${p.id}', 'showRawTodo', false)" class="auto-expand w-full text-xs bg-white border border-yellow-300 rounded p-1 leading-tight focus:ring-2 focus:ring-yellow-500" placeholder="Freitext To-Dos...">${esc(p.todo_text || "")}</textarea><button onclick="updateFieldRender('${p.id}', 'showRawTodo', false)" class="text-[9px] text-yellow-700 bg-yellow-200 hover:bg-yellow-300 rounded px-1 mt-1 self-end">Fertig</button>`;
-                } else { let lines = (p.todo_text || "").split('\n').filter(l => l.trim() !== ''); if(lines.length > 0) { todoHtml += `<div class="flex flex-col gap-0.5 mb-1">`; lines.forEach((line, idx) => { let isDone = line.startsWith('[x] '); let cleanLine = esc(parseTodoLine(line).text); let icon = isDone ? '✅' : '🔲'; let strike = isDone ? 'line-through text-slate-400' : 'text-slate-800 font-medium'; todoHtml += `<div class="flex items-start justify-between gap-1 hover:bg-yellow-200 p-0.5 rounded transition"><div class="flex items-start gap-1 cursor-pointer flex-grow" onclick="toggleTodoLine('${p.id}', ${idx})"><span class="mt-0.5 text-[10px]">${icon}</span><span class="text-xs ${strike} leading-tight">${cleanLine}</span></div>`; if(isDone) { todoHtml += `<button onclick="deleteTodoLine('${p.id}', ${idx})" class="text-[9px] bg-red-100 text-red-600 hover:bg-red-500 hover:text-white rounded px-1 ml-1">❌</button>`; } todoHtml += `</div>`; }); todoHtml += `</div>`; } else { todoHtml += `<span class="text-[10px] text-slate-400 italic px-1 mb-1">Keine To-Dos...</span>`; } todoHtml += `<input type="text" placeholder="+ Neues To-Do (Enter)" class="w-full text-xs bg-white border border-yellow-300 rounded p-1 outline-none focus:ring-1 focus:ring-yellow-500" onkeydown="if(event.key==='Enter'){ addTodoLine('${p.id}', this.value); this.value=''; }"><button onclick="updateFieldRender('${p.id}', 'showRawTodo', true)" class="absolute top-1 right-1 text-[10px] text-yellow-600 opacity-0 group-hover:opacity-100 transition bg-yellow-100 px-1 rounded shadow-sm">✏️ Edit</button>`; } todoHtml += `</div>`;
+                const contingencyHtml=`<label class="contingency-field">Wenn–dann / Dienstanweisung / Notizen<textarea aria-label="Dienstanweisung / Notizen" placeholder="Wenn–dann, Notizen oder Gedächtnisstütze …" onchange="updateFieldRender('${p.id}','contingency',this.value)">${esc(p.contingency||'')}</textarea></label>`;
+                const contingencyPrint=p.contingency ? `<div class="print-alert">Wenn–dann / Notizen: ${esc(p.contingency)}</div>` : '';
+                const todoHtml=renderTodoPanel(p);
 
                 let histTextClass = p.expHist ? "text-expanded" : (p.history && p.history.length > 100 ? "text-truncated" : "");
                 let histToggleBtn = (p.history && p.history.length > 100) ? `<button onclick="updateFieldRender('${p.id}', 'expHist', ${!p.expHist})" class="text-[8px] text-blue-500 hover:underline w-full text-right bg-slate-50 pr-1 pb-1">${p.expHist ? 'Weniger' : 'Mehr...'}</button>` : '';
@@ -3089,17 +3346,13 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                      <div class="relative mb-1">
                         <button type="button" class="w-full text-left text-[9px] text-slate-400 font-bold uppercase hover:text-blue-600 flex items-center gap-1" onclick="openMedModal('${p.id}')">💊 Aktuell <span class="no-print opacity-50 text-[8px]">(Suchen/Edit)</span></button>
                         ${StationModel.medicationTable(p, 'current')}
-                        <button type="button" class="workflow-button" onclick="openStructuredMeds('${p.id}')">Dosen / Gaben bearbeiten</button>
+                        <div class="med-actions no-print"><button type="button" class="workflow-button" onclick="openStructuredMeds('${p.id}')">Dosen / Gaben bearbeiten</button>
                         <button type="button" class="workflow-button" onclick="showMedicationReconciliation('${p.id}')">Aufnahme / Entlassung abgleichen</button>
-                        <button type="button" class="workflow-button" onclick="showMedicationHistory('${p.id}')">Änderungsverlauf</button>
+                        <button type="button" class="workflow-button" onclick="showMedicationHistory('${p.id}')">Änderungsverlauf</button></div>
                     </div>
-                    <div class="flex gap-1 mb-1 no-print">
-                        <div class="flex-1 bg-red-50 rounded border border-red-100 p-1"><label class="text-[8px] uppercase text-red-500 font-bold block mb-0.5">Pausiert ⏸️</label><input type="text" value="${esc(p.meds_paused || '')}" onchange="updateField('${p.id}', 'meds_paused', this.value)" class="w-full text-[9px] bg-transparent outline-none text-red-800" placeholder="z.B. Metformin"></div>
-                        <div class="flex-1 bg-blue-50 rounded border border-blue-100 p-1"><label class="text-[8px] uppercase text-blue-600 font-bold block mb-0.5">DAPT / OAK 🩸</label><input type="text" value="${esc(p.dapt_oak || '')}" onchange="updateField('${p.id}', 'dapt_oak', this.value)" class="w-full text-[9px] bg-transparent outline-none text-blue-800" placeholder="z.B. bis 05/26"></div>
-                    </div>
-                    <details><summary>Pausierte Medikamente / Bedarf</summary><h4>Pausiert</h4>${StationModel.medicationTable(p,'paused')}<h4>Bedarf</h4>${StationModel.medicationTable(p,'bedarf')}</details>
+                    <div class="med-secondary no-print"><section class="med-paused"><h4>Pausiert ⏸</h4>${StationModel.medicationTable(p,'paused',{compact:true})}<button type="button" class="workflow-button" onclick="openStructuredMeds('${p.id}')">Bearbeiten</button></section><section class="med-prn"><h4>Bedarf</h4>${StationModel.medicationTable(p,'bedarf',{compact:true})}<button type="button" class="workflow-button" onclick="openStructuredMeds('${p.id}')">Bearbeiten</button></section><section class="med-anticoag"><h4>Antikoagulation / TAH</h4><strong>${esc(getAnticoagulationStatus(p).status)}</strong><input aria-label="Antikoagulation Indikation / Dauer" value="${esc(p.dapt_oak||'')}" onchange="updateField('${p.id}','dapt_oak',this.value)" placeholder="Indikation / Dauer"></section></div>
                     ${amioBtn}
-                    <details class="group"><summary class="text-[9px] text-slate-400 cursor-pointer list-none hover:text-blue-500 no-print focus:outline-none focus:text-blue-600">▶ Aufnahme/Vor.D.</summary><div class="mt-1 pt-1 border-t border-slate-100"><div class="mb-1 med-hidden-print"><label class="text-[9px] text-slate-400 uppercase">Aufnahme-Med</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'meds_admission', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1" rows="1">${esc(p.meds_admission || "")}</textarea></div><div><label class="text-[9px] text-slate-400 uppercase">Vordiagnosen</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'history', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1 leading-tight outline-none border-b border-transparent focus:border-slate-300 ${histTextClass}" placeholder="Vordiagnosen...">${esc(p.history || "")}</textarea>${histToggleBtn}</div></div></details>
+                    <details data-detail-key="admission" class="group"><summary class="text-[9px] text-slate-400 cursor-pointer list-none hover:text-blue-500 no-print focus:outline-none focus:text-blue-600">▶ Aufnahme: Anamnese, Medikation, Vordiagnosen</summary><div class="mt-1 pt-1 border-t border-slate-100"><label class="section-caption">Aufnahmeanamnese<textarea aria-label="Aufnahmeanamnese" class="auto-expand" oninput="resizeTx(this);updateField('${p.id}','anamnesis',this.value)">${esc(p.anamnesis||'')}</textarea></label><div class="mb-1 med-hidden-print"><label class="text-[9px] text-slate-400 uppercase">Aufnahme-Med</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'meds_admission', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1" rows="1">${esc(p.meds_admission || "")}</textarea></div><div><label class="text-[9px] text-slate-400 uppercase">Vordiagnosen</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'history', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1 leading-tight outline-none border-b border-transparent focus:border-slate-300 ${histTextClass}" placeholder="Vordiagnosen...">${esc(p.history || "")}</textarea>${histToggleBtn}</div></div></details>
                 </div>`;
                 
                 let diagGrid = `<div class="grid grid-cols-4 gap-1 mt-1 diag-grid">`; if(typeof DIAGNOSTICS !== 'undefined') DIAGNOSTICS.forEach(d => { const s = (p.diag_status||{})[d]||0; const res = (p.diag_results||{})[d]||""; const hasRes = res ? 'has-result' : ''; diagGrid += `<button type="button" id="btn-diag-${p.id}-${d}" onclick="toggleDiag(event,'${p.id}','${d}')" oncontextmenu="toggleDiag(event,'${p.id}','${d}')" class="state-btn diag-${s} ${hasRes} py-0.5 rounded text-[9px]" title="${esc(res)}">${d} <span class="print-result ml-1">(${esc(res)})</span></button>`; }); diagGrid += `</div>`;
@@ -3139,7 +3392,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                 let footer = `<div class="flex justify-between items-center mt-1 pt-1 no-print gap-1"><button onclick="openExamModal('${p.id}')" class="text-[9px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded flex-1 border border-slate-200">📝 Notizen</button><button onclick="openScoreModal('${p.id}')" class="text-[9px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-1 rounded border border-indigo-100">🧮 Scores</button><button onclick="openEpikriseModal('${p.id}')" class="text-[9px] bg-indigo-800 hover:bg-indigo-700 text-white px-2 py-1 rounded font-bold">📄 Epikrise</button></div>`;
 
                 let extendedHtml = `<details class="mt-1 no-print compact-details"><summary class="compact-summary">🧩 Diagnostik, Konsile & Entlassung <span class="font-normal text-slate-400">(Details)</span></summary><div class="mt-1">${diagGrid}${consultHtml}${planHtml}${footer}</div></details>`;
-                card.innerHTML = header + patientStatusControls(p) + warnHtml + diag + cvrfHtml + contingencyHtml + todoHtml + meds + safetyHtml + abxHtml + microHtml + labImportHtml + scheduleHtml + labsVolHtml + tasksHtml + extendedHtml;
+                card.innerHTML = header + patientStatusControls(p) + warnHtml + diag + cvrfHtml + cardiacFields(p) + heartFailurePanel(p) + contingencyHtml + todoHtml + meds + safetyHtml + abxHtml + microHtml + labImportHtml + scheduleHtml + labsVolHtml + tasksHtml + extendedHtml;
                 containerFrag.appendChild(card);
 
                 // --- PRINT VIEW ---
@@ -3194,6 +3447,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                 printBodyFrag.appendChild(tr);
             });
             container.appendChild(containerFrag);
+            restoreCardDetails();
             printBody.appendChild(printBodyFrag);
             buildDetailPrint();
             buildLabPrint();
@@ -3261,12 +3515,12 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                         <div class="sheet-room">${escapeHtml(p.room || 'Gang')}</div>
                         <div class="sheet-ident">
                             <div class="sheet-name">${escapeHtml(p.name || 'ohne Namen')}</div>
-                            <div class="patient-status-print">${escapeHtml(StationModel.statusText(p))}</div><div class="sheet-sub">* ${escapeHtml(dob)}${isNaN(age) ? '' : ` (${age} J.)`}${stayDay(p) ? ` · Aufnahmetag ${stayDay(p)}` : ''} · Rhythmus ${escapeHtml(p.rhythm || '–')}${p.lvef ? ` · LVEF ${escapeHtml(p.lvef)} %` : ''}${p.valves ? ` · ${escapeHtml(p.valves)}` : ''}</div>
+                            <div class="patient-status-print">${escapeHtml(StationModel.statusText(p))}</div><div class="sheet-sub">* ${escapeHtml(dob)}${isNaN(age) ? '' : ` (${age} J.)`}${stayDay(p) ? ` · Aufnahmetag ${stayDay(p)}` : ''} · Rhythmus ${escapeHtml(p.rhythm || '–')}${p.lvef ? ` · LVEF ${escapeHtml(p.lvef)} %` : ''}${p.valves ? ` · ${escapeHtml(p.valves)}` : ''}${p.nyha ? ` · NYHA ${escapeHtml(p.nyha)}` : ''}${p.ehra ? ` · EHRA ${escapeHtml(p.ehra)}` : ''}</div>
                         </div>
                         ${alerts.length ? `<div class="sheet-alerts">${alerts.map(a => `<span>${escapeHtml(a)}</span>`).join('')}</div>` : ''}
                     </header>
                     ${level ? `<div class="sheet-severity sheet-severity-${p.severity}">Zustand: ${escapeHtml(level.label)}</div>` : ''}
-                    ${p.contingency ? `<div class="sheet-contingency"><strong>Wenn–dann:</strong> ${escapeHtml(p.contingency)}</div>` : ''}
+                    ${p.contingency ? `<div class="sheet-contingency"><strong>Wenn–dann / Notizen:</strong> ${escapeHtml(p.contingency)}</div>` : ''}
                     ${p.main_diagnosis ? `<div class="sheet-maindiag">${escapeHtml(p.main_diagnosis)}</div>` : ''}
                     <div class="sheet-grid">
                         ${printBlock('Aktuelle Diagnosen', printLines(p.diagnosis))}
@@ -3481,7 +3735,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
             }catch(error){alert('Backup nicht übernommen: '+error.message);}};reader.onerror=()=>alert('Backup konnte nicht gelesen werden.');reader.readAsText(file);input.value='';
         }
         function addNewPatient() { checkpoint('Patient anlegen'); const patient=StationModel.createPatient(); AppState.patients.push(patient);saveData();render();setTimeout(()=>document.querySelector('input[data-pid="'+patient.id+'"]')?.focus(),100); }
-        function updateField(id,field,value) { const patient=AppState.patients.find(p=>p.id===id);if(!patient)return;patient[field]=value;if(field==='dnr'||field==='dni')patient.resusReviewed=true;saveData(); }
+        function updateField(id,field,value) { const patient=AppState.patients.find(p=>p.id===id);if(!patient)return;patient[field]=value;saveData(); }
         function updateFieldRender(id,field,value) { updateField(id,field,value);render(); }
         function getAge(d) { if(!d) return ""; const a=getAgeNum(d); return isNaN(a)?"":`(${a}J)`; }
         
@@ -3853,7 +4107,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 
         function toggleDiag(e, id, d) { e.preventDefault(); const p = AppState.patients.find(x => x.id === id); if(!p.diag_status) p.diag_status={}; p.diag_status[d] = ((p.diag_status[d]||0)+1)%3; if(e.type==='contextmenu'){ const r = prompt(`Befund ${d}:`, (p.diag_results||{})[d]||""); if(r!==null){ if(!p.diag_results)p.diag_results={}; p.diag_results[d]=r; if(r)p.diag_status[d]=2; }} saveData(); render(); setTimeout(()=>{const b=document.getElementById(`btn-diag-${id}-${d}`);if(b)b.focus();},50); }
         function toggleCVRF(id, k) { const p = AppState.patients.find(x => x.id === id); if(!p.cvrf) p.cvrf=[]; if(p.cvrf.includes(k)) p.cvrf=p.cvrf.filter(x=>x!==k); else p.cvrf.push(k); saveData(); render(); }
-        function toggleResus(id, t) { const p = AppState.patients.find(x => x.id === id); if(p){p[t]=!p[t];p.resusReviewed=true;saveData();render();} }
+        function toggleResus(id, t) { const p = AppState.patients.find(x => x.id === id); if(p){p[t]=!p[t];saveData();render();} }
         function toggleDaily(id, k) { const p = AppState.patients.find(x => x.id === id); if(!p.daily) p.daily={}; p.daily[k]=!p.daily[k]; saveData(); render(); }
         function deletePatient(id) { if(confirm('Patient löschen? Rückgängig ist möglich.')){checkpoint('Patient löschen');AppState.patients=AppState.patients.filter(p=>p.id!==id);saveData();render();} }
         function startNewDay() { if(confirm("Neuer Tag?")) { AppState.patients.forEach(p=>p.daily={}); saveData(); render(); } }
@@ -4059,7 +4313,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                         ${handoverSection(`Offene Aufgaben (${open.length})`, printList(open.map(task =>
                             `${task.text}`)), { tone: 'text-amber-700', size: 'text-base' })}
                         <section class="mb-3">
-                            <h3 class="text-[11px] font-bold uppercase tracking-wide text-sky-700 border-b border-slate-200 mb-1">Wenn–dann (Dienstanweisung)</h3>
+                            <h3 class="text-[11px] font-bold uppercase tracking-wide text-sky-700 border-b border-slate-200 mb-1">Wenn–dann / Dienstanweisung / Notizen</h3>
                             <textarea oninput="updateField('${p.id}', 'contingency', this.value)" class="w-full border-2 ${p.contingency ? 'border-sky-400 bg-sky-50' : 'border-slate-200'} rounded p-2 text-sm h-20" placeholder="z. B. Bei RR syst. < 90 → Arzt rufen">${escapeHtml(p.contingency || '')}</textarea>
                         </section>
                         ${handoverSection('Entlassung', printList([
@@ -4466,6 +4720,8 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                 p.rhythm ? `Rhythmus: ${p.rhythm}${p.rhythm_history ? ` (${p.rhythm_history})` : ''}` : '',
                 p.lvef ? `LVEF: ${p.lvef} %` : '',
                 p.valves ? `Klappen: ${p.valves}` : '',
+                p.nyha ? `NYHA: ${p.nyha}` : '',
+                p.ehra ? `EHRA: ${p.ehra}` : '',
                 p.hfType && p.hfType!=='unknown' ? `Dokumentierter HI-Phänotyp: ${p.hfType}` : '',
                 p.efDate ? `EF-Befund: ${p.efDate} (${p.efSource||'Quelle nicht dokumentiert'})` : ''
             ].filter(Boolean);
@@ -4482,6 +4738,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
             const safety = safetyWarnings(p);
             const micro = microFindings(p).filter(item => !item.negative && !item.pending);
             const sonstiges = [
+                p.contingency ? `Dienstanweisung / Notizen: ${p.contingency}` : '',
                 p.warnings ? `CAVE / Allergien: ${p.warnings}` : '',
                 micro.length ? `Mikrobiologie:\n${micro.map(item => `- ${KisLabImport.formatDate(item.date)} ${item.material}: ${item.result}${item.resistance ? ` (${item.resistance})` : ''}`).join('\n')}` : '',
                 safety.length ? `Hinweise aus dem Medikationscheck:\n${safety.map(item => `- ${item.title}${item.text ? ': ' + item.text : ''}`).join('\n')}` : '',

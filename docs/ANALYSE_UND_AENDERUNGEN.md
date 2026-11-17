@@ -1,6 +1,6 @@
 # Analyse und genehmigte Änderungen
 
-Stand: 17.11.2026. Pakete A–E und Erweiterungen 1–12 wurden vom Benutzer freigegeben. Paket F ist ausschließlich Recherche; es werden keine neuen Therapiealgorithmen aktiviert.
+Stand: 17.11.2026. Pakete A–E und Erweiterungen 1–12 wurden vom Benutzer freigegeben. Die nachfolgende Layoutkorrektur und der Basisabgleich nach dem vom Benutzer bereitgestellten ESC-2026-PDF sind ebenfalls freigegeben; Belege und Grenzen stehen in LEITLINIEN_RECHERCHE.md.
 
 ## Gemeinsame Quellen und Einzeldateien
 
@@ -24,8 +24,8 @@ Die `*-komplett.html` bleiben erhalten. Sie sind generierte Artefakte, keine zwe
 
 - Versicherungsstatus: Unbekannt, Gesetzlich, Privat, Sonstiges mit Freitext.
 - Telemetrie: Keine, Telemetrie, Telemetrie/Joker. Der Joker ist immer Teil der Telemetrie, kein unabhängiges Flag.
-- DNR/DNI getrennt sichtbar; zusätzlich Reanimationsstatus geprüft/ungeklärt. Alle fünf Druckprofile enthalten die Statusangaben.
-- Dokumentationsfelder für HI-Phänotyp, EF, Befunddatum und Quelle; kein neuer automatischer Leitlinienabgleich.
+- DNR?/DNI? direkt neben Versicherung und Telemetrie, aktiviert rot als DNR/DNI. Der zusätzliche Reanimations-Prüfstatus ist auf Benutzerwunsch entfernt. Alle fünf Druckprofile enthalten die Statusangaben.
+- Dokumentationsfelder für HI-Phänotyp, EF-Verlauf, Befunddatum und Quelle; quellengebundener ESC-2026-Basistherapieabgleich mit Diagnose-/Stabilitäts-/Laborvorbehalten.
 - Medikamententabelle und strukturierter Editor; separate Bereiche für aktuell, pausiert, Bedarf und Aufnahmemedikation.
 - Medikationsänderungsverlauf und Aufnahme-/Aktuellvergleich; aktuelle Liste kann ausdrücklich als Entlassentwurf gespeichert und in die Epikrise übernommen werden. Der Namensvergleich ist keine pharmakologische Gleichheitsprüfung.
 - Hinweise können als offen, geprüft oder bewusst abweichend mit Begründung dokumentiert werden. Bei geändertem Bewertungskontext erscheint „erneut prüfen“. Hinweise werden nicht ausgeblendet.
@@ -63,3 +63,13 @@ python3 tests/workflow_test.py
 ```
 
 Die Browsertests starten selbst einen temporären lokalen HTTP-Server und verwenden vorhandenes Python-Playwright und `/usr/bin/chromium` (überschreibbar über `CHROMIUM_PATH`). Sie prüfen Statuspersistenz, Rückgängig, Filter, strukturierte Medikamente, Verlauf, Entlassentwurf, Epikrise, Medico-Import, Backupvalidierung, Quotenfehler, Offline-Einzeldatei und PDF-Inhalte aller Druckprofile mit 35 Medikamenten. `pdftotext` wird für die PDF-Inhaltsprüfung benötigt. Das sind funktionale Tests, keine klinische Validierung medizinischer Regeln.
+
+## Korrektur nach Screenshot-Vergleich
+
+Die Kartentypografie und alle neuen Bedienelemente sind vereinheitlicht. Aufnahmedatum mit Aufenthaltstag, direkte EF-Eingabe, NYHA/EHRA, Aufnahmeanamnese, die sichtbare Bedarfsmedikation und die berechnete Gerinnungsübersicht sind wieder direkt erreichbar. Der Vergleich mit dem vorherigen Commit und älteren Ansichten ergab darüber hinaus keine weitere entfernte sichtbare Funktion, die nicht durch die genehmigten Änderungen ersetzt worden war. Speicher-/Anonymisierungsfehler und die ausdrücklich entfernten To-do-Zuständigkeiten/Fristen wurden nicht wieder eingeführt.
+
+Der To-do-Editknopf steht in einer eigenen Kopfzeile statt über dem Löschknopf. „Wenn–dann / Dienstanweisung / Notizen“ verwendet dasselbe bestehende Feld: vorhandene Texte bleiben erhalten und werden weiterhin gedruckt und in die Epikrisenvorbelegung übernommen.
+
+Medikamente zeigen Präparat, explizit dokumentierte Stärke und Dosis/Schema; der Applikationsweg bleibt dezent erhalten, hat aber keine eigene Spalte. Eine fehlende Stärke wird nicht aus Tablettenanzahl oder einer typischen Handelsdosis erfunden.
+
+Laborverläufe sind je Patient auswählbar und im regulären Backup gespeichert. Ein Dialog zeigt bei Bedarf alle Parameter, Kurven und Originalwerte. Einheiten, Labor/BGA sowie explizit bekannte BGA-Probenarten bleiben getrennt. Qualitative Ergebnisse und Grenzwertangaben bleiben in den Tabellen sichtbar und werden nicht als exakte Zahlenpunkte gezeichnet. Die X-Achse ist als Messfolge beschriftet, nicht als zeitproportional. Geöffnete Bereiche bleiben beim Bearbeiten geöffnet.

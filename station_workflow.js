@@ -26,17 +26,29 @@ function matchesPatientFilter(p) {
     const counts=document.getElementById('telemetry-count');if(counts)counts.textContent='Telemetrie: '+AppState.patients.filter(x=>x.telemetry==='active'||x.telemetry==='joker').length+' · davon Joker: '+AppState.patients.filter(x=>x.telemetry==='joker').length;
     return filter==='all'||filter==='telemetry'&&['active','joker'].includes(p.telemetry)||filter==='joker'&&p.telemetry==='joker'||filter==='isolation'&&((p.iso||[]).length||p.infectious)||filter==='discharge'&&!!p.discharge_date||filter==='todo'&&openTodoCount(p).open>0;
 }
+function selectOptions(values,selected) {
+    return Object.entries(values).map(([key,text])=>'<option value="'+StationModel.escape(key)+'"'+(key===selected?' selected':'')+'>'+StationModel.escape(text)+'</option>').join('');
+}
 function patientStatusControls(p) {
     const e=StationModel.escape;
-    const options=(values,selected)=>Object.entries(values).map(([key,text])=>'<option value="'+key+'"'+(key===selected?' selected':'')+'>'+text+'</option>').join('');
-    return `<div class="patient-status"><strong>${e(StationModel.statusText(p))}</strong><div class="status-controls no-print">
-    <label>Versicherung <select aria-label="Versicherungsstatus" onchange="updateFieldRender('${p.id}','insurance',this.value)">${options({unknown:'Unbekannt',public:'Gesetzlich',private:'Privat',other:'Sonstiges'},p.insurance||'unknown')}</select></label>
-    ${p.insurance==='other'?`<input aria-label="Versicherungs-Sonderfall" placeholder="Sonderfall" value="${e(p.insuranceNote)}" onchange="updateFieldRender('${p.id}','insuranceNote',this.value)">`:''}
-    <label>Monitoring <select aria-label="Telemetrie" onchange="updateFieldRender('${p.id}','telemetry',this.value)">${options({none:'Keine Telemetrie',active:'Telemetrie',joker:'Telemetrie · Joker'},p.telemetry||'none')}</select></label>
-    <label><input type="checkbox" ${p.resusReviewed?'checked':''} onchange="updateFieldRender('${p.id}','resusReviewed',this.checked)">Reanimationsstatus geprüft</label></div>
-    <details class="no-print"><summary>Herzinsuffizienz / EF dokumentieren</summary><label>Dokumentierter Phänotyp <select aria-label="Herzinsuffizienztyp" onchange="updateFieldRender('${p.id}','hfType',this.value)">${options({unknown:'Unklar / nicht dokumentiert',HFrEF:'HFrEF',HFmrEF:'HFmrEF',HFpEF:'HFpEF',HFimpEF:'HFimpEF',none:'Keine dokumentiert'},p.hfType||'unknown')}</select></label>
-    <label>EF (%) <input type="number" min="0" max="100" step="1" value="${e(p.lvef)}" onchange="if(this.checkValidity())updateFieldRender('${p.id}','lvef',this.value)"></label><label>Befunddatum <input type="date" value="${e(p.efDate)}" onchange="updateFieldRender('${p.id}','efDate',this.value)"></label><label>Quelle <input value="${e(p.efSource)}" onchange="updateFieldRender('${p.id}','efSource',this.value)"></label>
-    <p>Leitlinienabgleich noch nicht aktiviert; Quellenprüfung und fachliche Freigabe ausstehend.</p></details></div>`;
+    return `<div class="patient-status no-print">
+    <button type="button" aria-label="DNR" aria-pressed="${!!p.dnr}" onclick="toggleResus('${p.id}','dnr')" class="resus-btn ${p.dnr?'resus-active':''}">${p.dnr?'DNR':'DNR?'}</button>
+    <button type="button" aria-label="DNI" aria-pressed="${!!p.dni}" onclick="toggleResus('${p.id}','dni')" class="resus-btn ${p.dni?'resus-active':''}">${p.dni?'DNI':'DNI?'}</button>
+    <select aria-label="Versicherungsstatus" title="Versicherungsstatus" onchange="updateFieldRender('${p.id}','insurance',this.value)">${selectOptions({unknown:'Versicherung?',public:'Gesetzlich',private:'Privat',other:'Sonderfall'},p.insurance||'unknown')}</select>
+    <select aria-label="Telemetrie" title="Telemetrie / Joker" onchange="updateFieldRender('${p.id}','telemetry',this.value)">${selectOptions({none:'Keine Telemetrie',active:'Telemetrie',joker:'Telemetrie · Joker'},p.telemetry||'none')}</select>
+    ${p.insurance==='other'?`<input class="insurance-note" aria-label="Versicherungs-Sonderfall" placeholder="Sonderfall …" value="${e(p.insuranceNote)}" onchange="updateFieldRender('${p.id}','insuranceNote',this.value)">`:''}</div>`;
+}
+function cardiacFields(p) {
+    const e=StationModel.escape;
+    return `<div class="cardiac-fields no-print"><div class="cardiac-row"><label>Rhythmus <select aria-label="Rhythmus" onchange="updateFieldRender('${p.id}','rhythm',this.value)">${selectOptions({'':'—',SR:'SR',VHF:'VHF',AF:'A-Flatt','PM/ICD':'PM/ICD'},p.rhythm||'')}</select></label><input aria-label="Rhythmusverlauf" placeholder="Zuletzt SR am …" value="${e(p.rhythm_history||'')}" onchange="updateField('${p.id}','rhythm_history',this.value)"></div>
+    <div class="cardiac-row"><label>EF <input aria-label="EF (%)" type="text" inputmode="decimal" value="${e(p.lvef||'')}" placeholder="%" onchange="updateFieldRender('${p.id}','lvef',this.value)"></label><label class="valves-field">Klappen <input aria-label="Klappenbefund" placeholder="z. B. MI II°" value="${e(p.valves||'')}" onchange="updateField('${p.id}','valves',this.value)"></label><select aria-label="NYHA" onchange="updateFieldRender('${p.id}','nyha',this.value)">${selectOptions({'':'NYHA —',I:'NYHA I',II:'NYHA II',III:'NYHA III',IV:'NYHA IV'},p.nyha||'')}</select><select aria-label="EHRA" onchange="updateFieldRender('${p.id}','ehra',this.value)">${selectOptions({'':'EHRA —',I:'EHRA I',IIa:'EHRA IIa',IIb:'EHRA IIb',III:'EHRA III',IV:'EHRA IV'},p.ehra||'')}</select></div></div>`;
+}
+function renderTodoPanel(p) {
+    const e=StationModel.escape,tasks=todoList(p),count=tasks.filter(t=>!t.done).length;
+    const header=`<div class="todo-header"><span>To-do <b>${count} offen</b></span><button type="button" aria-label="To-dos bearbeiten" onclick="updateFieldRender('${p.id}','showRawTodo',${!p.showRawTodo})">${p.showRawTodo?'Fertig':'✎ Edit'}</button></div>`;
+    const body=p.showRawTodo?`<textarea aria-label="To-do-Freitext" class="todo-editor" onchange="updateFieldRender('${p.id}','todo_text',this.value)">${e(p.todo_text||'')}</textarea>`:
+        tasks.map((task,i)=>`<div class="todo-row"><button type="button" class="todo-check ${task.done?'is-done':''}" aria-label="Aufgabe ${i+1} ${task.done?'öffnen':'erledigen'}" onclick="toggleTodoLine('${p.id}',${i})"><span>${task.done?'☑':'☐'}</span><span>${e(task.text)}</span></button><button class="todo-delete" type="button" aria-label="Aufgabe ${i+1} löschen" onclick="deleteTodoLine('${p.id}',${i})">×</button></div>`).join('')+(tasks.length?'':'<p class="med-empty">Keine offenen Einträge</p>');
+    return `<section class="todo-panel">${header}${body}<input aria-label="Neues To-do" placeholder="+ Neues To-do (Enter)" onkeydown="if(event.key==='Enter'){addTodoLine('${p.id}',this.value);this.value='';}"></section>`;
 }
 function openWorkflowDialog(title,body) {
     const dialog=document.getElementById('workflow-dialog');dialog.innerHTML='<header><h2>'+StationModel.escape(title)+'</h2><button type="button" onclick="document.getElementById(\'workflow-dialog\').close()">Schließen</button></header>'+body;dialog.showModal();return dialog;
@@ -101,3 +113,90 @@ function labContextText(set) {
     const age=ageHours<0?'Abnahme liegt in der Zukunft – Datum prüfen':set.time?ageHours+' Stunden seit Abnahme':Math.floor(ageHours/24)+' Tage seit Abnahmedatum; Uhrzeit fehlt';
     return 'KIS-Import · '+age;
 }
+
+function hfContext(p) {
+    const latest=latestLabSet(p,'labor');
+    const potassium=(latest?.entries||[]).find(entry=>KisLabImport.matchesParameter(entry,{code:'V_K'})&&/^mmol\s*\/\s*l$/i.test(entry.unit||''));
+    return {egfr:currentEgfr(p),potassium:potassium&&!potassium.unreliable&&!/^[<>≤≥]/.test(String(potassium.value).trim())?(Number.isFinite(potassium.num)?potassium.num:KisLabImport.toNumber(potassium.value)):null};
+}
+function heartFailurePanel(p) {
+    const e=StationModel.escape,result=HfGuidance.evaluate(p,StationModel.medications(p),hfContext(p));
+    const legacy=['HFmrEF','HFimpEF'].includes(p.hfType)?`<option value="${e(p.hfType)}" selected disabled>Altangabe ${e(p.hfType)} – prüfen</option>`:'';
+    const choose=(field,label,values)=>`<label>${label}<select aria-label="${label}" onchange="updateFieldRender('${p.id}','${field}',this.value)">${selectOptions(values,p[field]||'unknown')}</select></label>`;
+    const rows=result.checks.map(check=>`<div class="hf-check hf-${check.state}"><strong>${e(check.label)}</strong><span>${e(check.names.join(', ')||'Kein passender aktiver Eintrag erkannt')}</span><p>${e(check.text)} <small>ESC 2026 · ${e(check.ref)}</small></p><button type="button" class="workflow-button" onclick="setHfDeferral('${p.id}','${check.key}')">Begründung / Ausnahme</button></div>`).join('');
+    return `<details data-detail-key="hf" class="compact-details hf-panel no-print"><summary class="compact-summary">♡ Herzinsuffizienz <span>${e(p.hfType&&p.hfType!=='unknown'?p.hfType:'Zuordnung offen')} · EF ${e(p.lvef||'—')} %</span><small>ESC 2026</small></summary><div class="hf-fields">
+    <label>Herzinsuffizienztyp<select aria-label="Herzinsuffizienztyp" onchange="updateFieldRender('${p.id}','hfType',this.value)">${legacy}${selectOptions({unknown:'Unklar / nicht bestätigt',HFrEF:'HFrEF (<50 %)',HFpEF:'HFpEF (≥50 %)',none:'Keine dokumentiert'},p.hfType||'unknown')}</select></label>
+    ${choose('hfSymptoms','HF-Symptome / -Zeichen',{unknown:'Noch nicht bestätigt',yes:'Aktuell symptomatisch',no:'Bekannte HF, aktuell asymptomatisch'})}
+    ${choose('hfStable','Klinisch stabil / euvoläm',{unknown:'Noch nicht bestätigt',yes:'Ja',no:'Nein'})}
+    ${choose('hfCongestion','Stauungszeichen',{unknown:'Unbekannt',yes:'Ja',no:'Nein'})}
+    ${p.hfType==='HFpEF'?choose('hfObjectiveEvidence','Objektive HFpEF-Befunde',{unknown:'Noch nicht bestätigt',yes:'Ärztlich bestätigt',no:'Nicht nachgewiesen'})+choose('hfNoPreviousReduced','Nie zuvor EF unter 50 %',{unknown:'Verlauf unklar',yes:'Anhand Vorbefunden bestätigt',no:'Frühere EF unter 50 %'}):''}
+    <label>Bisher niedrigste EF (%)<input aria-label="Frühere EF (%)" type="number" min="0" max="100" step="0.1" value="${e(p.hfPreviousEf??'')}" onchange="if(this.checkValidity())updateFieldRender('${p.id}','hfPreviousEf',this.value)"></label>
+    <label>EF-Befunddatum<input aria-label="EF-Befunddatum" type="date" value="${e(p.efDate||'')}" onchange="updateFieldRender('${p.id}','efDate',this.value)"></label>
+    <label>EF-Quelle<input aria-label="EF-Quelle" value="${e(p.efSource||'')}" onchange="updateFieldRender('${p.id}','efSource',this.value)"></label>
+    <label>ACE-Hemmer-/ARNI-Unverträglichkeit<input aria-label="ACE-Hemmer-/ARNI-Unverträglichkeit" value="${e(p.hfRaasIntolerance||'')}" onchange="updateFieldRender('${p.id}','hfRaasIntolerance',this.value)"></label></div>
+    <div class="hf-checks">${rows}</div>${result.notes.map(note=>`<p class="hf-note hf-${note.tone}">${e(note.text)} <small>ESC 2026 · ${e(note.ref)}</small></p>`).join('')}
+    <p class="hf-source">Dokumentationsabgleich, keine Verordnung oder vollständige Kontraindikations-/Dosisprüfung. Grundlage: bereitgestelltes PDF, <a href="${HfGuidance.SOURCE.url}" target="_blank" rel="noopener noreferrer">ESC 2026 · ehag100</a>. Dosen und Zulassung vor Änderungen prüfen.</p></details>`;
+}
+function setHfDeferral(id,key) {
+    const p=AppState.patients.find(x=>x.id===id);if(!p)return;
+    const reason=prompt('Ärztliche Begründung / Kontraindikation (leer = Ausnahme aufheben):',typeof (p.hfDeferrals||{})[key]==='string'?p.hfDeferrals[key]:p.hfDeferrals?.[key]?.reason||'');
+    if(reason===null)return;p.hfDeferrals=p.hfDeferrals||{};if(reason.trim())p.hfDeferrals[key]={reason:reason.trim(),at:new Date().toISOString(),context:JSON.stringify([p.hfType,p.lvef,p.hfSymptoms,p.hfStable,hfContext(p).egfr,hfContext(p).potassium])};else delete p.hfDeferrals[key];saveData();render();
+}
+function labTrendCards(p) {
+    const all=StationLabs.catalog(p),items=StationLabs.selected(p,typeof LAB_TRENDS!=='undefined'?LAB_TRENDS:[]),e=StationModel.escape;
+    return `<div class="lab-view-actions"><button type="button" onclick="openLabTrendSettings('${p.id}')">⚙ Werte auswählen</button><button type="button" onclick="showAllLabTrends('${p.id}')">Alle Werte & Verläufe (${all.length})</button></div><div class="lab-trend-grid">`+items.map(item=>{
+        const last=item.values.at(-1),index=all.findIndex(a=>a.key===item.key),points=StationLabs.points(item);
+        return `<button type="button" class="lab-trend-card lab-${labStatus(last.status)}" onclick="showLabParameter('${p.id}',${index})" title="${e(item.label+' · '+item.type+' · '+item.unit+' · '+item.sample)}"><span>${e(item.label)}${item.type==='bga'?' (BGA)':''}</span><strong>${e(last.value??'—')}${last.unreliable?' (!)':''}${last.preliminary?'*':''} <small>${e(item.unit)}</small></strong><span class="lab-mini-plot">${labPlot(item,false)}</span><small>${points.length>1?points.length+' Messpunkte':points.length===1?'Einzelwert':'Qualitativer Befund'} · ${e(last.date||'Datum fehlt')}</small></button>`;
+    }).join('')+`</div>${items.length?'':'<p class="med-empty">Keine Verläufe ausgewählt / vorhanden.</p>'}`;
+}
+function labPlot(item,large) {
+    const values=StationLabs.points(item),width=large?420:96,height=large?90:24;
+    if(!values.length)return '<span class="med-empty">Keine quantifizierbare Kurve</span>';
+    const min=Math.min(...values.map(v=>v.num)),max=Math.max(...values.map(v=>v.num)),span=max-min||1;
+    const coords=values.map((v,i)=>[values.length===1?width/2:6+i*(width-12)/(values.length-1),height-6-(v.num-min)*(height-12)/span]);
+    return `<svg class="lab-plot" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${StationModel.escape(item.label+' in '+item.unit+'; Messfolge, keine zeitproportionale Achse')}"><title>${StationModel.escape(values.map(v=>(v.date||'undatiert')+' '+v.time+': '+v.value+' '+item.unit).join(' · '))}</title><path d="M6 ${height-5}H${width-6}" stroke="currentColor" opacity=".12"/>${coords.length>1?`<polyline points="${coords.map(c=>c.join(',')).join(' ')}" fill="none" stroke="currentColor" stroke-width="${large?2:1.5}"/>`:''}${coords.map(c=>`<circle cx="${c[0]}" cy="${c[1]}" r="${large?2.5:1.8}" fill="currentColor"/>`).join('')}</svg>`;
+}
+function openLabTrendSettings(id) {
+    const p=AppState.patients.find(x=>x.id===id),all=StationLabs.catalog(p),selected=StationLabs.selected(p,typeof LAB_TRENDS!=='undefined'?LAB_TRENDS:[]),e=StationModel.escape;
+    openWorkflowDialog('Laborverläufe auswählen',`<p>Auswahl je Patient. Verschiedene Probenarten und Einheiten bleiben getrennt. Die vollständigen Befunde bleiben erhalten.</p><input aria-label="Laborparameter suchen" placeholder="Parameter suchen …" oninput="filterLabChoices(this.value)"><div class="lab-choice-actions"><button onclick="setLabChoiceChecks(true)">Alle auswählen</button><button onclick="setLabChoiceChecks(false)">Keine</button></div><div id="lab-choices">${all.map((item,i)=>`<label class="lab-choice"><input type="checkbox" data-lab-index="${i}" ${selected.some(x=>x.key===item.key)?'checked':''}>${e(item.label)} <small>${e(item.unit)} · ${e((item.type==='bga'?'BGA':'Labor')+(item.sample?' / '+item.sample:''))} · ${e(item.code)}</small></label>`).join('')}</div><button class="workflow-primary" onclick="saveLabTrendSelection('${id}')">Auswahl speichern</button><button onclick="resetLabTrendSelection('${id}')">Standardwerte wiederherstellen</button>`);
+}
+function filterLabChoices(text) {
+    document.querySelectorAll('#lab-choices .lab-choice').forEach(label=>{label.hidden=!label.textContent.toLocaleLowerCase('de').includes(text.toLocaleLowerCase('de'));});
+}
+function setLabChoiceChecks(checked) {document.querySelectorAll('#lab-choices input').forEach(input=>{input.checked=checked;});}
+function saveLabTrendSelection(id) {
+    const p=AppState.patients.find(x=>x.id===id),all=StationLabs.catalog(p);
+    p.labTrendSelection=[...document.querySelectorAll('#lab-choices input:checked')].map(input=>all[Number(input.dataset.labIndex)]?.key).filter(Boolean);
+    saveData();render();document.getElementById('workflow-dialog').close();
+}
+function resetLabTrendSelection(id) {
+    const p=AppState.patients.find(x=>x.id===id);delete p.labTrendSelection;saveData();render();document.getElementById('workflow-dialog').close();
+}
+function labParameterDetail(item) {
+    const e=StationModel.escape;
+    return `<section class="lab-parameter-detail"><h3>${e(item.label)} <small>${e(item.unit)} · ${e((item.type==='bga'?'BGA':'Labor')+(item.sample?' / '+item.sample:''))}</small></h3>${labPlot(item,true)}<p class="lab-axis-note">X: Messfolge (Datum / Uhrzeit siehe Tabelle) · Y: ${e(item.unit||'Originaleinheit fehlt')}. Grenzwertangaben werden nicht als exakte Punkte gezeichnet.</p><table class="med-table"><thead><tr><th>Abnahme</th><th>Wert</th><th>Referenz</th><th>Hinweis</th></tr></thead><tbody>${item.values.map(v=>`<tr class="lab-${labStatus(v.status)}"><td>${e([v.date,v.time].filter(Boolean).join(' ')||'Datum fehlt')}</td><td>${e(v.value)} ${e(item.unit)}${v.preliminary?' (vorläufig)':''}</td><td>${e(v.ref||'—')}</td><td>${e([v.unreliable?'Als unzuverlässig markiert':'',v.comment||''].filter(Boolean).join(' · '))}</td></tr>`).join('')}</tbody></table></section>`;
+}
+function showLabParameter(id,index) {
+    const p=AppState.patients.find(x=>x.id===id),item=StationLabs.catalog(p)[index];if(!item)return;
+    openWorkflowDialog('Laborverlauf · '+item.label,labParameterDetail(item));
+}
+function showAllLabTrends(id) {
+    const p=AppState.patients.find(x=>x.id===id),all=StationLabs.catalog(p);
+    openWorkflowDialog('Alle Laborwerte und Verläufe',all.length?'<div class="lab-all-grid">'+all.map(labParameterDetail).join('')+'</div>':'<p>Noch keine Befunde importiert.</p>');
+}
+
+function rememberCardDetails() {
+    AppState.detailsOpen=AppState.detailsOpen||{};
+    document.querySelectorAll('.patient-card').forEach(card=>{
+        const id=card.querySelector('input[data-pid]')?.dataset.pid;if(!id)return;
+        card.querySelectorAll('details[data-detail-key]').forEach(detail=>{AppState.detailsOpen[id+':'+detail.dataset.detailKey]=detail.open;});
+    });
+}
+function restoreCardDetails() {
+    document.querySelectorAll('.patient-card').forEach(card=>{
+        const id=card.querySelector('input[data-pid]')?.dataset.pid;if(!id)return;
+        card.querySelectorAll('details[data-detail-key]').forEach(detail=>{const key=id+':'+detail.dataset.detailKey;if(Object.hasOwn(AppState.detailsOpen||{},key))detail.open=AppState.detailsOpen[key];});
+    });
+}
+
+function labStatus(status) { return status==='high'||status==='low'?status:'normal'; }
