@@ -1938,6 +1938,16 @@ const MED_GROUPS = {
         const dose=m=>[m.dose,m.schedule].filter(Boolean).join(' · ');
         const strength=m=>medicationStrength(m);
         const displayName=m=>{const value=strength(m);return value&&m.name.includes(value)?m.name.replace(value,'').replace(/\s{2,}/g,' ').trim():m.name;};
+        if (options.namesOnly) {
+            const names = meds.map(med => {
+                let name = med.name;
+                const embeddedStrength = medicationStrength({ name });
+                if (embeddedStrength) name = name.replace(embeddedStrength, '');
+                if (med.route) name = name.replace('[' + med.route + ']', '');
+                return name.replace(/\(\s*\)/g, '').replace(/\s{2,}/g, ' ').trim();
+            }).filter(Boolean);
+            return '<ul class="print-med-names">' + names.map(name => '<li>' + escape(name) + '</li>').join('') + '</ul>';
+        }
         if(options.compact)return '<ul class="med-mini-list">'+meds.map(m=>'<li title="'+escape(m.route||'')+'"><strong>'+escape(displayName(m))+'</strong>'+ (strength(m)?' <span>'+escape(strength(m))+'</span>':'')+'<small>'+escape(dose(m)||'Dosierung offen')+(m.route?' · '+escape(m.route):'')+'</small></li>').join('')+'</ul>';
         return '<table class="med-table"><thead><tr><th>Medikament</th><th>Stärke</th><th>Dosis / Schema</th></tr></thead><tbody>'+meds.map(m=>'<tr><td title="'+escape(m.route||'')+'">'+escape(displayName(m))+(m.route?'<small class="med-route">'+escape(m.route)+'</small>':'')+'</td><td title="'+(strength(m)?'':'Stärke nicht dokumentiert')+'">'+escape(strength(m)||'—')+'</td><td>'+escape(dose(m)||'—')+'</td></tr>').join('')+'</tbody></table>';
     }
@@ -2074,6 +2084,7 @@ const MED_GROUPS = {
 /* Oberfläche auf Basis von StationModel. Alle Ein-Datei-Fassungen werden generiert. */
 'use strict';
 const workflowUndo=[];
+let selectedRoom = null;
 function checkpoint(reason) {
     workflowUndo.push({reason,patients:StationModel.clone(AppState.patients)});
     if(workflowUndo.length>5)workflowUndo.shift();
@@ -2091,14 +2102,50 @@ function downloadBackup(data,prefix) {
 function installWorkflowControls() {
     const panel=document.createElement('div');panel.className='workflow-toolbar no-print';
     panel.innerHTML='<button id="undo-action" disabled onclick="undoLastAction()">↶ Rückgängig</button><label>Ansicht <select id="patient-filter" onchange="render()"><option value="all">Alle Patienten</option><option value="telemetry">Telemetrie</option><option value="joker">Telemetrie · Joker</option><option value="isolation">Isolation / infektiös</option><option value="discharge">Entlassung geplant</option><option value="todo">Offene Aufgaben</option></select></label><span id="telemetry-count"></span>';
-    document.getElementById('app').prepend(panel);
+    const rooms = document.createElement('div');
+    rooms.id = 'room-tabs';
+    rooms.className = 'room-tabs no-print';
+    rooms.setAttribute('role', 'group');
+    rooms.setAttribute('aria-label', 'Zimmerauswahl');
+    document.getElementById('app').prepend(panel, rooms);
     const dialog=document.createElement('dialog');dialog.id='workflow-dialog';dialog.className='workflow-dialog';document.body.append(dialog);
 }
 function matchesPatientFilter(p) {
     const filter=document.getElementById('patient-filter')?.value||'all';
-    const counts=document.getElementById('telemetry-count');if(counts)counts.textContent='Telemetrie: '+AppState.patients.filter(x=>x.telemetry==='active'||x.telemetry==='joker').length+' · davon Joker: '+AppState.patients.filter(x=>x.telemetry==='joker').length;
     return filter==='all'||filter==='telemetry'&&['active','joker'].includes(p.telemetry)||filter==='joker'&&p.telemetry==='joker'||filter==='isolation'&&((p.iso||[]).length||p.infectious)||filter==='discharge'&&!!p.discharge_date||filter==='todo'&&openTodoCount(p).open>0;
 }
+function renderRoomTabs(patients) {
+    const counts = document.getElementById('telemetry-count');
+    const telemetry = AppState.patients.filter(p => ['active', 'joker'].includes(p.telemetry));
+    counts.textContent = 'Telemetrie: ' + telemetry.length + ' · davon Joker: ' + telemetry.filter(p => p.telemetry === 'joker').length;
+    const tabs = document.getElementById('room-tabs');
+    const rooms = [...new Set(patients.map(p => p.room))];
+    if (!rooms.includes(selectedRoom)) selectedRoom = null;
+    const previousScroll = tabs.scrollLeft;
+    tabs.replaceChildren(...[null, ...rooms].map(room => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = room === null ? 'Alle Zimmer' : room ? 'Zimmer ' + room : 'Gang';
+        button.setAttribute('aria-controls', 'patient-list');
+        button.setAttribute('aria-pressed', String(room === selectedRoom));
+        button.addEventListener('click', () => {
+            selectedRoom = room;
+            tabs.querySelector('[aria-pressed="true"]').setAttribute('aria-pressed', 'false');
+            button.setAttribute('aria-pressed', 'true');
+            document.getElementById('patient-list').scrollTop = 0;
+            applyRoomFilter();
+        });
+        return button;
+    }));
+    tabs.scrollLeft = previousScroll;
+}
+
+function applyRoomFilter() {
+    document.querySelectorAll('#patient-list > .patient-card').forEach(card => {
+        card.hidden = selectedRoom !== null && card.dataset.room !== selectedRoom;
+    });
+}
+
 function selectOptions(values,selected) {
     return Object.entries(values).map(([key,text])=>'<option value="'+StationModel.escape(key)+'"'+(key===selected?' selected':'')+'>'+StationModel.escape(text)+'</option>').join('');
 }
@@ -2259,16 +2306,29 @@ function showAllLabTrends(id) {
 }
 
 function rememberCardDetails() {
-    AppState.detailsOpen=AppState.detailsOpen||{};
-    document.querySelectorAll('.patient-card').forEach(card=>{
-        const id=card.querySelector('input[data-pid]')?.dataset.pid;if(!id)return;
-        card.querySelectorAll('details[data-detail-key]').forEach(detail=>{AppState.detailsOpen[id+':'+detail.dataset.detailKey]=detail.open;});
+    AppState.cardView = AppState.cardView || new Map();
+    document.querySelectorAll('#patient-list > .patient-card').forEach(card => {
+        const id = card.querySelector('input[data-pid]').dataset.pid;
+        const detail = card.querySelector(':scope > details[open]');
+        const scrollTop = card.hidden ? AppState.cardView.get(id)?.scrollTop ?? 0 : card.scrollTop;
+        AppState.cardView.set(id, { section: detail?.dataset.detailKey, scrollTop });
     });
 }
 function restoreCardDetails() {
-    document.querySelectorAll('.patient-card').forEach(card=>{
-        const id=card.querySelector('input[data-pid]')?.dataset.pid;if(!id)return;
-        card.querySelectorAll('details[data-detail-key]').forEach(detail=>{const key=id+':'+detail.dataset.detailKey;if(Object.hasOwn(AppState.detailsOpen||{},key))detail.open=AppState.detailsOpen[key];});
+    document.querySelectorAll('#patient-list > .patient-card').forEach((card, index) => {
+        const id = card.querySelector('input[data-pid]').dataset.pid;
+        const view = AppState.cardView.get(id);
+        const sections = [...card.querySelectorAll(':scope > details[data-detail-key]')];
+        const active = view ? sections.find(section => section.dataset.detailKey === view.section)
+            : sections.find(section => section.open);
+        sections.forEach(section => {
+            section.open = section === active;
+            section.name = 'patient-section-' + index;
+            section.addEventListener('toggle', () => {
+                if (section.open) section.querySelectorAll('.auto-expand').forEach(resizeTx);
+            });
+        });
+        if (view) card.scrollTop = view.scrollTop;
     });
 }
 
@@ -2377,16 +2437,39 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 
 #print-table-container, #print-detail-container, #print-lab-container, .print-only { display: none; }
 
+@media screen {
+    #main-body:has(#patient-list) { height: 100dvh; min-height: 0; padding-bottom: 0; display: flex; flex-direction: column; }
+    #main-body:has(#patient-list) > :not(#app) { flex-shrink: 0; }
+    #app:has(#patient-list) { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    #patient-list {
+        flex: 1; min-height: 0; overflow-y: auto;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+        grid-auto-rows: minmax(min(23rem, 100%), 1fr);
+    }
+    #patient-list > .patient-card { min-width: 0; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
+    #patient-list > .patient-card > * { flex-shrink: 0; }
+    #patient-list > .patient-card[hidden] { display: none; }
+    #patient-list:empty { display: none; }
+}
+
+.room-tabs { display: flex; flex-shrink: 0; gap: .4rem; overflow-x: auto; padding: .35rem .2rem .6rem; }
+.room-tabs button { flex: 0 0 auto; border: 1px solid #cbd5e1; border-radius: 6px; padding: .35rem .75rem; background: #fff; color: #334155; font-size: .875rem; }
+.room-tabs button[aria-pressed="true"] { background: #3730a3; color: #fff; border-color: #3730a3; }
+#filter-empty { padding: 1rem; color: #475569; }
+.med-panel-body, .diagnostics-body { padding: 6px; }
+.diagnostics-body .daily-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(3.5rem, 1fr)); gap: 4px; padding: 3px 0 6px; }
+.diagnostics-body .task-btn { padding: 3px; border-radius: 4px; font-size: 10px; }
+
 /* --- DRUCK LAYOUT --- */
 @media print {
-    @page { size: A4 landscape; margin: 0.6cm; }
-    body { background: white; -webkit-print-color-adjust: exact; font-family: 'Arial', sans-serif; font-size: 9pt; }
+    @page { size: A4 landscape; margin: 1cm; }
+    body { background: white; -webkit-print-color-adjust: exact; font-family: 'Arial', sans-serif; font-size: 9.5pt; line-height: 1.35; overflow-wrap: anywhere; }
     
-    .no-print, .modal, #patient-list, .navbar { display: none !important; }
+    .no-print, .modal, #app, .navbar { display: none !important; }
     #print-table-container { display: block !important; width: 100%; }
     .print-only { display: block !important; }
 
-    /* Kopf- und Fußzeile auf jeder Seite */
+    /* Titel und Vertraulichkeitshinweis */
     #print-head { display: flex !important; justify-content: space-between; align-items: baseline;
         border-bottom: 2px solid #000; margin-bottom: 4px; padding-bottom: 2px; }
     #print-head-title { font-weight: bold; font-size: 11pt; }
@@ -2394,8 +2477,16 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     #print-foot { margin-top: 4px; border-top: 1px solid #999; padding-top: 2px; font-size: 7pt; color: #444; }
 
     table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    th, td { border: 1px solid #000; padding: 4px; vertical-align: top; word-wrap: break-word; }
-    /* Kopfzeile auf Folgeseiten wiederholen, Patientenzeilen nicht zerreißen */
+    th, td { border: 1px solid #94a3b8; padding: 5px 6px; vertical-align: top; overflow-wrap: anywhere; }
+    thead th { background: #e8eef5; color: #172b43; text-align: left; }
+    #print-table-body > tr:nth-child(even) { background: #f7f9fc; }
+    #print-table-body > tr { break-inside: auto; }
+    #print-table-body > tr > td { vertical-align: top; }
+    .print-meds h3 { font-size: 8.5pt; font-weight: 700; color: #172b43; break-after: avoid; }
+    .print-med-names { margin: 1pt 0 2pt; padding-left: 0; list-style: none; }
+    .print-med-names li { break-inside: avoid; }
+    .print-meds-reduced { display: none; }
+    /* Tabellenköpfe wiederholen und einzelne Messwert- und Medikamentenzeilen zusammenhalten. */
     thead { display: table-header-group; }
     tfoot { display: table-footer-group; }
     tr { break-inside: avoid; page-break-inside: avoid; }
@@ -2425,28 +2516,21 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     .task-true::before { content: "☒ "; font-weight: bold; color: black !important; }
     .task-true { color: black !important; background: transparent !important; }
 
-    /* PROFILE: Visite */
-    body.print-mode-visite .print-history, body.print-mode-visite .print-meds, body.print-mode-visite .print-cvrf-box { display: none !important; }
-    body.print-mode-visite .col-diag { width: 35%; }
-    body.print-mode-visite .col-todo { width: 42%; }
+    /* Visite und Pocket zeigen Medikamentennamen und die für das Profil vorgesehenen Angaben. */
+    body:is(.print-mode-visite, .print-mode-pocket) :is(.print-history, .print-meds-detailed, .print-cvrf-box) { display: none; }
+    body:is(.print-mode-visite, .print-mode-pocket) .print-meds-reduced { display: block; }
+    body.print-mode-visite .col-diag, body.print-mode-pocket .col-diag { width: 35%; }
+    body.print-mode-visite .col-todo, body.print-mode-pocket .col-todo { width: 42%; }
+    body.print-mode-pocket #print-table-container { font-size: 8.5pt; }
+    body.print-mode-pocket #print-table-container :is(th, td) { padding: 3px 4px; }
+    body.print-mode-pocket :is(.print-dob, .print-diag-item.print-diag-ordered) { display: none; }
 
-    /* PROFILE: Pocket */
-    body.print-mode-pocket .print-history, body.print-mode-pocket .print-meds, body.print-mode-pocket .print-cvrf-box, body.print-mode-pocket .print-dob, body.print-mode-pocket .print-diag-item.print-diag-ordered { display: none !important; }
-    body.print-mode-pocket th, body.print-mode-pocket td { padding: 2px 3px !important; font-size: 7.5pt !important; line-height: 1.1 !important; }
-    body.print-mode-pocket .print-name { font-size: 9pt !important; margin-bottom: 0 !important; }
-    body.print-mode-pocket .print-main-diag { font-size: 8.5pt !important; margin-bottom: 1px !important; }
-    body.print-mode-pocket .col-room { font-size: 11pt !important; }
-    
-    body.print-mode-pocket .print-diag-rest, body.print-mode-pocket .col-todo-content {
-        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-    }
-
-    /* PROFIL: Patientenblatt – eine Seite je Patient, Hochformat */
+    /* Patientenblatt: Hochformat mit Fortsetzungsseiten bei langen Angaben. */
     body.print-mode-detail #print-table-container { display: none !important; }
     body.print-mode-detail #print-detail-container { display: block !important; }
-    .patient-sheet { break-after: page; page-break-after: always; break-inside: avoid; display: flex; flex-direction: column; height: 100%; }
+    .patient-sheet { break-after: page; }
     .patient-sheet:last-child { break-after: auto; page-break-after: auto; }
-    .sheet-head { display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #000; padding-bottom: 3px; margin-bottom: 4px; }
+    .sheet-head { break-after: avoid; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #000; padding-bottom: 3px; margin-bottom: 4px; }
     .sheet-room { font-size: 20pt; font-weight: 900; min-width: 2.2cm; text-align: center; border: 2px solid #000; padding: 2px 4px; }
     .sheet-ident { flex: 1 1 auto; min-width: 0; }
     .sheet-name { font-size: 14pt; font-weight: bold; line-height: 1.1; }
@@ -2459,27 +2543,23 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     .sheet-severity-beobachtung { background: #e5e5e5; }
     .sheet-severity-stabil { border-style: dotted; }
     .sheet-contingency { font-size: 9pt; border: 2px solid #075985; padding: 2px 6px; margin-bottom: 4px; }
-    .sheet-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; align-content: start; }
-    .sheet-block { border: 1px solid #666; padding: 2px 4px; break-inside: avoid; }
-    .sheet-block.sheet-wide { grid-column: 1 / -1; }
-    .sheet-block-title { font-size: 7pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.04em;
-        color: #000; border-bottom: 1px dotted #999; margin-bottom: 2px; }
-    .sheet-block-body { font-size: 8.5pt; line-height: 1.25; }
-    .sheet-mono { font-family: 'Courier New', monospace; font-size: 7.5pt; white-space: pre; }
-    .sheet-trend { display: inline-block; margin-right: 10px; white-space: nowrap; font-size: 8pt; }
-    .sheet-notes { margin-top: auto; border: 1px solid #666; padding: 2px 4px; }
+    .sheet-block { border-top: 1px solid #94a3b8; padding: 3px 0; margin-top: 3px; }
+    .sheet-block-title { break-after: avoid; font-size: 9pt; font-weight: bold; color: #172b43; margin-bottom: 2px; }
+    .sheet-block-body { font-size: 9pt; line-height: 1.3; }
+    .sheet-trend { display: inline-block; margin-right: 10px; font-size: 8.5pt; }
+    .sheet-notes { break-inside: avoid; margin-top: 6px; border: 1px solid #666; padding: 2px 4px; }
     .sheet-ruled { height: 2.6cm; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 0.64cm, #bbb 0.64cm, #bbb 0.66cm); }
     body.print-mode-detail #print-foot { break-before: avoid; }
 
     /* PROFIL: Laborverlauf */
     body.print-mode-lab #print-table-container { display: none !important; }
     body.print-mode-lab #print-lab-container { display: block !important; }
-    .lab-sheet { break-after: page; page-break-after: always; break-inside: avoid; }
+    .lab-sheet { break-after: page; }
     .lab-sheet:last-child { break-after: auto; page-break-after: auto; }
-    .lab-table { table-layout: auto; margin-bottom: 6px; }
-    .lab-table caption { text-align: left; font-weight: bold; font-size: 9pt; margin: 4px 0 2px; }
-    .lab-table th, .lab-table td { border: 1px solid #999; padding: 1px 3px; font-size: 7.5pt; text-align: right; white-space: nowrap; }
-    .lab-table th.lab-param { text-align: left; font-weight: normal; width: 5.5cm; }
+    .lab-table { table-layout: fixed; margin-bottom: 6px; }
+    .lab-table caption { break-after: avoid; text-align: left; font-weight: bold; font-size: 9pt; margin: 4px 0 2px; }
+    .lab-table th, .lab-table td { border: 1px solid #999; padding: 1px 3px; font-size: 8pt; text-align: right; }
+    .lab-table th.lab-param { text-align: left; font-weight: normal; width: 4cm; }
     .lab-table th.lab-param span { color: #555; font-size: 6.5pt; }
     .lab-table thead th { background: #eee; font-weight: bold; text-align: center; }
     .lab-table .lab-ref { text-align: left; color: #555; width: 2.4cm; }
@@ -2490,6 +2570,8 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 .compact-details { border: 1px solid #e2e8f0; border-radius: 0.375rem; background: #f8fafc; }
 .compact-details[open] { background: #ffffff; }
 .compact-summary { cursor: pointer; user-select: none; padding: 0.25rem 0.5rem; font-size: 0.7rem; line-height: 1rem; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 0.25rem; }
+.patient-card > details > summary::before { content: ''; flex: 0 0 6px; width: 6px; height: 6px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(-45deg); margin-right: 4px; }
+.patient-card > details[open] > summary::before { transform: rotate(45deg); }
 .compact-summary:hover { color: #2563eb; background: #eff6ff; }
 .compact-summary:focus-visible, .focus-ring:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15); }
 
@@ -2564,11 +2646,10 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 .station-nav {gap:8px;flex-wrap:wrap;}.station-nav>div {flex-wrap:wrap;}.station-nav h1 {flex-shrink:0;}
 @media print {
  .workflow-dialog,.workflow-toolbar,.workflow-button,.lab-view-actions {display:none!important;}
- .med-table {font-size:8pt!important;font-style:normal!important;table-layout:auto;border-collapse:collapse;}
- .med-table th,.med-table td {padding:2px!important;border:1px solid #555!important;}
+ .med-table {font-size:8.5pt;line-height:1.3;table-layout:fixed;border-collapse:collapse;overflow:visible;border-radius:0;}
+ .med-table th,.med-table td {padding:3px 4px;border:1px solid #94a3b8;}
  .med-table thead {display:table-header-group;}.med-table tr {break-inside:avoid;}
  .patient-status-print {display:block;font-weight:700;border:2px solid black;padding:2px;font-size:8pt;color:black;}
- body.print-mode-visite .print-meds,body.print-mode-pocket .print-meds {display:block!important;}
  .print-meds {font-style:normal;}
 }
 .hf-deferred-review {border-left:3px solid #eab308;background:#fffbeb;}
@@ -2579,7 +2660,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         @media print { @page { size: A4 landscape; } }
     </style>
     <style id="print-orientation"></style>
-    <!-- Einzeldatei-Fassung, erzeugt am 2026-11-17
+    <!-- Einzeldatei-Fassung, erzeugt am 2026-11-19
          aus Station.html und 15 Zusatzdateien. Zum Ändern die Einzeldateien
          bearbeiten und "node build_single_file.js" ausführen. -->
 </head>
@@ -2603,7 +2684,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                     <option value="full">🖨️ Übergabe (Voll)</option>
                     <option value="visite">🖨️ Visite (Kompakt)</option>
                     <option value="pocket">🖨️ Pocket (Max)</option>
-                    <option value="detail">🖨️ Patientenblatt (1 Seite/Pat.)</option>
+                    <option value="detail">🖨️ Patientenblatt</option>
                     <option value="lab">🖨️ Laborverlauf</option>
                 </select>
                 <button onclick="window.print()" class="bg-slate-600 hover:bg-slate-500 px-3 py-1 rounded font-bold">Drucken</button>
@@ -2617,8 +2698,9 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         <span class="flex gap-2 flex-shrink-0"><button onclick="exportData()" class="bg-purple-600 text-white font-bold px-3 py-1 rounded hover:bg-purple-500">💾 Jetzt sichern</button><button onclick="dismissBackupReminder()" aria-label="Hinweis ausblenden" class="px-2 font-bold">&times;</button></span>
     </div>
 
-    <div class="w-full max-w-[1900px] mx-auto p-2" id="app">
-        <div id="patient-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"></div>
+    <div class="w-full p-2" id="app">
+        <div id="patient-list" class="grid gap-3"></div>
+        <p id="filter-empty" class="hidden no-print">Keine Patienten für diese Auswahl.</p>
         <div id="empty-state" class="hidden text-center mt-20 text-slate-400"><p class="text-xl">Keine Patienten vorhanden.</p></div>
     </div>
 
@@ -2844,7 +2926,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
             body.classList.add('print-mode-' + mode);
             // @page lässt sich nicht per Klasse umschalten, daher eine eigene Regel je Profil.
             const orientation = document.getElementById('print-orientation');
-            if(orientation) orientation.textContent = `@media print { @page { size: A4 ${mode === 'detail' ? 'portrait' : 'landscape'}; margin: 0.6cm; } }`;
+            if(orientation) orientation.textContent = `@media print { @page { size: A4 ${mode === 'detail' ? 'portrait' : 'landscape'}; margin: 1cm; } }`;
             buildPrintHeader(mode);
         }
         function buildPrintHeader(mode) {
@@ -3149,17 +3231,20 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
             const empty = document.getElementById('empty-state');
             container.innerHTML = ''; printBody.innerHTML = '';
 
-            if(AppState.patients.length===0) { empty.classList.remove('hidden'); return; } else empty.classList.add('hidden');
+            empty.classList.toggle('hidden', AppState.patients.length > 0);
             AppState.patients.sort((a,b) => a.room.localeCompare(b.room, undefined, {numeric: true}));
             // Therapietage der Antiinfektiva fortschreiben, bevor die Karten gebaut werden.
             if(AppState.patients.map(trackAntibiotics).some(Boolean)) saveData();
 
-            let currentRoom = null;
+            const visiblePatients = AppState.patients.filter(matchesPatientFilter);
+            renderRoomTabs(visiblePatients);
+            document.getElementById('filter-empty').classList.toggle('hidden',
+                !AppState.patients.length || visiblePatients.length > 0);
             const containerFrag = document.createDocumentFragment();
             const printBodyFrag = document.createDocumentFragment();
 
 
-            AppState.patients.forEach(p => {
+            visiblePatients.forEach(p => {
                 // Ensure structured objects exist for older backups
                 const labs = p.labs || {hb:'', krea:'', egfr:'', k:'', bnp:'', crp:''};
                 const vol = p.vol || {ziel:'', aktuell:''};
@@ -3167,23 +3252,13 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                 const isos = p.iso || [];
                 const abx = p.abx || [];
                 StationModel.medications(p);
-                if(!matchesPatientFilter(p)) return;
-
-                let displayRoom = p.room ? p.room : "Gang";
-                if(displayRoom !== currentRoom) {
-                    currentRoom = displayRoom;
-                    let roomHeader = document.createElement('div');
-                    roomHeader.className = "col-span-full mt-4 mb-1 flex items-center gap-2 border-b border-indigo-200 pb-1 no-print";
-                    roomHeader.innerHTML = `<span class="bg-indigo-600 text-white font-bold px-3 py-1 rounded shadow-sm">Zimmer ${esc(currentRoom)}</span>`;
-                    containerFrag.appendChild(roomHeader);
-                }
-
                 const age = getAge(p.dob);
                 const dnrClass = p.dnr ? 'resus-active' : ''; const dniClass = p.dni ? 'resus-active' : '';
                 const severity = severityLevel(p);
 
                 let card = document.createElement('div');
                 card.className = "bg-white rounded border border-slate-300 p-2 patient-card flex flex-col gap-1 shadow-sm hover:shadow-md transition relative overflow-hidden";
+                card.dataset.room = p.room;
                 if(severity) card.style.borderLeft = `5px solid ${severity.bar}`;
                 
                 // HEADER (Zi, Name, Rhythmus, Nüchtern)
@@ -3204,28 +3279,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                 let diag = `<div class="bg-red-50 rounded border border-red-100 relative p-1 flex flex-col gap-1"><input type="text" value="${esc(p.main_diagnosis || '')}" onchange="updateField('${p.id}', 'main_diagnosis', this.value)" class="w-full text-sm font-black text-red-900 bg-red-100/50 placeholder-red-300 outline-none p-1 rounded" placeholder="HAUPTDIAGNOSE / Aufnahmegrund"><textarea oninput="resizeTx(this); updateField('${p.id}', 'diagnosis', this.value)" class="auto-expand w-full text-xs font-medium text-red-900 bg-transparent leading-tight outline-none ${diagTextClass}" placeholder="Weitere Diagnosen...">${esc(p.diagnosis || '')}</textarea>${diagToggleBtn}</div>`;
                 let cvrfHtml = `<div class="flex gap-2 justify-center py-1">`; if(typeof CVRF_CONFIG !== 'undefined') CVRF_CONFIG.forEach(c => { const active = p.cvrf && p.cvrf.includes(c.key) ? 'cvrf-active' : ''; cvrfHtml += `<button type="button" onclick="toggleCVRF('${p.id}', '${c.key}')" class="cvrf-btn ${active} text-sm p-0.5" title="${c.label}">${c.icon}</button>`; }); cvrfHtml += `</div>`;
                 
-                // QUICK LABS & VOLUMEN
-                let eGFRValue = MedSafety.parseEgfr(labs.egfr);
-                let eGFRWarn = eGFRValue !== null && eGFRValue < 30 ? 'bg-red-500 text-white animate-pulse font-bold' : 'bg-white text-blue-900';
-                let labsVolHtml = `
-                <details class="mt-1 no-print compact-details" ${p.expMonitoring ? 'open' : ''} ontoggle="updateField('${p.id}', 'expMonitoring', this.open)">
-                    <summary class="compact-summary">📊 Monitoring, Bilanz & Care <span class="font-normal text-slate-400">(selten)</span></summary>
-                    <div class="flex flex-col gap-1 mt-1">
-                    <div class="grid grid-cols-5 gap-1 bg-blue-50 border border-blue-100 rounded p-1">
-                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">Hb</label><input value="${esc(labs.hb)}" onchange="updateDeepField('${p.id}','labs','hb',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200"></div>
-                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">Krea</label><input value="${esc(labs.krea)}" onchange="updateDeepField('${p.id}','labs','krea',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200"></div>
-                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">eGFR</label><input value="${esc(labs.egfr)}" onchange="updateDeepFieldRender('${p.id}','labs','egfr',this.value)" class="text-[9px] outline-none border-b border-blue-200 rounded-t ${eGFRWarn}"></div>
-                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">K+</label><input value="${esc(labs.k)}" onchange="updateDeepField('${p.id}','labs','k',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200"></div>
-                        <div class="flex flex-col"><label class="text-[7px] text-blue-600 font-bold uppercase">CRP/BNP</label><input value="${esc(labs.crp)}" onchange="updateDeepField('${p.id}','labs','crp',this.value)" class="text-[9px] bg-transparent outline-none border-b border-blue-200" placeholder="z.B. 10|2000"></div>
-                    </div>
-                    <div class="flex gap-2 items-center bg-cyan-50 border border-cyan-100 rounded p-1 text-[9px]">
-                        <span class="font-bold text-cyan-700">⚖️ Vol:</span>
-                        <label class="text-cyan-600 font-semibold">Ziel:</label><input value="${esc(vol.ziel)}" onchange="updateDeepField('${p.id}','vol','ziel',this.value)" placeholder="-500" class="w-10 bg-transparent outline-none border-b border-cyan-200">
-                        <label class="text-cyan-600 font-semibold">Aktuell:</label><input value="${esc(vol.aktuell)}" onchange="updateDeepField('${p.id}','vol','aktuell',this.value)" placeholder="+200" class="w-10 bg-transparent outline-none border-b border-cyan-200">
-                    </div>
-                    </div>
-                </details>`;
-
                 // LABOR / BGA AUS DEM KIS-IMPORT
                 const latestLab = latestLabSet(p, 'labor');
                 const latestBga = latestLabSet(p, 'bga');
@@ -3267,7 +3320,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                 const safetyHigh = safety.filter(item => item.severity === 'high');
                 const egfrNow = currentEgfr(p);
                 let safetyHtml = `
-                <details class="mt-1 no-print compact-details" ${safetyHigh.length ? 'open' : ''}>
+                <details data-detail-key="safety" class="mt-1 no-print compact-details" ${safetyHigh.length ? 'open' : ''}>
                     <summary class="compact-summary ${safetyHigh.length ? 'text-red-800' : 'text-slate-600'}">💊 Medikationscheck ${safety.length
                         ? `<span class="ml-1 ${safetyHigh.length ? 'text-red-600 font-bold' : 'text-amber-700'}">${safetyHigh.length ? `${safetyHigh.length} dringend` : ''}${safetyHigh.length && safety.length > safetyHigh.length ? ' · ' : ''}${safety.length > safetyHigh.length ? `${safety.length - safetyHigh.length} Hinweis${safety.length - safetyHigh.length === 1 ? '' : 'e'}` : ''}</span>`
                         : '<span class="font-normal text-slate-400">(ohne Befund)</span>'}${egfrNow !== null ? `<span class="ml-auto text-[8px] font-normal text-slate-400">eGFR ${egfrNow}</span>` : ''}</summary>
@@ -3288,7 +3341,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                 const microPositive = micro.filter(item => !item.negative && !item.pending);
                 const microNegative = micro.length - microPositive.length;
                 let microHtml = `
-                <details class="mt-1 no-print compact-details" ${microPositive.length ? 'open' : ''}>
+                <details data-detail-key="micro" class="mt-1 no-print compact-details" ${microPositive.length ? 'open' : ''}>
                     <summary class="compact-summary text-emerald-800">🧫 Mikrobiologie ${micro.length
                         ? `<span class="ml-1 ${microPositive.length ? 'text-emerald-700 font-bold' : 'font-normal text-slate-400'}">${microPositive.length ? `${microPositive.length} auffällig` : 'alles negativ'}${microNegative ? ` · ${microNegative} o. B.` : ''}</span>`
                         : '<span class="font-normal text-slate-400">(keine Befunde)</span>'}</summary>
@@ -3316,16 +3369,18 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                 // TAGESPROFIL
                 const schedule = dayScheduleEntries(p);
                 let scheduleHtml = schedule.length ? `
-                <details class="mt-1 no-print compact-details">
+                <details data-detail-key="schedule" class="mt-1 no-print compact-details">
                     <summary class="compact-summary text-violet-800">🕐 Tagesprofil <span class="font-normal text-slate-400">(${schedule.length} Zeitpunkte)</span></summary>
                     <div class="mt-1 flex flex-col gap-0.5">
                         ${schedule.map(slot => `<div class="flex gap-1 text-[9px] leading-tight"><span class="font-bold text-violet-700 w-9 flex-shrink-0">${escapeHtml(slot.time)}</span><span class="text-slate-700">${escapeHtml(slot.items.join(', '))}</span></div>`).join('')}
                     </div>
                 </details>` : '';
 
-                let activeTasks = (typeof DAILY_TASKS !== 'undefined') ? DAILY_TASKS.filter(t => p.daily && p.daily[t.key]).map(t => t.label) : [];
-                let tasksHtml = `<details class="mb-1 no-print compact-details" ${activeTasks.length ? 'open' : ''}><summary class="compact-summary">✅ Tageschecks ${activeTasks.length ? `<span class="ml-1 text-blue-700">${activeTasks.join(', ')}</span>` : '<span class="font-normal text-slate-400">(bei Bedarf)</span>'}</summary><div class="grid grid-cols-6 gap-0.5 mt-1 daily-grid">`; if(typeof DAILY_TASKS !== 'undefined') DAILY_TASKS.forEach(t => { const cls = (p.daily && p.daily[t.key]) ? 'task-true' : 'task-false'; tasksHtml += `<button type="button" onclick="toggleDaily('${p.id}', '${t.key}')" class="task-btn ${cls} text-[9px] text-center py-0.5 rounded">${t.label}</button>`; }); tasksHtml += `</div></details>`;
-                
+                const dailyChecks = typeof DAILY_TASKS !== 'undefined' ? DAILY_TASKS : [];
+                const tasksHtml = `<h4 class="section-caption">Tageschecks</h4><div class="daily-grid">${dailyChecks.map(task =>
+                    `<button type="button" onclick="toggleDaily('${p.id}', '${task.key}')" class="task-btn ${p.daily?.[task.key] ? 'task-true' : 'task-false'}">${task.label}</button>`
+                ).join('')}</div>`;
+
                 const contingencyHtml=`<label class="contingency-field">Wenn–dann / Dienstanweisung / Notizen<textarea aria-label="Dienstanweisung / Notizen" placeholder="Wenn–dann, Notizen oder Gedächtnisstütze …" onchange="updateFieldRender('${p.id}','contingency',this.value)">${esc(p.contingency||'')}</textarea></label>`;
                 const contingencyPrint=p.contingency ? `<div class="print-alert">Wenn–dann / Notizen: ${esc(p.contingency)}</div>` : '';
                 const todoHtml=renderTodoPanel(p);
@@ -3341,8 +3396,10 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 
                 // MEDS (Current, Paused, DAPT) + AMIO
                 let amioBtn = `<div class="flex justify-between items-center bg-blue-50 p-1 rounded mt-1 no-print border border-blue-100"><span class="text-[9px] font-bold text-blue-800">Amiodaron Aufsättigung:</span><button onclick="addAmio('${p.id}')" class="text-[9px] bg-blue-600 text-white px-2 py-0.5 rounded shadow hover:bg-blue-500"> ${p.amio || 0}g / 10g ➕</button></div>`;
-                let meds = `
-                <div class="mt-1">
+                const meds = `
+                <details data-detail-key="medication" class="compact-details med-panel" open>
+                    <summary class="compact-summary">💊 Medikation</summary>
+                    <div class="med-panel-body">
                      <div class="relative mb-1">
                         <button type="button" class="w-full text-left text-[9px] text-slate-400 font-bold uppercase hover:text-blue-600 flex items-center gap-1" onclick="openMedModal('${p.id}')">💊 Aktuell <span class="no-print opacity-50 text-[8px]">(Suchen/Edit)</span></button>
                         ${StationModel.medicationTable(p, 'current')}
@@ -3352,9 +3409,11 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                     </div>
                     <div class="med-secondary no-print"><section class="med-paused"><h4>Pausiert ⏸</h4>${StationModel.medicationTable(p,'paused',{compact:true})}<button type="button" class="workflow-button" onclick="openStructuredMeds('${p.id}')">Bearbeiten</button></section><section class="med-prn"><h4>Bedarf</h4>${StationModel.medicationTable(p,'bedarf',{compact:true})}<button type="button" class="workflow-button" onclick="openStructuredMeds('${p.id}')">Bearbeiten</button></section><section class="med-anticoag"><h4>Antikoagulation / TAH</h4><strong>${esc(getAnticoagulationStatus(p).status)}</strong><input aria-label="Antikoagulation Indikation / Dauer" value="${esc(p.dapt_oak||'')}" onchange="updateField('${p.id}','dapt_oak',this.value)" placeholder="Indikation / Dauer"></section></div>
                     ${amioBtn}
-                    <details data-detail-key="admission" class="group"><summary class="text-[9px] text-slate-400 cursor-pointer list-none hover:text-blue-500 no-print focus:outline-none focus:text-blue-600">▶ Aufnahme: Anamnese, Medikation, Vordiagnosen</summary><div class="mt-1 pt-1 border-t border-slate-100"><label class="section-caption">Aufnahmeanamnese<textarea aria-label="Aufnahmeanamnese" class="auto-expand" oninput="resizeTx(this);updateField('${p.id}','anamnesis',this.value)">${esc(p.anamnesis||'')}</textarea></label><div class="mb-1 med-hidden-print"><label class="text-[9px] text-slate-400 uppercase">Aufnahme-Med</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'meds_admission', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1" rows="1">${esc(p.meds_admission || "")}</textarea></div><div><label class="text-[9px] text-slate-400 uppercase">Vordiagnosen</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'history', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1 leading-tight outline-none border-b border-transparent focus:border-slate-300 ${histTextClass}" placeholder="Vordiagnosen...">${esc(p.history || "")}</textarea>${histToggleBtn}</div></div></details>
-                </div>`;
-                
+                    ${abxHtml}
+                    </div>
+                </details>`;
+                const admissionHtml = `<details data-detail-key="admission" class="compact-details"><summary class="compact-summary">Aufnahme: Anamnese, Medikation, Vordiagnosen</summary><div class="mt-1 pt-1 border-t border-slate-100"><label class="section-caption">Aufnahmeanamnese<textarea aria-label="Aufnahmeanamnese" class="auto-expand" oninput="resizeTx(this);updateField('${p.id}','anamnesis',this.value)">${esc(p.anamnesis||'')}</textarea></label><div class="mb-1 med-hidden-print"><label class="text-[9px] text-slate-400 uppercase">Aufnahme-Med</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'meds_admission', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1" rows="1">${esc(p.meds_admission || "")}</textarea></div><div><label class="text-[9px] text-slate-400 uppercase">Vordiagnosen</label><textarea oninput="resizeTx(this); updateField('${p.id}', 'history', this.value)" class="auto-expand w-full text-[9px] bg-slate-50 rounded p-1 leading-tight outline-none border-b border-transparent focus:border-slate-300 ${histTextClass}" placeholder="Vordiagnosen...">${esc(p.history || "")}</textarea>${histToggleBtn}</div></div></details>`;
+
                 let diagGrid = `<div class="grid grid-cols-4 gap-1 mt-1 diag-grid">`; if(typeof DIAGNOSTICS !== 'undefined') DIAGNOSTICS.forEach(d => { const s = (p.diag_status||{})[d]||0; const res = (p.diag_results||{})[d]||""; const hasRes = res ? 'has-result' : ''; diagGrid += `<button type="button" id="btn-diag-${p.id}-${d}" onclick="toggleDiag(event,'${p.id}','${d}')" oncontextmenu="toggleDiag(event,'${p.id}','${d}')" class="state-btn diag-${s} ${hasRes} py-0.5 rounded text-[9px]" title="${esc(res)}">${d} <span class="print-result ml-1">(${esc(res)})</span></button>`; }); diagGrid += `</div>`;
                 
                 // KONSIL MANAGER + NOTES
@@ -3389,10 +3448,10 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                     </div>
                 </div>`;
 
-                let footer = `<div class="flex justify-between items-center mt-1 pt-1 no-print gap-1"><button onclick="openExamModal('${p.id}')" class="text-[9px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded flex-1 border border-slate-200">📝 Notizen</button><button onclick="openScoreModal('${p.id}')" class="text-[9px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-1 rounded border border-indigo-100">🧮 Scores</button><button onclick="openEpikriseModal('${p.id}')" class="text-[9px] bg-indigo-800 hover:bg-indigo-700 text-white px-2 py-1 rounded font-bold">📄 Epikrise</button></div>`;
+                let footer = `<div class="flex justify-between items-center mt-1 pt-1 no-print gap-1"><button onclick="openExamModal('${p.id}')" class="text-[9px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded flex-1 border border-slate-200">Klinischer Untersuchungsgenerator</button><button onclick="openScoreModal('${p.id}')" class="text-[9px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-1 rounded border border-indigo-100">🧮 Scores</button><button onclick="openEpikriseModal('${p.id}')" class="text-[9px] bg-indigo-800 hover:bg-indigo-700 text-white px-2 py-1 rounded font-bold">📄 Epikrise</button></div>`;
 
-                let extendedHtml = `<details class="mt-1 no-print compact-details"><summary class="compact-summary">🧩 Diagnostik, Konsile & Entlassung <span class="font-normal text-slate-400">(Details)</span></summary><div class="mt-1">${diagGrid}${consultHtml}${planHtml}${footer}</div></details>`;
-                card.innerHTML = header + patientStatusControls(p) + warnHtml + diag + cvrfHtml + cardiacFields(p) + heartFailurePanel(p) + contingencyHtml + todoHtml + meds + safetyHtml + abxHtml + microHtml + labImportHtml + scheduleHtml + labsVolHtml + tasksHtml + extendedHtml;
+                const extendedHtml = `<details data-detail-key="diagnostics" class="compact-details"><summary class="compact-summary">Diagnostik, Konsile & Entlassung</summary><div class="diagnostics-body">${tasksHtml}${diagGrid}${consultHtml}${planHtml}${footer}</div></details>`;
+                card.innerHTML = header + patientStatusControls(p) + warnHtml + diag + cvrfHtml + cardiacFields(p) + heartFailurePanel(p) + contingencyHtml + todoHtml + extendedHtml + labImportHtml + safetyHtml + microHtml + meds + admissionHtml + scheduleHtml;
                 containerFrag.appendChild(card);
 
                 // --- PRINT VIEW ---
@@ -3400,15 +3459,29 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                 let diagPrint = mainDiagPrint + `<div class="print-diag-rest">` + esc(p.diagnosis || "").replace(/\n/g, '<br>') + `</div>`;
                 let historyPrint = p.history ? `<div class="text-[8pt] text-slate-600 mt-1 print-history">${esc(p.history).replace(/\n/g, ', ')}</div>` : '';
                 
-                let medsPausedPrint = p.meds_paused ? `<div style="color:#b91c1c; font-size:7.5pt; font-weight:bold; margin-top:2px;">⏸️ Pausiert: ${StationModel.medicationTable(p,'paused')}</div>` : '';
-                let daptPrint = p.dapt_oak ? `<div style="color:#1d4ed8; font-size:7.5pt; font-weight:bold; margin-top:2px;">🩸 Gerinnung: ${esc(p.dapt_oak)}</div>` : '';
-                let amioPrint = p.amio ? `<div style="color:#4338ca; font-size:7.5pt; font-weight:bold; margin-top:2px;">💊 Amiodaron: ${p.amio}g</div>` : '';
-                let medsPrint = (p.meds_current ? `<div class="print-meds">💊 ${StationModel.medicationTable(p, "current")}</div>` : '') + medsPausedPrint + (p.meds_bedarf ? `<div class="print-meds">Bedarf: ${StationModel.medicationTable(p,'bedarf')}</div>` : '') + daptPrint + amioPrint;
-                
+                const medsPrint = [
+                    ['current', 'Aktuelle Medikation'],
+                    ['paused', 'Pausiert'],
+                    ['bedarf', 'Bei Bedarf']
+                ].map(([status, title]) => {
+                    if (!p[StationModel.fields[status]]) return '';
+                    return `<section class="print-meds"><h3>${title}</h3>
+                        <div class="print-meds-detailed">${StationModel.medicationTable(p, status)}</div>
+                        <div class="print-meds-reduced">${StationModel.medicationTable(p, status, { namesOnly: true })}</div>
+                    </section>`;
+                }).join('');
+                const medicationNotes = p.dapt_oak || p.amio ? `<div class="print-meds-detailed">
+                    ${p.dapt_oak ? `<div>Gerinnung: ${esc(p.dapt_oak)}</div>` : ''}
+                    ${p.amio ? `<div>Amiodaron: ${esc(p.amio)} g</div>` : ''}
+                </div>` : '';
+
                 let todoPrint = ''; let printLines = (p.todo_text || "").split('\n').filter(l => l.trim() !== '');
                 printLines.forEach(line => { let isDone = line.startsWith('[x] '); let cleanLine = esc(parseTodoLine(line).text); if(isDone) { todoPrint += `<div style="text-decoration: line-through; color: #888; font-size: 8pt;">☑ ${cleanLine}</div>`; } else { todoPrint += `<div style="font-size: 8pt; font-weight: 500;">☐ ${cleanLine}</div>`; } });
 
-                let abxPrint = abx.length > 0 ? `<div style="color:#6b21a8; font-size:7.5pt; font-weight:bold; margin-top:2px;">🦠 ABx: ` + abx.map(a => `${esc(a.name)} (T${getDaysSince(a.start)})`).join(', ') + `</div>` : '';
+                const reducedAbx = abx.length ? `<section class="print-meds print-meds-reduced"><h3>Antiinfektive Therapie</h3><ul class="print-med-names">
+                    ${abx.map(course => `<li>${esc(course.name)}</li>`).join('')}
+                </ul></section>` : '';
+                let abxPrint = abx.length > 0 ? `<div class="print-meds-detailed" style="color:#6b21a8; font-size:7.5pt; font-weight:bold; margin-top:2px;">🦠 ABx: ` + abx.map(a => `${esc(a.name)} (T${getDaysSince(a.start)})`).join(', ') + `</div>` : '';
                 let labPrint = `<div style="font-size:7.5pt; color:#475569; margin-top:2px; border-top:1px dashed #cbd5e1; padding-top:2px;">Hb:${esc(labs.hb||'-')} | Kr:${esc(labs.krea||'-')} | K:${esc(labs.k||'-')} | CRP/BNP:${esc(labs.crp||'-')}</div>`;
                 let eGFRPrint = (labs.egfr && labs.egfr < 30) ? `<div style="color:#c2410c; font-weight:bold; font-size:8pt;">⚠️ eGFR < 30 (${labs.egfr})</div>` : '';
                 let safetyPrint = safetyHigh.length ? `<div style="font-size:7.5pt; color:#991b1b; font-weight:bold;">💊 ` + safetyHigh.map(item => `${item.title}${item.text ? ': ' + item.text : ''}`).join('<br>💊 ') + `</div>` : '';
@@ -3436,18 +3509,19 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                 let alertStr = `<span class="print-alert">${esc(StationModel.statusText(p))}</span>` + severityPrint + warnPrint + isoPrint + fastPrint;
                 let dobD = p.dob ? new Date(p.dob).toLocaleDateString('de-DE') : "";
                 
-                let fullTodoPrint = `<div class="col-todo-content">${contingencyPrint}${todoPrint}${abxPrint}${volPrint}${dailyStr}${diagPrintStr}${consultPrintStr}${disPrint}</div>`;
+                let fullTodoPrint = `<div class="col-todo-content">${contingencyPrint}${todoPrint}${abxPrint}${reducedAbx}${volPrint}${dailyStr}${diagPrintStr}${consultPrintStr}${disPrint}</div>`;
 
                 let tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="col-room">${p.room}</td>
+                    <td class="col-room">${esc(p.room)}</td>
                     <td class="col-name"><span class="print-name">${esc(p.name)} ${rhythmPrint}</span><span class="print-dob"><b>* ${dobD}</b></span><span class="print-age">${age}${stayDay(p) ? ` · Tag ${stayDay(p)}` : ''}</span><div class="mt-1">${alertStr}</div>${cvrfStr}</td>
-                    <td class="col-diag"><span class="print-diag-curr">${diagPrint}${eGFRPrint}</span>${historyPrint}${medsPrint}</td>
+                    <td class="col-diag"><span class="print-diag-curr">${diagPrint}${eGFRPrint}</span>${historyPrint}${medsPrint}${medicationNotes}</td>
                     <td class="col-todo">${labPrint}${labDeltaPrint}${abnormalLabPrint}${safetyPrint}${microPrint}${fullTodoPrint}</td>`;
                 printBodyFrag.appendChild(tr);
             });
             container.appendChild(containerFrag);
             restoreCardDetails();
+            applyRoomFilter();
             printBody.appendChild(printBodyFrag);
             buildDetailPrint();
             buildLabPrint();
@@ -3455,11 +3529,10 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
             setTimeout(() => { document.querySelectorAll('.auto-expand').forEach(tx => resizeTx(tx)); }, 0);
         }
 
-        // --- DRUCK: PATIENTENBLATT (eine Seite je Patient) ---
-        function printBlock(title, body, options) {
-            if(!body) return '';
-            const settings = options || {};
-            return `<div class="sheet-block${settings.wide ? ' sheet-wide' : ''}"><div class="sheet-block-title">${escapeHtml(title)}</div><div class="sheet-block-body${settings.mono ? ' sheet-mono' : ''}">${body}</div></div>`;
+        // --- DRUCK: PATIENTENBLATT (neue Seite je Patient) ---
+        function printBlock(title, body) {
+            if (!body) return '';
+            return `<section class="sheet-block"><h3 class="sheet-block-title">${escapeHtml(title)}</h3><div class="sheet-block-body">${body}</div></section>`;
         }
         function printLines(text) {
             const lines = String(text || '').split('\n').map(line => line.trim()).filter(Boolean);
@@ -3522,28 +3595,28 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                     ${level ? `<div class="sheet-severity sheet-severity-${p.severity}">Zustand: ${escapeHtml(level.label)}</div>` : ''}
                     ${p.contingency ? `<div class="sheet-contingency"><strong>Wenn–dann / Notizen:</strong> ${escapeHtml(p.contingency)}</div>` : ''}
                     ${p.main_diagnosis ? `<div class="sheet-maindiag">${escapeHtml(p.main_diagnosis)}</div>` : ''}
-                    <div class="sheet-grid">
+                    <div>
                         ${printBlock('Aktuelle Diagnosen', printLines(p.diagnosis))}
                         ${printBlock('Vordiagnosen' + (cvrf.length ? ' & Risikofaktoren' : ''), [printLines(p.history), cvrf.length ? `<br><em>CVRF: ${escapeHtml(cvrf.join(', '))}</em>` : ''].filter(Boolean).join(''))}
-                        ${printBlock('Anamnese bei Aufnahme', printLines(p.anamnesis), { wide: true })}
-                        ${printBlock('Medikation aktuell', StationModel.medicationTable(p, 'current'), { wide: true })}
+                        ${printBlock('Anamnese bei Aufnahme', printLines(p.anamnesis))}
+                        ${printBlock('Medikation aktuell', StationModel.medicationTable(p, 'current'))}
                         ${printBlock('Pausiert', StationModel.medicationTable(p, 'paused'))}
                         ${printBlock('Bei Bedarf', StationModel.medicationTable(p, 'bedarf'))}
                         ${printBlock('Antiinfektive Therapie', printList(courses.map(formatAbxCourse)))}
                         ${printBlock('Gerinnung', [getAnticoagulationStatus(p).status, p.dapt_oak].filter(Boolean).map(escapeHtml).join('<br>'))}
                         ${printBlock('Laborverlauf', trends.length ? trends.map(trend =>
-                            `<span class="sheet-trend"><b>${escapeHtml(trend.label)}</b> ${trend.points.slice(-5).map(point => escapeHtml(point.value)).join(' → ')}</span>`).join('') : '', { wide: true })}
+                            `<span class="sheet-trend"><b>${escapeHtml(trend.label)}</b> ${trend.points.slice(-5).map(point => escapeHtml(point.value)).join(' → ')}</span>`).join('') : '')}
                         ${printBlock('Auffällige Werte' + (latestLab ? ` (${labSetStamp(latestLab)})` : ''), printList(abnormal.map(entry =>
-                            `${entry.label} ${entry.value}${entry.unit ? ' ' + entry.unit : ''} ${entry.status === 'high' ? '↑' : '↓'}${entry.ref ? ` (Norm ${entry.ref})` : ''}`)), { wide: true })}
-                        ${printBlock('Relevante Veränderungen', printList(deltas.map(warning => warning.text + (warning.note ? ` – ${warning.note}` : ''))), { wide: true })}
+                            `${entry.label} ${entry.value}${entry.unit ? ' ' + entry.unit : ''} ${entry.status === 'high' ? '↑' : '↓'}${entry.ref ? ` (Norm ${entry.ref})` : ''}`)))}
+                        ${printBlock('Relevante Veränderungen', printList(deltas.map(warning => warning.text + (warning.note ? ` – ${warning.note}` : ''))))}
                         ${printBlock('Medikationscheck', printList(safetyWarnings(p).map(item =>
-                            `${item.severity === 'high' ? '! ' : ''}${item.title}${item.text ? ': ' + item.text : ''}${item.note ? ` – ${item.note}` : ''}`)), { wide: true })}
+                            `${item.severity === 'high' ? '! ' : ''}${item.title}${item.text ? ': ' + item.text : ''}${item.note ? ` – ${item.note}` : ''}`)))}
                         ${printBlock('Mikrobiologie', printList(microFindings(p).filter(item => !item.negative && !item.pending).map(item =>
-                            `${KisLabImport.formatDate(item.date)} ${item.material}: ${item.result}${item.resistance ? ` (${item.resistance})` : ''}${item.label && !item.manual ? ` – ${item.label}` : ''}`)), { wide: true })}
+                            `${KisLabImport.formatDate(item.date)} ${item.material}: ${item.result}${item.resistance ? ` (${item.resistance})` : ''}${item.label && !item.manual ? ` – ${item.label}` : ''}`)))}
                         ${printBlock('Diagnostik', printList(diagnostics))}
                         ${printBlock('Konsile', printList(consults))}
-                        ${printBlock('Untersuchungsbefund / Notizen', printLines(p.exam_text), { wide: true })}
-                        ${printBlock('To-Do', printList(todos), { wide: true })}
+                        ${printBlock('Untersuchungsbefund / Notizen', printLines(p.exam_text))}
+                        ${printBlock('To-Do', printList(todos))}
                         ${printBlock('Entlassung & Soziales', printList([
                             p.discharge_date ? `Geplant: ${new Date(p.discharge_date).toLocaleDateString('de-DE')}` : '',
                             social.reha ? `Reha: ${social.reha}` : '',
@@ -3577,7 +3650,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                 if(!labor.length && !bga.length) return '';
                 const table = (sets, caption) => {
                     if(!sets.length) return '';
-                    const shown = sets.slice(-10);
+                    const shown = sets;
                     const rows = KisLabImport.mergeColumns(shown.map(set => ({ entries: set.entries })));
                     const head = shown.map(set => `<th>${escapeHtml(labSetStamp(set) || '?')}</th>`).join('');
                     const body = rows.map(row => {
@@ -3592,12 +3665,19 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                     }).join('');
                     return `<table class="lab-table"><caption>${escapeHtml(caption)}</caption><thead><tr><th class="lab-param">Parameter</th><th class="lab-ref">Norm</th>${head}</tr></thead><tbody>${body}</tbody></table>`;
                 };
+                const labTables = (sets, caption) => {
+                    const tables = [];
+                    for (let index = 0; index < sets.length; index += 10) {
+                        tables.push(table(sets.slice(index, index + 10), caption));
+                    }
+                    return tables.join('');
+                };
                 return `<section class="lab-sheet">
                     <header class="sheet-head"><div class="sheet-room">${escapeHtml(p.room || 'Gang')}</div>
                     <div class="sheet-ident"><div class="sheet-name">${escapeHtml(p.name || 'ohne Namen')}</div>
                     <div class="patient-status-print">${escapeHtml(StationModel.statusText(p))}</div><div class="sheet-sub">${p.main_diagnosis ? escapeHtml(p.main_diagnosis) : ''}</div></div></header>
-                    ${table(labor, 'Laborverlauf')}
-                    ${table(bga, 'Blutgasanalysen')}
+                    ${labTables(labor, 'Laborverlauf')}
+                    ${labTables(bga, 'Blutgasanalysen')}
                 </section>`;
             }).filter(Boolean).join('');
         }
@@ -3734,7 +3814,16 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
                 }
             }catch(error){alert('Backup nicht übernommen: '+error.message);}};reader.onerror=()=>alert('Backup konnte nicht gelesen werden.');reader.readAsText(file);input.value='';
         }
-        function addNewPatient() { checkpoint('Patient anlegen'); const patient=StationModel.createPatient(); AppState.patients.push(patient);saveData();render();setTimeout(()=>document.querySelector('input[data-pid="'+patient.id+'"]')?.focus(),100); }
+        function addNewPatient() {
+            checkpoint('Patient anlegen');
+            const patient = StationModel.createPatient();
+            AppState.patients.push(patient);
+            if (selectedRoom !== null && selectedRoom !== patient.room) selectedRoom = null;
+            if (!matchesPatientFilter(patient)) document.getElementById('patient-filter').value = 'all';
+            saveData();
+            render();
+            document.querySelector('input[data-pid="' + patient.id + '"]')?.focus();
+        }
         function updateField(id,field,value) { const patient=AppState.patients.find(p=>p.id===id);if(!patient)return;patient[field]=value;saveData(); }
         function updateFieldRender(id,field,value) { updateField(id,field,value);render(); }
         function getAge(d) { if(!d) return ""; const a=getAgeNum(d); return isNaN(a)?"":`(${a}J)`; }

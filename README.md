@@ -200,29 +200,29 @@ Ein eigenes Feld für die Anweisung an den Nacht- und Wochenenddienst, zum Beisp
 
 ### Die aufklappbaren Abschnitte
 
-Darunter folgen Abschnitte, die sich bei Bedarf öffnen. Sie klappen von selbst auf, wenn es etwas Wichtiges zu sehen gibt:
+Unter der Ansichtsauswahl stehen die Zimmertabs. **Alle Zimmer** zeigt alle Patienten der gewählten Ansicht. Die Karten füllen die verfügbare Breite und Höhe aus. Lange Inhalte lassen sich innerhalb der Karte scrollen.
 
-| Abschnitt | Inhalt | Öffnet sich automatisch |
-| --- | --- | --- |
-| 💊 **Medikationscheck** | Hinweise zu Dosis, Kombinationen, Labor | bei dringenden Hinweisen |
-| 🦠 **Antibiose** | Therapiekurse mit Tageszähler | wenn eine Therapie läuft |
-| 🧫 **Mikrobiologie** | Kulturen und Erregernachweise | bei auffälligen Befunden |
-| 🧪 **Labor & BGA** | Verlauf, Abweichungen, Import | bei Auffälligkeiten |
-| 🕐 **Tagesprofil** | Gabezeiten über den Tag | nein |
-| 📊 **Monitoring, Bilanz & Care** | Schnellwerte, Ein-/Ausfuhr, Gewicht, Pflegegrad, DNR/DNI | nein |
-| ✅ **Tageschecks** | BE, Viggo, Visite, Brief, Angehörige, Aufklärung | wenn etwas angehakt ist |
-| 🧩 **Diagnostik, Konsile & Entlassung** | Untersuchungsraster, Konsile, Entlassplanung, Notizen, Scores, Epikrise | nein |
+Pro Karte kann höchstens ein Abschnitt geöffnet sein. Beim Öffnen eines anderen Abschnitts klappt der bisherige zu.
+
+| Abschnitt | Inhalt |
+| --- | --- |
+| **Medikation** | Aktuelle, pausierte und Bedarfsmedikation, Gerinnung, Amiodaron und Antibiose |
+| **Medikationscheck** | Hinweise zu Dosis, Kombinationen und Labor |
+| **Mikrobiologie** | Kulturen und Erregernachweise |
+| **Labor & BGA** | Verlauf, Abweichungen und Import |
+| **Tagesprofil** | Gabezeiten über den Tag |
+| **Diagnostik, Konsile & Entlassung** | Tageschecks, Untersuchungsraster, Konsile, Entlassplanung, Untersuchungsgenerator, Scores und Epikrise |
 
 ### Diagnostik und Konsile
 
-Im Abschnitt 🧩 steht ein Raster mit den Untersuchungen: Labor, EKG, Rö-Thx, Echo, Sono, CT, MRT, Lufu, Kolo, ÖGD, Konsil, HKL.
+Direkt unter den To-dos steht **Diagnostik, Konsile & Entlassung**. Auf die Tageschecks folgt ein Raster mit den Untersuchungen: Labor, EKG, Rö-Thx, Echo, Sono, CT, MRT, Lufu, Kolo, ÖGD, Konsil, HKL.
 
 - **Linksklick** schaltet durch: *offen → angefordert → erledigt*
 - **Rechtsklick** fragt nach dem Befundtext; mit Text gilt die Untersuchung als erledigt
 
 Darunter die Konsile (Uro, UCH, Neuro, Gastro, Endokr, Pulmo, Nephro, Anästh, Chir, Psych) nach demselben Prinzip; bei angefordertem Konsil erscheint ein Feld für die Fragestellung.
 
-Ganz unten: geplante Entlassung, Reha, Pflegegrad, Physiotherapie sowie die Knöpfe **📝 Notizen** (Baukasten für den Untersuchungsbefund), **🧮 Scores** (passende Scores anhand von Alter und Diagnosen) und **📄 Epikrise**.
+Ganz unten: geplante Entlassung, Reha, Pflegegrad, Physiotherapie sowie die Knöpfe **Klinischer Untersuchungsgenerator** (Baukasten für den Untersuchungsbefund), **🧮 Scores** (passende Scores anhand von Alter und Diagnosen) und **📄 Epikrise**.
 
 ---
 
@@ -350,7 +350,7 @@ Bewertet wird immer die **neueste** Messung gegen das Zeitfenster davor. Ein Abf
 
 **Abweichende Werte** erscheinen darunter als farbige Kurzangaben: rot für erhöht, blau für erniedrigt, mit Normbereich im Tooltip.
 
-Hb, Kreatinin, eGFR, Kalium und CRP füllen zusätzlich die Schnellfelder unter 📊 Monitoring.
+Hb, Kreatinin, eGFR, Kalium und CRP werden weiterhin im Datensatz für die Kurzwerte im Druck und den Medikationscheck gespeichert.
 
 ---
 
@@ -454,12 +454,12 @@ Das Auswahlfeld in der Kopfzeile bestimmt, was gedruckt wird. Danach auf **Druck
 | Profil | Format | Zweck |
 | --- | --- | --- |
 | **Übergabe (Voll)** | quer, eine Zeile je Patient | Vollständige Liste mit Diagnosen, Medikation, Labor, To-Dos – der Handzettel für die Übergabe |
-| **Visite (Kompakt)** | quer | Wie oben, ohne Vordiagnosen, Medikation und Risikofaktoren – mehr Platz für To-Dos |
-| **Pocket (Max)** | quer, kleinste Schrift | Maximal verdichtet für die Kitteltasche |
-| **Patientenblatt** | **hoch, eine Seite je Patient** | Alles Wichtige auf einem Blatt, unten ein liniertes Feld für Notizen in der Visite |
-| **Laborverlauf** | quer, eine Seite je Patient | Labor und BGA als Tabelle Parameter × Abnahme (die letzten zehn) |
+| **Visite (Kompakt)** | quer | Kompakte Übergabe mit Medikamentennamen untereinander |
+| **Pocket (Max)** | quer, kleinste Schrift | Verdichtet für die Kitteltasche, mit Medikamentennamen untereinander |
+| **Patientenblatt** | hoch, Seitenbeginn je Patient | Ausführliche Angaben mit einem linierten Feld für Visitenotizen |
+| **Laborverlauf** | quer, Seitenbeginn je Patient | Labor und BGA als Tabellen mit bis zu zehn Abnahmen je Tabelle |
 
-Alle Profile tragen eine Kopfzeile (Profil, Patientenzahl, Zeitstempel) und eine Fußzeile mit Datenschutzhinweis. Tabellenköpfe wiederholen sich auf Folgeseiten, und eine Patientenzeile wird nicht über den Seitenumbruch zerrissen. Die Seitenausrichtung schaltet automatisch um.
+Alle Profile tragen eine Kopfzeile (Profil, Patientenzahl, Zeitstempel) und eine Fußzeile mit Datenschutzhinweis. Tabellenköpfe wiederholen sich auf Folgeseiten. Lange Patienteneinträge können auf der nächsten Seite weiterlaufen. Die Seitenausrichtung schaltet automatisch um.
 
 **Das Patientenblatt enthält:** Zimmer, Identität und Warnhinweise im Kopf, Zustand, Wenn–dann, Diagnosen, Vordiagnosen mit Risikofaktoren, Anamnese, Medikation nach Status, antiinfektive Kurse, Gerinnung, Laborverlauf, auffällige Werte, Verlaufswarnungen, Medikationscheck, Mikrobiologie, Diagnostik, Konsile, Untersuchungsbefund, To-Dos mit Zuständigkeit und Frist, Tagesprofil, Entlassplanung und Bilanz. Leere Blöcke werden weggelassen.
 

@@ -150,6 +150,16 @@
         const dose=m=>[m.dose,m.schedule].filter(Boolean).join(' · ');
         const strength=m=>medicationStrength(m);
         const displayName=m=>{const value=strength(m);return value&&m.name.includes(value)?m.name.replace(value,'').replace(/\s{2,}/g,' ').trim():m.name;};
+        if (options.namesOnly) {
+            const names = meds.map(med => {
+                let name = med.name;
+                const embeddedStrength = medicationStrength({ name });
+                if (embeddedStrength) name = name.replace(embeddedStrength, '');
+                if (med.route) name = name.replace('[' + med.route + ']', '');
+                return name.replace(/\(\s*\)/g, '').replace(/\s{2,}/g, ' ').trim();
+            }).filter(Boolean);
+            return '<ul class="print-med-names">' + names.map(name => '<li>' + escape(name) + '</li>').join('') + '</ul>';
+        }
         if(options.compact)return '<ul class="med-mini-list">'+meds.map(m=>'<li title="'+escape(m.route||'')+'"><strong>'+escape(displayName(m))+'</strong>'+ (strength(m)?' <span>'+escape(strength(m))+'</span>':'')+'<small>'+escape(dose(m)||'Dosierung offen')+(m.route?' · '+escape(m.route):'')+'</small></li>').join('')+'</ul>';
         return '<table class="med-table"><thead><tr><th>Medikament</th><th>Stärke</th><th>Dosis / Schema</th></tr></thead><tbody>'+meds.map(m=>'<tr><td title="'+escape(m.route||'')+'">'+escape(displayName(m))+(m.route?'<small class="med-route">'+escape(m.route)+'</small>':'')+'</td><td title="'+(strength(m)?'':'Stärke nicht dokumentiert')+'">'+escape(strength(m)||'—')+'</td><td>'+escape(dose(m)||'—')+'</td></tr>').join('')+'</tbody></table>';
     }

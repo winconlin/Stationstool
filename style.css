@@ -41,16 +41,39 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 
 #print-table-container, #print-detail-container, #print-lab-container, .print-only { display: none; }
 
+@media screen {
+    #main-body:has(#patient-list) { height: 100dvh; min-height: 0; padding-bottom: 0; display: flex; flex-direction: column; }
+    #main-body:has(#patient-list) > :not(#app) { flex-shrink: 0; }
+    #app:has(#patient-list) { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    #patient-list {
+        flex: 1; min-height: 0; overflow-y: auto;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+        grid-auto-rows: minmax(min(23rem, 100%), 1fr);
+    }
+    #patient-list > .patient-card { min-width: 0; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
+    #patient-list > .patient-card > * { flex-shrink: 0; }
+    #patient-list > .patient-card[hidden] { display: none; }
+    #patient-list:empty { display: none; }
+}
+
+.room-tabs { display: flex; flex-shrink: 0; gap: .4rem; overflow-x: auto; padding: .35rem .2rem .6rem; }
+.room-tabs button { flex: 0 0 auto; border: 1px solid #cbd5e1; border-radius: 6px; padding: .35rem .75rem; background: #fff; color: #334155; font-size: .875rem; }
+.room-tabs button[aria-pressed="true"] { background: #3730a3; color: #fff; border-color: #3730a3; }
+#filter-empty { padding: 1rem; color: #475569; }
+.med-panel-body, .diagnostics-body { padding: 6px; }
+.diagnostics-body .daily-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(3.5rem, 1fr)); gap: 4px; padding: 3px 0 6px; }
+.diagnostics-body .task-btn { padding: 3px; border-radius: 4px; font-size: 10px; }
+
 /* --- DRUCK LAYOUT --- */
 @media print {
-    @page { size: A4 landscape; margin: 0.6cm; }
-    body { background: white; -webkit-print-color-adjust: exact; font-family: 'Arial', sans-serif; font-size: 9pt; }
+    @page { size: A4 landscape; margin: 1cm; }
+    body { background: white; -webkit-print-color-adjust: exact; font-family: 'Arial', sans-serif; font-size: 9.5pt; line-height: 1.35; overflow-wrap: anywhere; }
     
-    .no-print, .modal, #patient-list, .navbar { display: none !important; }
+    .no-print, .modal, #app, .navbar { display: none !important; }
     #print-table-container { display: block !important; width: 100%; }
     .print-only { display: block !important; }
 
-    /* Kopf- und Fußzeile auf jeder Seite */
+    /* Titel und Vertraulichkeitshinweis */
     #print-head { display: flex !important; justify-content: space-between; align-items: baseline;
         border-bottom: 2px solid #000; margin-bottom: 4px; padding-bottom: 2px; }
     #print-head-title { font-weight: bold; font-size: 11pt; }
@@ -58,8 +81,16 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     #print-foot { margin-top: 4px; border-top: 1px solid #999; padding-top: 2px; font-size: 7pt; color: #444; }
 
     table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    th, td { border: 1px solid #000; padding: 4px; vertical-align: top; word-wrap: break-word; }
-    /* Kopfzeile auf Folgeseiten wiederholen, Patientenzeilen nicht zerreißen */
+    th, td { border: 1px solid #94a3b8; padding: 5px 6px; vertical-align: top; overflow-wrap: anywhere; }
+    thead th { background: #e8eef5; color: #172b43; text-align: left; }
+    #print-table-body > tr:nth-child(even) { background: #f7f9fc; }
+    #print-table-body > tr { break-inside: auto; }
+    #print-table-body > tr > td { vertical-align: top; }
+    .print-meds h3 { font-size: 8.5pt; font-weight: 700; color: #172b43; break-after: avoid; }
+    .print-med-names { margin: 1pt 0 2pt; padding-left: 0; list-style: none; }
+    .print-med-names li { break-inside: avoid; }
+    .print-meds-reduced { display: none; }
+    /* Tabellenköpfe wiederholen und einzelne Messwert- und Medikamentenzeilen zusammenhalten. */
     thead { display: table-header-group; }
     tfoot { display: table-footer-group; }
     tr { break-inside: avoid; page-break-inside: avoid; }
@@ -89,28 +120,21 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     .task-true::before { content: "☒ "; font-weight: bold; color: black !important; }
     .task-true { color: black !important; background: transparent !important; }
 
-    /* PROFILE: Visite */
-    body.print-mode-visite .print-history, body.print-mode-visite .print-meds, body.print-mode-visite .print-cvrf-box { display: none !important; }
-    body.print-mode-visite .col-diag { width: 35%; }
-    body.print-mode-visite .col-todo { width: 42%; }
+    /* Visite und Pocket zeigen Medikamentennamen und die für das Profil vorgesehenen Angaben. */
+    body:is(.print-mode-visite, .print-mode-pocket) :is(.print-history, .print-meds-detailed, .print-cvrf-box) { display: none; }
+    body:is(.print-mode-visite, .print-mode-pocket) .print-meds-reduced { display: block; }
+    body.print-mode-visite .col-diag, body.print-mode-pocket .col-diag { width: 35%; }
+    body.print-mode-visite .col-todo, body.print-mode-pocket .col-todo { width: 42%; }
+    body.print-mode-pocket #print-table-container { font-size: 8.5pt; }
+    body.print-mode-pocket #print-table-container :is(th, td) { padding: 3px 4px; }
+    body.print-mode-pocket :is(.print-dob, .print-diag-item.print-diag-ordered) { display: none; }
 
-    /* PROFILE: Pocket */
-    body.print-mode-pocket .print-history, body.print-mode-pocket .print-meds, body.print-mode-pocket .print-cvrf-box, body.print-mode-pocket .print-dob, body.print-mode-pocket .print-diag-item.print-diag-ordered { display: none !important; }
-    body.print-mode-pocket th, body.print-mode-pocket td { padding: 2px 3px !important; font-size: 7.5pt !important; line-height: 1.1 !important; }
-    body.print-mode-pocket .print-name { font-size: 9pt !important; margin-bottom: 0 !important; }
-    body.print-mode-pocket .print-main-diag { font-size: 8.5pt !important; margin-bottom: 1px !important; }
-    body.print-mode-pocket .col-room { font-size: 11pt !important; }
-    
-    body.print-mode-pocket .print-diag-rest, body.print-mode-pocket .col-todo-content {
-        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-    }
-
-    /* PROFIL: Patientenblatt – eine Seite je Patient, Hochformat */
+    /* Patientenblatt: Hochformat mit Fortsetzungsseiten bei langen Angaben. */
     body.print-mode-detail #print-table-container { display: none !important; }
     body.print-mode-detail #print-detail-container { display: block !important; }
-    .patient-sheet { break-after: page; page-break-after: always; break-inside: avoid; display: flex; flex-direction: column; height: 100%; }
+    .patient-sheet { break-after: page; }
     .patient-sheet:last-child { break-after: auto; page-break-after: auto; }
-    .sheet-head { display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #000; padding-bottom: 3px; margin-bottom: 4px; }
+    .sheet-head { break-after: avoid; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #000; padding-bottom: 3px; margin-bottom: 4px; }
     .sheet-room { font-size: 20pt; font-weight: 900; min-width: 2.2cm; text-align: center; border: 2px solid #000; padding: 2px 4px; }
     .sheet-ident { flex: 1 1 auto; min-width: 0; }
     .sheet-name { font-size: 14pt; font-weight: bold; line-height: 1.1; }
@@ -123,27 +147,23 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     .sheet-severity-beobachtung { background: #e5e5e5; }
     .sheet-severity-stabil { border-style: dotted; }
     .sheet-contingency { font-size: 9pt; border: 2px solid #075985; padding: 2px 6px; margin-bottom: 4px; }
-    .sheet-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; align-content: start; }
-    .sheet-block { border: 1px solid #666; padding: 2px 4px; break-inside: avoid; }
-    .sheet-block.sheet-wide { grid-column: 1 / -1; }
-    .sheet-block-title { font-size: 7pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.04em;
-        color: #000; border-bottom: 1px dotted #999; margin-bottom: 2px; }
-    .sheet-block-body { font-size: 8.5pt; line-height: 1.25; }
-    .sheet-mono { font-family: 'Courier New', monospace; font-size: 7.5pt; white-space: pre; }
-    .sheet-trend { display: inline-block; margin-right: 10px; white-space: nowrap; font-size: 8pt; }
-    .sheet-notes { margin-top: auto; border: 1px solid #666; padding: 2px 4px; }
+    .sheet-block { border-top: 1px solid #94a3b8; padding: 3px 0; margin-top: 3px; }
+    .sheet-block-title { break-after: avoid; font-size: 9pt; font-weight: bold; color: #172b43; margin-bottom: 2px; }
+    .sheet-block-body { font-size: 9pt; line-height: 1.3; }
+    .sheet-trend { display: inline-block; margin-right: 10px; font-size: 8.5pt; }
+    .sheet-notes { break-inside: avoid; margin-top: 6px; border: 1px solid #666; padding: 2px 4px; }
     .sheet-ruled { height: 2.6cm; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 0.64cm, #bbb 0.64cm, #bbb 0.66cm); }
     body.print-mode-detail #print-foot { break-before: avoid; }
 
     /* PROFIL: Laborverlauf */
     body.print-mode-lab #print-table-container { display: none !important; }
     body.print-mode-lab #print-lab-container { display: block !important; }
-    .lab-sheet { break-after: page; page-break-after: always; break-inside: avoid; }
+    .lab-sheet { break-after: page; }
     .lab-sheet:last-child { break-after: auto; page-break-after: auto; }
-    .lab-table { table-layout: auto; margin-bottom: 6px; }
-    .lab-table caption { text-align: left; font-weight: bold; font-size: 9pt; margin: 4px 0 2px; }
-    .lab-table th, .lab-table td { border: 1px solid #999; padding: 1px 3px; font-size: 7.5pt; text-align: right; white-space: nowrap; }
-    .lab-table th.lab-param { text-align: left; font-weight: normal; width: 5.5cm; }
+    .lab-table { table-layout: fixed; margin-bottom: 6px; }
+    .lab-table caption { break-after: avoid; text-align: left; font-weight: bold; font-size: 9pt; margin: 4px 0 2px; }
+    .lab-table th, .lab-table td { border: 1px solid #999; padding: 1px 3px; font-size: 8pt; text-align: right; }
+    .lab-table th.lab-param { text-align: left; font-weight: normal; width: 4cm; }
     .lab-table th.lab-param span { color: #555; font-size: 6.5pt; }
     .lab-table thead th { background: #eee; font-weight: bold; text-align: center; }
     .lab-table .lab-ref { text-align: left; color: #555; width: 2.4cm; }
@@ -154,6 +174,8 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 .compact-details { border: 1px solid #e2e8f0; border-radius: 0.375rem; background: #f8fafc; }
 .compact-details[open] { background: #ffffff; }
 .compact-summary { cursor: pointer; user-select: none; padding: 0.25rem 0.5rem; font-size: 0.7rem; line-height: 1rem; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 0.25rem; }
+.patient-card > details > summary::before { content: ''; flex: 0 0 6px; width: 6px; height: 6px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(-45deg); margin-right: 4px; }
+.patient-card > details[open] > summary::before { transform: rotate(45deg); }
 .compact-summary:hover { color: #2563eb; background: #eff6ff; }
 .compact-summary:focus-visible, .focus-ring:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15); }
 
@@ -228,11 +250,10 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 .station-nav {gap:8px;flex-wrap:wrap;}.station-nav>div {flex-wrap:wrap;}.station-nav h1 {flex-shrink:0;}
 @media print {
  .workflow-dialog,.workflow-toolbar,.workflow-button,.lab-view-actions {display:none!important;}
- .med-table {font-size:8pt!important;font-style:normal!important;table-layout:auto;border-collapse:collapse;}
- .med-table th,.med-table td {padding:2px!important;border:1px solid #555!important;}
+ .med-table {font-size:8.5pt;line-height:1.3;table-layout:fixed;border-collapse:collapse;overflow:visible;border-radius:0;}
+ .med-table th,.med-table td {padding:3px 4px;border:1px solid #94a3b8;}
  .med-table thead {display:table-header-group;}.med-table tr {break-inside:avoid;}
  .patient-status-print {display:block;font-weight:700;border:2px solid black;padding:2px;font-size:8pt;color:black;}
- body.print-mode-visite .print-meds,body.print-mode-pocket .print-meds {display:block!important;}
  .print-meds {font-style:normal;}
 }
 .hf-deferred-review {border-left:3px solid #eab308;background:#fffbeb;}

@@ -243,19 +243,110 @@ class WorkflowTests(unittest.TestCase):
         for value in ['SGLT2','Steroidaler MRA','Betablocker','ACE-Hemmer / ARNI','41–49','5382']:self.assertIn(value,text)
         self.assertEqual(self.page.locator('.hf-check').count(),4)
 
+    def test_room_tabs_and_independent_card_accordions(self):
+        self.page.evaluate("""() => {
+            AppState.patients = [
+                StationModel.createPatient({
+                    name: 'Beispiel A', room: '2', labs: { hb: '12' },
+                    vol: { ziel: '-500' }, expMonitoring: true,
+                    meds_current: Array.from({length: 60}, (_, i) => 'Testpräparat' + i).join(', ')
+                }),
+                StationModel.createPatient({name: 'Beispiel B', room: '2'}),
+                StationModel.createPatient({name: 'Beispiel C', room: '10', telemetry: 'joker'})
+            ];
+            saveData();
+            render();
+        }""")
+        room_controls = self.page.get_by_role('group', name='Zimmerauswahl')
+        self.assertEqual(room_controls.get_by_role('button').all_text_contents(), ['Alle Zimmer', 'Zimmer 2', 'Zimmer 10'])
+        cards = self.page.locator('.patient-card:visible')
+        room_controls.get_by_role('button', name='Zimmer 2', exact=True).click()
+        self.assertEqual(cards.count(), 2)
+        first, second = cards.nth(0), cards.nth(1)
+        self.assertEqual(first.bounding_box()['height'], second.bounding_box()['height'])
+        self.assertGreater(first.bounding_box()['height'], 750)
+        self.assertTrue(first.evaluate('card => card.scrollHeight > card.clientHeight'))
+        first.evaluate('card => { card.scrollTop = card.scrollHeight; }')
+        self.assertGreater(first.evaluate('card => card.scrollTop'), 0)
+        first.locator('.lab-panel summary').click()
+        self.assertFalse(first.locator('.med-panel').evaluate('panel => panel.open'))
+        self.assertTrue(second.locator('.med-panel').evaluate('panel => panel.open'))
+        first.locator('.med-panel summary').click()
+        self.assertFalse(first.locator('.lab-panel').evaluate('panel => panel.open'))
+        diagnostics = first.locator('details[data-detail-key="diagnostics"]')
+        self.assertTrue(diagnostics.evaluate('panel => panel.previousElementSibling.classList.contains("todo-panel")'))
+        diagnostics.locator('summary').click()
+        self.assertTrue(diagnostics.get_by_text('Tageschecks', exact=True).is_visible())
+        diagnostics.get_by_role('button', name='Klinischer Untersuchungsgenerator').click()
+        self.assertTrue(self.page.locator('#examModal').is_visible())
+        self.page.locator('#examModal').get_by_role('button', name='×').click()
+        self.assertNotIn('Monitoring, Bilanz & Care', first.inner_text())
+        self.page.reload()
+        self.assertEqual(self.page.evaluate("""() => {
+            const patient = AppState.patients[0];
+            return [patient.labs.hb, patient.vol.ziel, patient.expMonitoring];
+        }"""), ['12', '-500', True])
+        room_controls.get_by_role('button', name='Zimmer 10', exact=True).click()
+        self.assertEqual(cards.count(), 1)
+        self.assertGreater(cards.first.bounding_box()['width'], 1400)
+        room_controls.get_by_role('button', name='Alle Zimmer', exact=True).click()
+        self.assertEqual(cards.count(), 3)
+        self.page.locator('#patient-filter').select_option('joker')
+        self.assertEqual(cards.count(), 1)
+        self.assertEqual(room_controls.get_by_role('button').all_text_contents(), ['Alle Zimmer', 'Zimmer 10'])
+        self.page.set_viewport_size({'width': 390, 'height': 780})
+        bounds = cards.first.bounding_box()
+        self.assertGreater(bounds['width'], 340)
+        self.assertLessEqual(bounds['x'] + bounds['width'], 390)
+        available = self.page.locator('#patient-list').bounding_box()
+        self.assertAlmostEqual(bounds['height'], available['height'], delta=1)
+        self.assertAlmostEqual(bounds['y'] + bounds['height'], 772, delta=1)
+
+
     def test_print_profiles_keep_status_and_long_medication_lists(self):
-        self.page.evaluate("""()=>{const p=StationModel.createPatient({name:'Drucktest',dnr:true,dni:true,insurance:'private',telemetry:'joker',meds_current:Array.from({length:35},(_,i)=>'MedikamentTest'+String(i).padStart(2,'0')+' · 1 mg').join(', '),labSets:[{id:'lab1',type:'labor',date:'2026-11-16',time:'08:00',entries:[{code:'V_HB',label:'Hb',value:'12',num:12,unit:'g/dl',ref:'12-16'}]}]});AppState.patients=[p];render()}""")
+        self.page.evaluate(r"""() => {
+            const patient = StationModel.createPatient({
+                name: 'Drucktest', dnr: true, dni: true, insurance: 'private', telemetry: 'joker',
+                meds_current: Array.from({length: 100}, (_, i) =>
+                    'MedikamentTest' + String(i).padStart(2, '0') + ' 777 mg · Testdosis · 23:17 · [sublingual]'
+                ).join(', '),
+                meds_paused: 'PausiertesTestpräparat · 888 mg',
+                meds_bedarf: 'BedarfsTestpräparat · 999 mg',
+                todo_text: Array.from({length: 80}, (_, i) => '[ ] AufgabeTest' + i).join('\n'),
+                labSets: Array.from({length: 12}, (_, i) => ({
+                    id: 'lab' + i, type: 'labor', date: '2026-11-' + (10 + i),
+                    entries: Array.from({length: 90}, (_, j) => ({
+                        code: 'V_' + j, label: 'LaborTest' + j, value: String(12 + i),
+                        num: 12 + i, unit: 'g/dl', ref: '12-16'
+                    }))
+                }))
+            });
+            AppState.patients = [patient];
+            render();
+        }""")
         with tempfile.TemporaryDirectory() as directory:
-            for profile in ['full','visite','pocket','detail','lab']:
+            for profile in ['full', 'visite', 'pocket', 'detail', 'lab']:
                 with self.subTest(profile=profile):
                     self.page.locator('#printProfile').select_option(profile)
-                    pdf=Path(directory)/(profile+'.pdf')
-                    self.page.pdf(path=str(pdf),prefer_css_page_size=True)
-                    text=subprocess.check_output(['pdftotext','-layout',str(pdf),'-'],text=True)
-                    for marker in ['DNR','DNI','JOKER','Privat']:
-                        self.assertIn(marker,text)
-                    if profile!='lab':
-                        for i in range(35): self.assertIn(f'MedikamentTest{i:02}',text)
+                    pdf = Path(directory) / (profile + '.pdf')
+                    self.page.pdf(path=str(pdf), prefer_css_page_size=True)
+                    text = subprocess.check_output(['pdftotext', '-layout', str(pdf), '-'], text=True)
+                    self.assertGreaterEqual(text.count('\f'), 2)
+                    for marker in ['DNR', 'DNI', 'JOKER', 'Privat']:
+                        self.assertIn(marker, text)
+                    if profile == 'lab':
+                        for marker in ['LaborTest0', 'LaborTest89', '10.11.', '21.11.']:
+                            self.assertIn(marker, text)
+                        continue
+                    for i in range(100):
+                        self.assertIn(f'MedikamentTest{i:02}', text)
+                    for marker in ['PausiertesTestpräparat', 'BedarfsTestpräparat', 'AufgabeTest79']:
+                        self.assertIn(marker, text)
+                    for marker in ['777 mg', 'Testdosis', '23:17', 'sublingual', '888 mg', '999 mg']:
+                        if profile in ['visite', 'pocket']:
+                            self.assertNotIn(marker, text)
+                        else:
+                            self.assertIn(marker, text)
 
 if __name__=='__main__':
     unittest.main()

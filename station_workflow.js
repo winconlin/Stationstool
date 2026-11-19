@@ -1,6 +1,7 @@
 /* Oberfläche auf Basis von StationModel. Alle Ein-Datei-Fassungen werden generiert. */
 'use strict';
 const workflowUndo=[];
+let selectedRoom = null;
 function checkpoint(reason) {
     workflowUndo.push({reason,patients:StationModel.clone(AppState.patients)});
     if(workflowUndo.length>5)workflowUndo.shift();
@@ -18,14 +19,50 @@ function downloadBackup(data,prefix) {
 function installWorkflowControls() {
     const panel=document.createElement('div');panel.className='workflow-toolbar no-print';
     panel.innerHTML='<button id="undo-action" disabled onclick="undoLastAction()">↶ Rückgängig</button><label>Ansicht <select id="patient-filter" onchange="render()"><option value="all">Alle Patienten</option><option value="telemetry">Telemetrie</option><option value="joker">Telemetrie · Joker</option><option value="isolation">Isolation / infektiös</option><option value="discharge">Entlassung geplant</option><option value="todo">Offene Aufgaben</option></select></label><span id="telemetry-count"></span>';
-    document.getElementById('app').prepend(panel);
+    const rooms = document.createElement('div');
+    rooms.id = 'room-tabs';
+    rooms.className = 'room-tabs no-print';
+    rooms.setAttribute('role', 'group');
+    rooms.setAttribute('aria-label', 'Zimmerauswahl');
+    document.getElementById('app').prepend(panel, rooms);
     const dialog=document.createElement('dialog');dialog.id='workflow-dialog';dialog.className='workflow-dialog';document.body.append(dialog);
 }
 function matchesPatientFilter(p) {
     const filter=document.getElementById('patient-filter')?.value||'all';
-    const counts=document.getElementById('telemetry-count');if(counts)counts.textContent='Telemetrie: '+AppState.patients.filter(x=>x.telemetry==='active'||x.telemetry==='joker').length+' · davon Joker: '+AppState.patients.filter(x=>x.telemetry==='joker').length;
     return filter==='all'||filter==='telemetry'&&['active','joker'].includes(p.telemetry)||filter==='joker'&&p.telemetry==='joker'||filter==='isolation'&&((p.iso||[]).length||p.infectious)||filter==='discharge'&&!!p.discharge_date||filter==='todo'&&openTodoCount(p).open>0;
 }
+function renderRoomTabs(patients) {
+    const counts = document.getElementById('telemetry-count');
+    const telemetry = AppState.patients.filter(p => ['active', 'joker'].includes(p.telemetry));
+    counts.textContent = 'Telemetrie: ' + telemetry.length + ' · davon Joker: ' + telemetry.filter(p => p.telemetry === 'joker').length;
+    const tabs = document.getElementById('room-tabs');
+    const rooms = [...new Set(patients.map(p => p.room))];
+    if (!rooms.includes(selectedRoom)) selectedRoom = null;
+    const previousScroll = tabs.scrollLeft;
+    tabs.replaceChildren(...[null, ...rooms].map(room => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = room === null ? 'Alle Zimmer' : room ? 'Zimmer ' + room : 'Gang';
+        button.setAttribute('aria-controls', 'patient-list');
+        button.setAttribute('aria-pressed', String(room === selectedRoom));
+        button.addEventListener('click', () => {
+            selectedRoom = room;
+            tabs.querySelector('[aria-pressed="true"]').setAttribute('aria-pressed', 'false');
+            button.setAttribute('aria-pressed', 'true');
+            document.getElementById('patient-list').scrollTop = 0;
+            applyRoomFilter();
+        });
+        return button;
+    }));
+    tabs.scrollLeft = previousScroll;
+}
+
+function applyRoomFilter() {
+    document.querySelectorAll('#patient-list > .patient-card').forEach(card => {
+        card.hidden = selectedRoom !== null && card.dataset.room !== selectedRoom;
+    });
+}
+
 function selectOptions(values,selected) {
     return Object.entries(values).map(([key,text])=>'<option value="'+StationModel.escape(key)+'"'+(key===selected?' selected':'')+'>'+StationModel.escape(text)+'</option>').join('');
 }
@@ -186,16 +223,29 @@ function showAllLabTrends(id) {
 }
 
 function rememberCardDetails() {
-    AppState.detailsOpen=AppState.detailsOpen||{};
-    document.querySelectorAll('.patient-card').forEach(card=>{
-        const id=card.querySelector('input[data-pid]')?.dataset.pid;if(!id)return;
-        card.querySelectorAll('details[data-detail-key]').forEach(detail=>{AppState.detailsOpen[id+':'+detail.dataset.detailKey]=detail.open;});
+    AppState.cardView = AppState.cardView || new Map();
+    document.querySelectorAll('#patient-list > .patient-card').forEach(card => {
+        const id = card.querySelector('input[data-pid]').dataset.pid;
+        const detail = card.querySelector(':scope > details[open]');
+        const scrollTop = card.hidden ? AppState.cardView.get(id)?.scrollTop ?? 0 : card.scrollTop;
+        AppState.cardView.set(id, { section: detail?.dataset.detailKey, scrollTop });
     });
 }
 function restoreCardDetails() {
-    document.querySelectorAll('.patient-card').forEach(card=>{
-        const id=card.querySelector('input[data-pid]')?.dataset.pid;if(!id)return;
-        card.querySelectorAll('details[data-detail-key]').forEach(detail=>{const key=id+':'+detail.dataset.detailKey;if(Object.hasOwn(AppState.detailsOpen||{},key))detail.open=AppState.detailsOpen[key];});
+    document.querySelectorAll('#patient-list > .patient-card').forEach((card, index) => {
+        const id = card.querySelector('input[data-pid]').dataset.pid;
+        const view = AppState.cardView.get(id);
+        const sections = [...card.querySelectorAll(':scope > details[data-detail-key]')];
+        const active = view ? sections.find(section => section.dataset.detailKey === view.section)
+            : sections.find(section => section.open);
+        sections.forEach(section => {
+            section.open = section === active;
+            section.name = 'patient-section-' + index;
+            section.addEventListener('toggle', () => {
+                if (section.open) section.querySelectorAll('.auto-expand').forEach(resizeTx);
+            });
+        });
+        if (view) card.scrollTop = view.scrollTop;
     });
 }
 
