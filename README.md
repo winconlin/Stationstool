@@ -2,7 +2,7 @@
 
 Ein Werkzeug für die tägliche Stationsarbeit in der Inneren Medizin und Kardiologie: Patientenliste, Medikation, Labor, Antibiose, Übergabe, Ausdrucke und ein fertiger Prompt für die Epikrise.
 
-**Es braucht keine Installation, keinen Server, keine Datenbank und kein Internet.** Die Datei `Station.html` wird im Browser geöffnet, fertig. Alle Daten bleiben auf dem Rechner, auf dem gearbeitet wird.
+**Für den Einsatz genügt ein Browser.** Öffnen Sie [Stationsliste-komplett.html](Stationsliste-komplett.html) lokal. Die Anwendung läuft offline und speichert ihre Daten im Browser. Die Screenshots in dieser Anleitung zeigen ausschließlich fiktive Personen und Beispieldaten.
 
 ---
 
@@ -49,7 +49,7 @@ Dasselbe gibt es für das zweite Modul als `Medical-Suite-komplett.html`.
 
 ### Beim Umstieg von Weg B auf Weg A
 
-Die gespeicherten Patienten gehören zum Browser, nicht zur Datei. In **Edge und Chrome** sind sie nach dem Umstieg auf die Einzeldatei weiterhin da – auch wenn die Datei anders heißt oder in einem anderen Ordner liegt (geprüft). **Firefox kann das anders handhaben** und jeder Datei einen eigenen Speicher geben.
+Die gespeicherten Daten liegen im Browser. Beim Wechsel der Datei, des Ordners oder des Browserprofils kann die Liste leer erscheinen, weil Browser den lokalen Speicher unterschiedlich zuordnen.
 
 Machen Sie es deshalb so, dann kann nichts schiefgehen:
 
@@ -59,7 +59,7 @@ Machen Sie es deshalb so, dann kann nichts schiefgehen:
 
 ### Aktualisieren
 
-Eine neue Fassung holen heißt: die Datei noch einmal herunterladen und die alte ersetzen. Die Patientendaten bleiben davon unberührt, sie liegen im Browser. **Trotzdem vorher ein Backup machen** – es kostet zehn Sekunden.
+Erstellen Sie zuerst ein **Backup**. Laden Sie dann die neue Fassung herunter und ersetzen Sie die alte Datei. Falls die Liste nach dem Öffnen leer ist, laden Sie das Backup über **Import**.
 
 ## Weg B: der ganze Ordner
 
@@ -128,7 +128,7 @@ Oben läuft eine dunkelblaue Leiste mit allen Knöpfen, die für die ganze Stati
 | --- | --- |
 | 📠 **BMP Scan** | Bundeseinheitlichen Medikationsplan per Barcode-Scanner einlesen |
 | 💾 **Backup** | Alle Daten als Datei auf den Rechner speichern |
-| 👻 **Anon Backup** | Dasselbe, aber ohne Namen und Geburtsdaten |
+| 👻 **Anon Backup** | Datenschutzexport mit redigierten Freitexten und Datumsangaben |
 | 📂 **Import** | Ein gespeichertes Backup wieder einlesen |
 | ⚡ **Schnell-Import** | Beliebige Daten aus dem KIS einfügen, das Format wird selbst erkannt |
 | 📋 **KIS-Import** | Patientenliste aus dem KIS einlesen |
@@ -140,7 +140,11 @@ Oben läuft eine dunkelblaue Leiste mit allen Knöpfen, die für die ganze Stati
 
 Rechts neben **Backup** erscheint ab halbvollem Speicher eine Anzeige wie *Speicher 62 %*. Ein Klick darauf zeigt Einzelheiten.
 
-Darunter stehen die Patientenkarten, nach Zimmernummer sortiert und mit Zimmerüberschriften gruppiert. Patienten ohne Zimmer landen unter **Gang**.
+Unter der Kopfleiste steht **Ansicht** mit Filtern für Telemetrie, Telemetrie-Joker, Isolation, geplante Entlassung und offene Aufgaben. Daneben zeigt der Telemetriezähler die Belegung und die Zahl der Joker für die gesamte Station.
+
+Die Zimmertabs unter der Ansichtsauswahl zeigen die Zimmer der gefilterten Patienten. **Alle Zimmer** zeigt die gesamte gewählte Ansicht. Nicht zugeordnete Patienten finden Sie unter **Gang**. Die Karten sind nach Zimmer sortiert und füllen die verfügbare Breite und Höhe. Lange Inhalte lassen sich innerhalb der jeweiligen Karte scrollen.
+
+![Zimmeransicht mit dem ausgewählten Zimmer 12 und den Karten für Max Mustermann und Erika Musterfrau](docs/screenshots/zimmeransicht.png)
 
 Liegt das letzte Backup mehr als einen Tag zurück, erscheint ganz oben ein gelber Hinweisbalken mit einem Knopf zum Sichern.
 
@@ -152,11 +156,11 @@ Liegt das letzte Backup mehr als einen Tag zurück, erscheint ganz oben ein gelb
 
 **Mehrere auf einmal:** → [Abschnitt 5](#5-daten-aus-dem-kis-übernehmen).
 
-**Löschen:** Das × rechts oben auf der Karte. Es wird einmal nachgefragt.
+**Löschen** geht über das × rechts oben auf der Karte. Bestätigen Sie die Nachfrage. **Rückgängig** neben der Ansichtsauswahl stellt die letzte unterstützte Aktion wieder her, etwa das Löschen einer Karte oder den Import einer Patientenliste.
 
 **Sortierung:** Die Karten ordnen sich automatisch nach Zimmernummer. Ändert man die Zimmernummer, springt die Karte an die richtige Stelle.
 
-**Alles wird sofort gespeichert.** Es gibt keinen Speichern-Knopf; jede Eingabe landet direkt im Browserspeicher.
+Änderungen werden beim Bearbeiten im Browser gespeichert. Bei einem Speicherfehler erscheint eine Meldung (→ [Abschnitt 14](#14-sichern-und-übertragen)).
 
 ---
 
@@ -169,7 +173,8 @@ Liegt das letzte Backup mehr als einen Tag zurück, erscheint ganz oben ein gelb
 - **Aufn.** – Aufnahmedatum; daraus zählt das Werkzeug den **Aufenthaltstag** ("Tag 8")
 - **Stabilität** – ein Klick schaltet durch: *ohne Angabe → stabil → Beobachtung → instabil*. Bei einer Angabe bekommt die Karte links einen farbigen Balken (grün/gelb/rot), und im Ausdruck erscheint die Einstufung als Markierung. Das ist der erste Satz jeder Übergabe.
 - **Nüchtern?** – ein Klick setzt den Nüchtern-Hinweis
-- **Rhythmus** (SR / VHF / A-Flatt / PM/ICD), daneben "zuletzt SR am …", **LVEF** und **Klappen**
+- **DNR**, **DNI**, **Versicherungsstatus** und **Telemetrie** einschließlich Joker lassen sich getrennt erfassen.
+- **Rhythmus** (SR / VHF / A-Flatt / PM/ICD), Rhythmusverlauf, **EF**, **Klappen**, **NYHA** und **EHRA** stehen in den Herz-Kreislauf-Feldern.
 - **×** löscht den Patienten
 
 ### Allergien und Isolation
@@ -184,7 +189,7 @@ Ein rotes Feld für **CAVE / Allergien** – der Text erscheint später auch als
 
 ### Wenn–dann (Dienstanweisung)
 
-Ein eigenes Feld für die Anweisung an den Nacht- und Wochenenddienst, zum Beispiel: *„Bei RR syst. < 90 → Arzt rufen · Bei Fieber > 38,5 → BK abnehmen."* Sobald etwas darinsteht, färbt sich das Feld blau. Es steht auf jedem Ausdruck und in der Übergabe-Ansicht.
+Ein eigenes Feld für die Anweisung an den Nacht- und Wochenenddienst, zum Beispiel: *„Bei RR syst. < 90 → Arzt rufen · Bei Fieber > 38,5 → BK abnehmen."* Sobald etwas darinsteht, färbt sich das Feld blau. Es erscheint in der Übergabe-Ansicht und in den Druckprofilen für Übergabe, Visite, Pocket und Patientenblatt.
 
 ### To-Do
 
@@ -192,15 +197,15 @@ Ein eigenes Feld für die Anweisung an den Nacht- und Wochenenddienst, zum Beisp
 
 ### Medikation
 
+Klappen Sie **Medikation** auf, um die Listen und Bearbeitungswerkzeuge zu sehen.
+
 - **Aktuell** – ein Klick öffnet den Medikamentendialog (→ [Abschnitt 6](#6-medikation))
-- **Pausiert**, **Bedarf** – ebenfalls anklickbar
+- **Pausiert** und **Bedarf** haben jeweils einen **Bearbeiten**-Knopf.
 - **Antikoagulation** – wird automatisch aus der aktuellen Medikation erkannt; darunter ein Feld für Indikation und Dauer
 - **Amiodaron-Aufsättigung** – ein Klick addiert eine Dosis zum kumulativen Zähler
 - **Aufnahme: Anamnese, Medikation, Vordiagnosen** – aufklappbar; enthält die Aufnahmeanamnese (sie fließt später in den Epikrisen-Prompt), die Medikation bei Aufnahme und die Vordiagnosen
 
 ### Die aufklappbaren Abschnitte
-
-Unter der Ansichtsauswahl stehen die Zimmertabs. **Alle Zimmer** zeigt alle Patienten der gewählten Ansicht. Die Karten füllen die verfügbare Breite und Höhe aus. Lange Inhalte lassen sich innerhalb der Karte scrollen.
 
 Pro Karte kann höchstens ein Abschnitt geöffnet sein. Beim Öffnen eines anderen Abschnitts klappt der bisherige zu.
 
@@ -209,6 +214,7 @@ Pro Karte kann höchstens ein Abschnitt geöffnet sein. Beim Öffnen eines ander
 | **Medikation** | Aktuelle, pausierte und Bedarfsmedikation, Gerinnung, Amiodaron und Antibiose |
 | **Medikationscheck** | Hinweise zu Dosis, Kombinationen und Labor |
 | **Mikrobiologie** | Kulturen und Erregernachweise |
+| **Herzinsuffizienz** | Typ, klinische Felder und Abgleich der dokumentierten Basistherapie |
 | **Labor & BGA** | Verlauf, Abweichungen und Import |
 | **Tagesprofil** | Gabezeiten über den Tag |
 | **Diagnostik, Konsile & Entlassung** | Tageschecks, Untersuchungsraster, Konsile, Entlassplanung, Untersuchungsgenerator, Scores und Epikrise |
@@ -222,7 +228,11 @@ Direkt unter den To-dos steht **Diagnostik, Konsile & Entlassung**. Auf die Tage
 
 Darunter die Konsile (Uro, UCH, Neuro, Gastro, Endokr, Pulmo, Nephro, Anästh, Chir, Psych) nach demselben Prinzip; bei angefordertem Konsil erscheint ein Feld für die Fragestellung.
 
-Ganz unten: geplante Entlassung, Reha, Pflegegrad, Physiotherapie sowie die Knöpfe **Klinischer Untersuchungsgenerator** (Baukasten für den Untersuchungsbefund), **🧮 Scores** (passende Scores anhand von Alter und Diagnosen) und **📄 Epikrise**.
+Ganz unten stehen geplante Entlassung, Reha, Pflegegrad und Physiotherapie. **Klinischer Untersuchungsgenerator** öffnet den Baukasten für den Untersuchungsbefund. Daneben stehen **Scores** und **Epikrise**.
+
+![Ausschnitt der Patientenkarte mit To-dos, Tageschecks und Untersuchungsgenerator im geöffneten Diagnostikbereich](docs/screenshots/diagnostik.png)
+
+Gespeicherte Labor-Kurzwerte und Bilanzdaten aus dem früheren Bereich **Monitoring, Bilanz & Care** bleiben im Datensatz und im vollständigen Backup erhalten.
 
 ---
 
@@ -252,7 +262,7 @@ Wer lieber über einen Knopf geht: **⚡ Schnell-Import** in der Kopfzeile. In j
 - einfache Zeilen: `Zimmer   Nachname, Vorname   01.01.1950`
 - der tabellarische Medico-Export mit Kopfzeile (Spalten *Name*, *Geburtsdatum*, *Zimmer*)
 
-Die Vorschau zeigt, was erkannt wurde. **Bereits vorhandene Patienten werden am Namen erkannt und nicht doppelt angelegt.**
+Die Vorschau zeigt die erkannten Einträge. Vor der Übernahme zeigt der Importvergleich neue, geänderte und unveränderte Einträge. Die Zuordnung berücksichtigt Name und Geburtsdatum. Bei einer eindeutigen Zuordnung werden Verwaltungsfelder wie Zimmer und Bett aktualisiert. Die klinische Dokumentation bleibt erhalten.
 
 ## Was sonst noch geht
 
@@ -262,7 +272,11 @@ Die Vorschau zeigt, was erkannt wurde. **Bereits vorhandene Patienten werden am 
 
 # 6. Medikation
 
-Ein Klick auf das Medikationsfeld öffnet den Dialog. Oben erscheinen Warnungen: hinterlegte **CAVE/Allergien** und ein Hinweis, wenn die **eGFR unter 30** liegt.
+Öffnen Sie **Medikation** auf der Patientenkarte. **Aktuell** öffnet den Suchdialog mit den hinterlegten Warnhinweisen. Über **Dosen / Gaben bearbeiten** erfassen Sie pro Eintrag Präparat, Stärke, Einzeldosis, Gaben oder Uhrzeiten, Applikationsweg und Status.
+
+![Strukturierter Medikationsdialog mit fiktiven Präparaten, Stärke, Einzeldosis, Gabezeiten und Applikationsweg](docs/screenshots/medikation.png)
+
+**Änderungsverlauf** zeigt dokumentierte Änderungen mit Grund und Vorher-Nachher-Vergleich. **Aufnahme / Entlassung abgleichen** stellt die Aufnahmemedikation der aktuellen Liste gegenüber und kann die aktuelle Liste als Entlassentwurf sichern.
 
 **Suchen und auswählen:** Im Suchfeld tippen, die Treffer anklicken. Jedes Medikament lässt sich als *aktuell*, *pausiert* oder *bei Bedarf* markieren. Freitext für nicht gelistete Präparate steht unten bereit.
 
@@ -327,7 +341,9 @@ Weil der Export die Abnahmezeitpunkte meist nicht mitliefert, bekommt jede erkan
 
 ## Was auf der Karte erscheint
 
-**Verlaufskurven** für Hb, Leukozyten, Thrombozyten, CRP, Kreatinin, eGFR, Natrium und Kalium: letzter Wert, Richtungspfeil, Vorwert mit Abstand in Tagen. Der Mauszeiger auf der Zeile zeigt die ganze Reihe.
+Die **Verlaufskarten** zeigen den letzten Wert, die Einheit, das Datum und die Messfolge. **Werte auswählen** passt die Übersicht je Patient an. Ein Klick auf eine Kurve öffnet Werte und Referenzen für diesen Parameter. **Alle Werte & Verläufe** öffnet die vollständige Übersicht, einschließlich Parametern außerhalb der Kartenauswahl. Die Kurven zeigen die Reihenfolge der Messungen mit gleichmäßigen Abständen.
+
+![Laborübersicht mit Kurven und Messwerttabellen für drei fiktive Messreihen](docs/screenshots/laborverlauf.png)
 
 **Verlaufswarnungen** melden relevante Änderungen – auch dann, wenn beide Werte im Normbereich liegen:
 
@@ -434,7 +450,7 @@ Ein Patient füllt den Bildschirm, die Reihenfolge folgt dem **I-PASS-Schema**:
 
 1. **Zustand** – Stabilität, Alter, Aufenthaltstag, Warnhinweise (hier auch umschaltbar)
 2. **Zusammenfassung** – Hauptdiagnose, Diagnosen, Antiinfektiva, Mikrobiologie, Laborveränderungen, Medikationscheck
-3. **Offene Aufgaben** – mit Zuständigkeit und Frist
+3. **Offene Aufgaben** – die noch nicht abgehakten To-dos
 4. **Wenn–dann** – direkt im Übergabefenster beschreibbar
 
 | Taste | Wirkung |
@@ -459,9 +475,13 @@ Das Auswahlfeld in der Kopfzeile bestimmt, was gedruckt wird. Danach auf **Druck
 | **Patientenblatt** | hoch, Seitenbeginn je Patient | Ausführliche Angaben mit einem linierten Feld für Visitenotizen |
 | **Laborverlauf** | quer, Seitenbeginn je Patient | Labor und BGA als Tabellen mit bis zu zehn Abnahmen je Tabelle |
 
-Alle Profile tragen eine Kopfzeile (Profil, Patientenzahl, Zeitstempel) und eine Fußzeile mit Datenschutzhinweis. Tabellenköpfe wiederholen sich auf Folgeseiten. Lange Patienteneinträge können auf der nächsten Seite weiterlaufen. Die Seitenausrichtung schaltet automatisch um.
+Visite und Pocket listen die Namen der aktuellen, pausierten und Bedarfsmedikamente zeilenweise. Übergabe und Patientenblatt enthalten die dokumentierte Stärke, Einzeldosis, Gabezeiten und den Applikationsweg. Die Zimmertabs steuern die Bildschirmansicht. Die drei Listenprofile übernehmen den Filter unter **Ansicht**. Patientenblatt und Laborverlauf berücksichtigen die gesamte Station.
 
-**Das Patientenblatt enthält:** Zimmer, Identität und Warnhinweise im Kopf, Zustand, Wenn–dann, Diagnosen, Vordiagnosen mit Risikofaktoren, Anamnese, Medikation nach Status, antiinfektive Kurse, Gerinnung, Laborverlauf, auffällige Werte, Verlaufswarnungen, Medikationscheck, Mikrobiologie, Diagnostik, Konsile, Untersuchungsbefund, To-Dos mit Zuständigkeit und Frist, Tagesprofil, Entlassplanung und Bilanz. Leere Blöcke werden weggelassen.
+![PDF-Ausschnitt des Profils Visite mit den fiktiven Patienten und Medikamentennamen untereinander](docs/screenshots/visite-druck.png)
+
+Jeder Ausdruck enthält einen Titel, einen Zeitstempel und einen Datenschutzhinweis. Tabellenköpfe wiederholen sich auf Folgeseiten. Lange Patienteneinträge können auf der nächsten Seite weiterlaufen. Die Seitenausrichtung schaltet automatisch um.
+
+**Das Patientenblatt enthält:** Zimmer, Identität und Warnhinweise im Kopf, Zustand, Wenn–dann, Diagnosen, Vordiagnosen mit Risikofaktoren, Anamnese, Medikation nach Status, antiinfektive Kurse, Gerinnung, Laborverlauf, auffällige Werte, Verlaufswarnungen, Medikationscheck, Mikrobiologie, Diagnostik, Konsile, Untersuchungsbefund, To-dos, Tagesprofil, Entlassplanung und Bilanz. Leere Blöcke werden weggelassen.
 
 ---
 
@@ -507,20 +527,20 @@ Der fertige Prompt lässt sich **📋 kopieren** oder **💾 als .txt** sichern.
 
 # 14. Sichern und Übertragen
 
-Die Daten liegen im Speicher dieses Browsers. Ein gelöschter Cache, ein anderer Browser oder ein anderer PC bedeutet: leere Liste.
+Die Daten liegen im Speicher dieses Browsers. Wer Browserdaten löscht oder Browserprofil beziehungsweise Rechner wechselt, braucht ein Backup zur Wiederherstellung.
 
 | Knopf | Wirkung |
 | --- | --- |
 | 💾 **Backup** | Alle Daten als `.json`-Datei speichern. Damit lässt sich der Stand auf einem anderen Rechner wiederherstellen. |
 | 📂 **Import** | Ein Backup wieder einlesen. **Der aktuelle Stand wird dabei ersetzt**, es wird einmal nachgefragt. |
-| 👻 **Anon Backup** | Wie Backup, aber Namen werden zu „Anonym 1", Geburtsdaten zu 01.01.1900. Beides wird zusätzlich **aus allen Freitextfeldern entfernt**. Befunde, Diagnosen und Medikation bleiben vollständig. Für die Weitergabe gedacht. |
+| 👻 **Anon Backup** | Datenschutzexport mit Ersatznamen wie „Anonym 1“. Zimmer und Datumsangaben werden entfernt, Freitexte redigiert. Teile der Struktur und ausgewählte Zahlenwerte bleiben enthalten. Für eine vollständige Sicherung verwenden Sie **Backup**. |
 
 ### Speicher
 
 Der Browserspeicher fasst wenige Megabyte, und Laborverläufe füllen ihn am schnellsten.
 
 - Ab 50 % Belegung erscheint eine Anzeige in der Kopfzeile (ab 70 % orange, ab 85 % rot). Ein Klick zeigt, wie viele Patienten und Abnahmen gespeichert sind.
-- Läuft der Speicher beim Sichern über, **entfernt das Werkzeug stufenweise die ältesten Laborabnahmen** (je Patient noch 20, dann 10, 5, 2) und meldet, was entfernt wurde – statt das Speichern still fehlschlagen zu lassen. Wer den vollen Verlauf behalten will, macht vorher ein Backup.
+- Wenn das Speichern fehlschlägt, bleiben der alte Browserstand und die aktuellen Änderungen im geöffneten Fenster erhalten. Erstellen Sie vor dem Schließen oder Neuladen ein reguläres **Backup** der aktuellen Liste.
 - Liegt das letzte Backup über einen Tag zurück, erinnert ein Balken daran.
 
 ---
@@ -573,7 +593,7 @@ Präparate, die beim Import neu auftauchen, werden ohnehin automatisch ergänzt 
 - Die Anwendung **überträgt keine Daten ins Internet.** Sie braucht auch keinen Internetzugang.
 - Alles bleibt im Speicher des benutzten Browsers auf dem benutzten Rechner.
 - Patientendaten unterliegen der ärztlichen Schweigepflicht. Das Werkzeug nur auf dienstlichen Geräten verwenden.
-- Für die Weitergabe an Dritte **immer 👻 Anon Backup** benutzen.
+- Bei einer zulässigen Weitergabe den **Datenschutzexport** verwenden und die erzeugte Datei vorab prüfen.
 - Der Epikrisen-Prompt enthält keine Namen und keine Geburtsdaten, aber sehr wohl Befunde. **Vor dem Einfügen in ein KI-System lesen** und prüfen, ob die Weitergabe zulässig ist.
 - Ausdrucke enthalten Patientendaten und tragen deshalb einen Hinweis in der Fußzeile.
 
@@ -601,17 +621,31 @@ kis_med_import.js     Medikationsplan aus der KIS-Kurve
 id_pharma_import.js   Medikationsplan aus ID PHARMA CHECK
 kis_lab_import.js     Labor und BGA, Verlauf, Warnungen, Mikrobiologie
 med_safety.js         Wirkstoffklassen und Medikationscheck-Regeln
+station_model.js     Patientenmodell, strukturierte Medikation und Backup
+station_workflow.js  Ansichtsfilter, Zimmertabs und Dialoge für die Stationsarbeit
+station_labs.js      Auswahl und Darstellung der Laborverläufe
+hf_guidance.js       Abgleich zur dokumentierten Herzinsuffizienz-Basistherapie
 epikrise_export.js    Epikrisen-Prompt samt Entfernung von Name und Geburtsdatum
 
-tests/                Node- und Browsertests (node --test tests/*.test.js)
+tests/                Node-, Browser- und PDF-Tests
 build_single_file.js  Erzeugt die Einzeldatei-Fassungen neu
 build_tailwind.sh     Erzeugt tailwind.css neu – nur bei neuen Tailwind-Klassen nötig
 ```
 
 ### Tests laufen lassen
 
+Im Repository-Ordner mit Node.js 24:
+
 ```sh
-node --test tests/*.test.js
+npm ci
+npm test
+```
+
+Für die Browser- und PDF-Tests werden zusätzlich Python 3 mit Playwright, Chromium und `pdftotext` (Poppler) benötigt. Installieren Sie Playwright im vorgesehenen Python-Umfeld. Passen Sie `CHROMIUM_PATH` an Ihre lokale Chromium-Installation an.
+
+```sh
+python3 -m pip install playwright
+CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 ```
 
 ### Einzeldatei neu erzeugen
@@ -619,7 +653,7 @@ node --test tests/*.test.js
 Nach jeder Änderung an den Konfigurations- oder Moduldateien:
 
 ```sh
-node build_single_file.js
+npm run build
 ```
 
 Das Skript bettet Stylesheets und Skripte in der richtigen Reihenfolge ein und schreibt `Stationsliste-komplett.html` sowie `Medical-Suite-komplett.html`. Bleibt ein externer Verweis übrig, bricht es mit einer Fehlermeldung ab.
